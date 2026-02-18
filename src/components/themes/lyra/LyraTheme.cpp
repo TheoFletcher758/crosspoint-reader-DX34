@@ -7,6 +7,7 @@
 #include <string>
 
 #include "Battery.h"
+#include "I18n.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -300,70 +301,72 @@ void LyraTheme::drawSideButtonHints(const GfxRenderer& renderer, const char* top
 void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
                                     const int selectorIndex, bool& coverRendered, bool& coverBufferStored,
                                     bool& bufferRestored, std::function<bool()> storeCoverBuffer) const {
-  const int tileWidth = (rect.width - 2 * LyraMetrics::values.contentSidePadding) / 3;
-  const int tileHeight = rect.height;
-  const int bookTitleHeight = tileHeight - LyraMetrics::values.homeCoverHeight - hPaddingInSelection;
-  const int tileY = rect.y;
-  const bool hasContinueReading = !recentBooks.empty();
+  (void)coverRendered;
+  (void)coverBufferStored;
+  (void)bufferRestored;
+  (void)storeCoverBuffer;
 
-  // Draw book card regardless, fill with message based on `hasContinueReading`
-  // Draw cover image as background if available (inside the box)
-  // Only load from SD on first render, then use stored buffer
-  if (hasContinueReading) {
-    if (!coverRendered) {
-      for (int i = 0; i < std::min(static_cast<int>(recentBooks.size()), LyraMetrics::values.homeRecentBooksCount);
-           i++) {
-        std::string coverPath = recentBooks[i].coverBmpPath;
-        int tileX = LyraMetrics::values.contentSidePadding + tileWidth * i;
-        renderer.drawRect(tileX + hPaddingInSelection, tileY + hPaddingInSelection, tileWidth - 2 * hPaddingInSelection,
-                          LyraMetrics::values.homeCoverHeight);
-        if (!coverPath.empty()) {
-          const std::string coverBmpPath = UITheme::getCoverThumbPath(coverPath, LyraMetrics::values.homeCoverHeight);
-
-          // First time: load cover from SD and render
-          FsFile file;
-          if (Storage.openFileForRead("HOME", coverBmpPath, file)) {
-            Bitmap bitmap(file);
-            if (bitmap.parseHeaders() == BmpReaderError::Ok) {
-              float coverHeight = static_cast<float>(bitmap.getHeight());
-              float coverWidth = static_cast<float>(bitmap.getWidth());
-              float ratio = coverWidth / coverHeight;
-              const float tileRatio = static_cast<float>(tileWidth - 2 * hPaddingInSelection) /
-                                      static_cast<float>(LyraMetrics::values.homeCoverHeight);
-              float cropX = 1.0f - (tileRatio / ratio);
-              renderer.drawBitmap(bitmap, tileX + hPaddingInSelection, tileY + hPaddingInSelection,
-                                  tileWidth - 2 * hPaddingInSelection, LyraMetrics::values.homeCoverHeight, cropX);
-            }
-            file.close();
-          }
+  auto buildAuthorInitials = [](const std::string& author) {
+    std::string initials;
+    bool newWord = true;
+    for (const char ch : author) {
+      if (ch == ' ' || ch == '\t') {
+        newWord = true;
+        continue;
+      }
+      if (newWord) {
+        if (ch >= 'a' && ch <= 'z') {
+          initials.push_back(static_cast<char>(ch - ('a' - 'A')));
+        } else {
+          initials.push_back(ch);
         }
+        if (initials.size() >= 4) {
+          break;
+        }
+        newWord = false;
       }
+    }
+    return initials;
+  };
 
-      coverBufferStored = storeCoverBuffer();
-      coverRendered = true;
+  const int count = std::min(static_cast<int>(recentBooks.size()), 4);
+  if (count == 0) {
+    renderer.drawCenteredText(UI_12_FONT_ID, rect.y + rect.height / 2 - 12, tr(STR_NO_RECENT_BOOKS));
+    return;
+  }
+
+  constexpr int rowGap = 6;
+  const int rowHeight = (rect.height - rowGap * (count - 1)) / count;
+  const int textYInset = std::max(2, (rowHeight - renderer.getLineHeight(UI_10_FONT_ID)) / 2);
+
+  for (int i = 0; i < count; i++) {
+    const int rowY = rect.y + i * (rowHeight + rowGap);
+    const bool isCurrent = (i == 0);
+    const bool selected = (selectorIndex == i);
+    const bool textBlack = !isCurrent;
+    const int rowX = rect.x + LyraMetrics::values.contentSidePadding;
+    const int rowW = rect.width - LyraMetrics::values.contentSidePadding * 2;
+
+    if (isCurrent) {
+      renderer.fillRoundedRect(rowX, rowY, rowW, rowHeight, cornerRadius, Color::Black);
+    } else {
+      renderer.drawRoundedRect(rowX, rowY, rowW, rowHeight, 1, cornerRadius, true);
     }
 
-    for (int i = 0; i < std::min(static_cast<int>(recentBooks.size()), LyraMetrics::values.homeRecentBooksCount); i++) {
-      bool bookSelected = (selectorIndex == i);
-
-      int tileX = LyraMetrics::values.contentSidePadding + tileWidth * i;
-      auto title =
-          renderer.truncatedText(UI_10_FONT_ID, recentBooks[i].title.c_str(), tileWidth - 2 * hPaddingInSelection);
-
-      if (bookSelected) {
-        // Draw selection box
-        renderer.fillRoundedRect(tileX, tileY, tileWidth, hPaddingInSelection, cornerRadius, true, true, false, false,
-                                 Color::LightGray);
-        renderer.fillRectDither(tileX, tileY + hPaddingInSelection, hPaddingInSelection,
-                                LyraMetrics::values.homeCoverHeight, Color::LightGray);
-        renderer.fillRectDither(tileX + tileWidth - hPaddingInSelection, tileY + hPaddingInSelection,
-                                hPaddingInSelection, LyraMetrics::values.homeCoverHeight, Color::LightGray);
-        renderer.fillRoundedRect(tileX, tileY + LyraMetrics::values.homeCoverHeight + hPaddingInSelection, tileWidth,
-                                 bookTitleHeight, cornerRadius, false, false, true, true, Color::LightGray);
-      }
-      renderer.drawText(UI_10_FONT_ID, tileX + hPaddingInSelection,
-                        tileY + tileHeight - bookTitleHeight + hPaddingInSelection + 5, title.c_str(), true);
+    if (selected) {
+      renderer.drawRoundedRect(rowX + 2, rowY + 2, rowW - 4, rowHeight - 4, 1, cornerRadius - 1, !isCurrent);
     }
+
+    const std::string initials = buildAuthorInitials(recentBooks[i].author);
+    const int initialsWidth = renderer.getTextWidth(UI_10_FONT_ID, initials.c_str());
+    const int contentX = rowX + 12;
+    const int contentW = rowW - 24;
+    const int titleMaxWidth = contentW - initialsWidth - 10;
+    const std::string title = renderer.truncatedText(UI_10_FONT_ID, recentBooks[i].title.c_str(), titleMaxWidth);
+    const int baselineY = rowY + textYInset;
+
+    renderer.drawText(UI_10_FONT_ID, contentX, baselineY, title.c_str(), textBlack);
+    renderer.drawText(UI_10_FONT_ID, contentX + contentW - initialsWidth, baselineY, initials.c_str(), textBlack);
   }
 }
 

@@ -809,6 +809,7 @@ void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y
     const int top = glyph->top;
 
     const uint8_t* bitmap = &font.getData(style)->bitmap[offset];
+    const uint8_t synthBoldPasses = font.getSyntheticBoldPasses(style);
 
     if (bitmap != nullptr) {
       for (int glyphY = 0; glyphY < height; glyphY++) {
@@ -828,10 +829,19 @@ void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y
 
             if (renderMode == BW && bmpVal < 3) {
               drawPixel(screenX, screenY, black);
+              for (uint8_t pass = 1; pass <= synthBoldPasses; pass++) {
+                drawPixel(screenX, screenY - pass, black);
+              }
             } else if (renderMode == GRAYSCALE_MSB && (bmpVal == 1 || bmpVal == 2)) {
               drawPixel(screenX, screenY, false);
+              for (uint8_t pass = 1; pass <= synthBoldPasses; pass++) {
+                drawPixel(screenX, screenY - pass, false);
+              }
             } else if (renderMode == GRAYSCALE_LSB && bmpVal == 1) {
               drawPixel(screenX, screenY, false);
+              for (uint8_t pass = 1; pass <= synthBoldPasses; pass++) {
+                drawPixel(screenX, screenY - pass, false);
+              }
             }
           } else {
             const uint8_t byte = bitmap[pixelPosition / 8];
@@ -839,6 +849,9 @@ void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y
 
             if ((byte >> bit_index) & 1) {
               drawPixel(screenX, screenY, black);
+              for (uint8_t pass = 1; pass <= synthBoldPasses; pass++) {
+                drawPixel(screenX, screenY - pass, black);
+              }
             }
           }
         }
@@ -974,13 +987,16 @@ void GfxRenderer::renderChar(const EpdFontFamily& fontFamily, const uint32_t cp,
 
   const uint8_t* bitmap = nullptr;
   bitmap = &fontFamily.getData(style)->bitmap[offset];
+  const uint8_t synthBoldPasses = fontFamily.getSyntheticBoldPasses(style);
+  const bool synthItalic = fontFamily.shouldSynthesizeItalic(style);
 
   if (bitmap != nullptr) {
     for (int glyphY = 0; glyphY < height; glyphY++) {
       const int screenY = *y - glyph->top + glyphY;
+      const int italicShift = synthItalic ? ((height - 1 - glyphY) / 4) : 0;
       for (int glyphX = 0; glyphX < width; glyphX++) {
         const int pixelPosition = glyphY * width + glyphX;
-        const int screenX = *x + left + glyphX;
+        const int screenX = *x + left + glyphX + italicShift;
 
         if (is2Bit) {
           const uint8_t byte = bitmap[pixelPosition / 4];
@@ -993,13 +1009,22 @@ void GfxRenderer::renderChar(const EpdFontFamily& fontFamily, const uint32_t cp,
           if (renderMode == BW && bmpVal < 3) {
             // Black (also paints over the grays in BW mode)
             drawPixel(screenX, screenY, pixelState);
+            for (uint8_t pass = 1; pass <= synthBoldPasses; pass++) {
+              drawPixel(screenX + pass, screenY, pixelState);
+            }
           } else if (renderMode == GRAYSCALE_MSB && (bmpVal == 1 || bmpVal == 2)) {
             // Light gray (also mark the MSB if it's going to be a dark gray too)
             // We have to flag pixels in reverse for the gray buffers, as 0 leave alone, 1 update
             drawPixel(screenX, screenY, false);
+            for (uint8_t pass = 1; pass <= synthBoldPasses; pass++) {
+              drawPixel(screenX + pass, screenY, false);
+            }
           } else if (renderMode == GRAYSCALE_LSB && bmpVal == 1) {
             // Dark gray
             drawPixel(screenX, screenY, false);
+            for (uint8_t pass = 1; pass <= synthBoldPasses; pass++) {
+              drawPixel(screenX + pass, screenY, false);
+            }
           }
         } else {
           const uint8_t byte = bitmap[pixelPosition / 8];
@@ -1007,6 +1032,9 @@ void GfxRenderer::renderChar(const EpdFontFamily& fontFamily, const uint32_t cp,
 
           if ((byte >> bit_index) & 1) {
             drawPixel(screenX, screenY, pixelState);
+            for (uint8_t pass = 1; pass <= synthBoldPasses; pass++) {
+              drawPixel(screenX + pass, screenY, pixelState);
+            }
           }
         }
       }

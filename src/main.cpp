@@ -65,67 +65,42 @@ EpdFont bookerly18BoldItalicFont(&bookerly_18_bolditalic);
 EpdFontFamily bookerly18FontFamily(&bookerly18RegularFont, &bookerly18BoldFont, &bookerly18ItalicFont,
                                    &bookerly18BoldItalicFont);
 
-EpdFont notosans12RegularFont(&notosans_12_regular);
-EpdFont notosans12BoldFont(&notosans_12_bold);
-EpdFont notosans12ItalicFont(&notosans_12_italic);
-EpdFont notosans12BoldItalicFont(&notosans_12_bolditalic);
-EpdFontFamily notosans12FontFamily(&notosans12RegularFont, &notosans12BoldFont, &notosans12ItalicFont,
-                                   &notosans12BoldItalicFont);
-EpdFont notosans14RegularFont(&notosans_14_regular);
-EpdFont notosans14BoldFont(&notosans_14_bold);
-EpdFont notosans14ItalicFont(&notosans_14_italic);
-EpdFont notosans14BoldItalicFont(&notosans_14_bolditalic);
-EpdFontFamily notosans14FontFamily(&notosans14RegularFont, &notosans14BoldFont, &notosans14ItalicFont,
-                                   &notosans14BoldItalicFont);
-EpdFont notosans16RegularFont(&notosans_16_regular);
-EpdFont notosans16BoldFont(&notosans_16_bold);
-EpdFont notosans16ItalicFont(&notosans_16_italic);
-EpdFont notosans16BoldItalicFont(&notosans_16_bolditalic);
-EpdFontFamily notosans16FontFamily(&notosans16RegularFont, &notosans16BoldFont, &notosans16ItalicFont,
-                                   &notosans16BoldItalicFont);
-EpdFont notosans18RegularFont(&notosans_18_regular);
-EpdFont notosans18BoldFont(&notosans_18_bold);
-EpdFont notosans18ItalicFont(&notosans_18_italic);
-EpdFont notosans18BoldItalicFont(&notosans_18_bolditalic);
-EpdFontFamily notosans18FontFamily(&notosans18RegularFont, &notosans18BoldFont, &notosans18ItalicFont,
-                                   &notosans18BoldItalicFont);
-
 EpdFont unifont14RegularFont(&unifont_14_regular);
 EpdFont unifont14BoldFont(&unifont_14_regular);
 EpdFont unifont14ItalicFont(&unifont_14_regular);
 EpdFont unifont14BoldItalicFont(&unifont_14_regular);
 EpdFontFamily unifont14FontFamily(&unifont14RegularFont, &unifont14BoldFont, &unifont14ItalicFont,
-                                  &unifont14BoldItalicFont);
+                                  &unifont14BoldItalicFont, 1, 1, true);
 EpdFont unifont16RegularFont(&unifont_16_regular);
 EpdFont unifont16BoldFont(&unifont_16_regular);
 EpdFont unifont16ItalicFont(&unifont_16_regular);
 EpdFont unifont16BoldItalicFont(&unifont_16_regular);
 EpdFontFamily unifont16FontFamily(&unifont16RegularFont, &unifont16BoldFont, &unifont16ItalicFont,
-                                  &unifont16BoldItalicFont);
+                                  &unifont16BoldItalicFont, 1, 1, true);
 EpdFont unifont20RegularFont(&unifont_20_regular);
 EpdFont unifont20BoldFont(&unifont_20_regular);
 EpdFont unifont20ItalicFont(&unifont_20_regular);
 EpdFont unifont20BoldItalicFont(&unifont_20_regular);
 EpdFontFamily unifont20FontFamily(&unifont20RegularFont, &unifont20BoldFont, &unifont20ItalicFont,
-                                  &unifont20BoldItalicFont);
+                                  &unifont20BoldItalicFont, 1, 1, true);
 EpdFont unifont24RegularFont(&unifont_24_regular);
 EpdFont unifont24BoldFont(&unifont_24_regular);
 EpdFont unifont24ItalicFont(&unifont_24_regular);
 EpdFont unifont24BoldItalicFont(&unifont_24_regular);
 EpdFontFamily unifont24FontFamily(&unifont24RegularFont, &unifont24BoldFont, &unifont24ItalicFont,
-                                  &unifont24BoldItalicFont);
+                                  &unifont24BoldItalicFont, 1, 1, true);
 #endif  // OMIT_FONTS
 
-EpdFont smallFont(&notosans_8_regular);
-EpdFontFamily smallFontFamily(&smallFont);
+EpdFont smallFont(&unifont_8_regular);
+EpdFontFamily smallFontFamily(&smallFont, nullptr, nullptr, nullptr, 1, 0, false);
 
-EpdFont ui10RegularFont(&ubuntu_10_regular);
-EpdFont ui10BoldFont(&ubuntu_10_bold);
-EpdFontFamily ui10FontFamily(&ui10RegularFont, &ui10BoldFont);
+EpdFont ui10RegularFont(&unifont_10_regular);
+EpdFont ui10BoldFont(&unifont_10_regular);
+EpdFontFamily ui10FontFamily(&ui10RegularFont, &ui10BoldFont, nullptr, nullptr, 1, 1, false);
 
-EpdFont ui12RegularFont(&ubuntu_12_regular);
-EpdFont ui12BoldFont(&ubuntu_12_bold);
-EpdFontFamily ui12FontFamily(&ui12RegularFont, &ui12BoldFont);
+EpdFont ui12RegularFont(&unifont_12_regular);
+EpdFont ui12BoldFont(&unifont_12_regular);
+EpdFontFamily ui12FontFamily(&ui12RegularFont, &ui12BoldFont, nullptr, nullptr, 1, 1, false);
 
 // measurement of power button press duration calibration value
 unsigned long t1 = 0;
@@ -264,11 +239,6 @@ void setupDisplayAndFonts() {
   renderer.insertFont(BOOKERLY_12_FONT_ID, bookerly12FontFamily);
   renderer.insertFont(BOOKERLY_16_FONT_ID, bookerly16FontFamily);
   renderer.insertFont(BOOKERLY_18_FONT_ID, bookerly18FontFamily);
-
-  renderer.insertFont(NOTOSANS_12_FONT_ID, notosans12FontFamily);
-  renderer.insertFont(NOTOSANS_14_FONT_ID, notosans14FontFamily);
-  renderer.insertFont(NOTOSANS_16_FONT_ID, notosans16FontFamily);
-  renderer.insertFont(NOTOSANS_18_FONT_ID, notosans18FontFamily);
   renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
   renderer.insertFont(UNIFONT_16_FONT_ID, unifont16FontFamily);
   renderer.insertFont(UNIFONT_20_FONT_ID, unifont20FontFamily);

@@ -31,3 +31,12 @@ const EpdFontData* EpdFontFamily::getData(const Style style) const { return getF
 const EpdGlyph* EpdFontFamily::getGlyph(const uint32_t cp, const Style style) const {
   return getFont(style)->getGlyph(cp);
 };
+
+uint8_t EpdFontFamily::getSyntheticBoldPasses(const Style style) const {
+  const uint8_t boldExtra = ((style & BOLD) != 0) ? syntheticBoldExtraPasses : 0;
+  return syntheticRegularBoldPasses + boldExtra;
+}
+
+bool EpdFontFamily::shouldSynthesizeItalic(const Style style) const {
+  return syntheticItalic && ((style & ITALIC) != 0);
+}

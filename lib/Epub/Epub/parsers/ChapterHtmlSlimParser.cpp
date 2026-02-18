@@ -749,6 +749,6 @@ void ChapterHtmlSlimParser::makePages() {
 
   // Extra paragraph spacing if enabled (default behavior)
   if (extraParagraphSpacing) {
-    currentPageNextY += lineHeight / 2;
+    currentPageNextY += lineHeight / 4;
   }
 }

@@ -47,7 +47,10 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
       continue;
     }
 
-    recentBooks.push_back(book);
+    RecentBook bookWithoutCover = book;
+    // Home screen should never attempt to load/render cover images.
+    bookWithoutCover.coverBmpPath.clear();
+    recentBooks.push_back(bookWithoutCover);
   }
 }
 
@@ -250,8 +253,5 @@ void HomeActivity::render(Activity::RenderLock&&) {
   if (!firstRenderDone) {
     firstRenderDone = true;
     requestUpdate();
-  } else if (!recentsLoaded && !recentsLoading) {
-    recentsLoading = true;
-    loadRecentCovers(metrics.homeCoverHeight);
   }
 }

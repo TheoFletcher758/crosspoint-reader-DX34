@@ -199,7 +199,26 @@ bool CrossPointSettings::loadFromFile() {
     if (++settingsRead >= fileSettingsCount) break;
     readAndValidate(inputFile, sideButtonLayout, SIDE_BUTTON_LAYOUT_COUNT);
     if (++settingsRead >= fileSettingsCount) break;
-    readAndValidate(inputFile, fontFamily, FONT_FAMILY_COUNT);
+    {
+      // Legacy migration:
+      // 0 = Bookerly (unchanged)
+      // 1 = Noto Sans (removed) -> map to Bookerly
+      // 2 = OpenDyslexic/Unifont (legacy) -> map to OPENDYSLEXIC
+      uint8_t legacyFontFamily = 0;
+      serialization::readPod(inputFile, legacyFontFamily);
+      switch (legacyFontFamily) {
+        case 0:
+          fontFamily = BOOKERLY;
+          break;
+        case 2:
+          fontFamily = OPENDYSLEXIC;
+          break;
+        case 1:
+        default:
+          fontFamily = BOOKERLY;
+          break;
+      }
+    }
     if (++settingsRead >= fileSettingsCount) break;
     readAndValidate(inputFile, fontSize, FONT_SIZE_COUNT);
     if (++settingsRead >= fileSettingsCount) break;
@@ -281,17 +300,7 @@ float CrossPointSettings::getReaderLineCompression() const {
     default:
       switch (lineSpacing) {
         case TIGHT:
-          return 0.95f;
-        case NORMAL:
-        default:
-          return 1.0f;
-        case WIDE:
-          return 1.1f;
-      }
-    case NOTOSANS:
-      switch (lineSpacing) {
-        case TIGHT:
-          return 0.90f;
+          return 0.85f;
         case NORMAL:
         default:
           return 0.95f;
@@ -301,12 +310,12 @@ float CrossPointSettings::getReaderLineCompression() const {
     case OPENDYSLEXIC:
       switch (lineSpacing) {
         case TIGHT:
-          return 0.90f;
+          return 0.80f;
         case NORMAL:
         default:
-          return 0.95f;
+          return 0.85f;
         case WIDE:
-          return 1.0f;
+          return 0.90f;
       }
   }
 }
@@ -357,18 +366,6 @@ int CrossPointSettings::getReaderFontId() const {
           return BOOKERLY_16_FONT_ID;
         case EXTRA_LARGE:
           return BOOKERLY_18_FONT_ID;
-      }
-    case NOTOSANS:
-      switch (fontSize) {
-        case SMALL:
-          return NOTOSANS_12_FONT_ID;
-        case MEDIUM:
-        default:
-          return NOTOSANS_14_FONT_ID;
-        case LARGE:
-          return NOTOSANS_16_FONT_ID;
-        case EXTRA_LARGE:
-          return NOTOSANS_18_FONT_ID;
       }
     case OPENDYSLEXIC:
       switch (fontSize) {

@@ -37,10 +37,12 @@
 #include <builtinFonts/unifont_14_bolditalic.h>
 #include <builtinFonts/unifont_14_italic.h>
 #include <builtinFonts/unifont_14_regular.h>
+#include <builtinFonts/unifont_12_regular.h>
 #include <builtinFonts/unifont_16_bold.h>
 #include <builtinFonts/unifont_16_bolditalic.h>
 #include <builtinFonts/unifont_16_italic.h>
 #include <builtinFonts/unifont_16_regular.h>
+#include <builtinFonts/unifont_10_regular.h>
 #include <builtinFonts/unifont_20_bold.h>
 #include <builtinFonts/unifont_20_bolditalic.h>
 #include <builtinFonts/unifont_20_italic.h>
@@ -49,6 +51,7 @@
 #include <builtinFonts/unifont_24_bolditalic.h>
 #include <builtinFonts/unifont_24_italic.h>
 #include <builtinFonts/unifont_24_regular.h>
+#include <builtinFonts/unifont_8_regular.h>
 #include <builtinFonts/ubuntu_10_bold.h>
 #include <builtinFonts/ubuntu_10_regular.h>
 #include <builtinFonts/ubuntu_12_bold.h>
