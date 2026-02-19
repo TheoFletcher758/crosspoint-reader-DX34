@@ -10,21 +10,24 @@
 
 class MyLibraryActivity final : public Activity {
  private:
-  struct MoveTarget {
-    std::string label;
+  struct MoveBrowseEntry {
+    std::string name;
     std::string path;
+    bool isParent = false;
+    bool isMoveHere = false;
   };
 
-  enum class Mode { BROWSE, BMP_VIEW, FILE_ACTIONS, FILE_MOVE_TARGET };
+  enum class Mode { BROWSE, BMP_VIEW, FILE_ACTIONS, FILE_MOVE_BROWSER };
 
   ButtonNavigator buttonNavigator;
 
   size_t selectorIndex = 0;
   Mode mode = Mode::BROWSE;
   int fileActionIndex = 0;
-  int fileMoveTargetIndex = 0;
+  int fileMoveIndex = 0;
   std::string selectedFilePath;
-  std::vector<MoveTarget> fileMoveTargets;
+  std::string moveBrowserPath = "/";
+  std::vector<MoveBrowseEntry> moveBrowseEntries;
 
   // Files state
   std::string basepath = "/";
@@ -43,15 +46,17 @@ class MyLibraryActivity final : public Activity {
   static bool isBookFile(const std::string& filename);
   static bool isBmpFile(const std::string& filename);
   static bool isManagedFile(const std::string& filename);
+  static std::string getParentPath(const std::string& path);
   void enterBmpView(const std::string& bmpPath);
   void enterFileActions(const std::string& filePath);
-  void buildFileMoveTargets();
+  void enterFileMoveBrowser();
+  void loadMoveBrowseEntries();
   bool copyFile(const std::string& srcPath, const std::string& dstPath) const;
-  bool moveSelectedFileTo(const std::string& targetDir);
+  bool moveSelectedFileTo(const std::string& targetDir) const;
   bool deleteSelectedFile();
   void renderBmpView();
   void renderFileActions();
-  void renderFileMoveTargetPicker();
+  void renderFileMoveBrowser();
   size_t findEntry(const std::string& name) const;
 
  public:

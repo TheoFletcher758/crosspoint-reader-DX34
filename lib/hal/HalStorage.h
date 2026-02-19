@@ -2,6 +2,7 @@
 
 #include <SDCardManager.h>
 
+#include <cstdint>
 #include <vector>
 
 class HalStorage {
@@ -37,6 +38,8 @@ class HalStorage {
   bool openFileForWrite(const char* moduleName, const std::string& path, FsFile& file);
   bool openFileForWrite(const char* moduleName, const String& path, FsFile& file);
   bool removeDir(const char* path);
+  uint64_t totalBytes() const;
+  uint64_t freeBytes() const;
 
   static HalStorage& getInstance() { return instance; }
 

@@ -120,16 +120,18 @@ void drawSleepFilenameLabel(GfxRenderer& renderer, const char* filename) {
 
   const int screenWidth = renderer.getScreenWidth();
   const int screenHeight = renderer.getScreenHeight();
+  const int safeInset = 10;  // Keep label away from bezel-clipped edge area on real device.
   const int paddingX = 4;
   const int paddingY = 2;
-  const int margin = 2;
+  const int maxBoxWidth = std::max(1, screenWidth - safeInset * 2);
+  const int maxTextWidth = std::max(1, maxBoxWidth - paddingX * 2 - 2);
 
-  std::string text = renderer.truncatedText(UI_10_FONT_ID, filename, screenWidth - (margin * 2 + paddingX * 2 + 2));
+  std::string text = renderer.truncatedText(UI_10_FONT_ID, filename, maxTextWidth);
   const int textWidth = renderer.getTextWidth(UI_10_FONT_ID, text.c_str(), EpdFontFamily::BOLD);
-  const int boxWidth = textWidth + paddingX * 2;
+  const int boxWidth = std::min(textWidth + paddingX * 2, maxBoxWidth);
   const int boxHeight = 14;
-  const int boxX = margin;
-  const int boxY = screenHeight - boxHeight - margin;
+  const int boxX = safeInset;
+  const int boxY = std::max(safeInset, screenHeight - boxHeight - safeInset);
   const int textX = boxX + paddingX;
   const int textY = boxY + paddingY;
 

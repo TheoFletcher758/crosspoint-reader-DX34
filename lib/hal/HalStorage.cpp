@@ -63,3 +63,7 @@ bool HalStorage::openFileForWrite(const char* moduleName, const String& path, Fs
 }
 
 bool HalStorage::removeDir(const char* path) { return SDCard.removeDir(path); }
+
+uint64_t HalStorage::totalBytes() const { return SDCard.totalBytes(); }
+
+uint64_t HalStorage::freeBytes() const { return SDCard.freeBytes(); }

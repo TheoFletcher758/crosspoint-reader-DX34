@@ -207,12 +207,9 @@ bool CrossPointSettings::loadFromFile() {
     {
       uint8_t storedFontFamily = BOOKERLY;
       serialization::readPod(inputFile, storedFontFamily);
-      // Current format: 0 = Bookerly, 1 = Unifont (OPENDYSLEXIC enum value).
-      // Legacy compatibility: accept old value 2 and map it to Unifont.
+      // Current format: 0 = ChareInk, 1 = Unifont, 2 = Georgia.
       if (storedFontFamily < FONT_FAMILY_COUNT) {
         fontFamily = storedFontFamily;
-      } else if (storedFontFamily == 2) {
-        fontFamily = OPENDYSLEXIC;
       } else {
         fontFamily = BOOKERLY;
       }
@@ -311,6 +308,7 @@ bool CrossPointSettings::loadFromFile() {
 float CrossPointSettings::getReaderLineCompression() const {
   switch (fontFamily) {
     case BOOKERLY:
+    case GEORGIA:
     default:
       switch (lineSpacing) {
         case TIGHT:
@@ -392,6 +390,18 @@ int CrossPointSettings::getReaderFontId() const {
           return UNIFONT_20_FONT_ID;
         case EXTRA_LARGE:
           return UNIFONT_22_FONT_ID;
+      }
+    case GEORGIA:
+      switch (fontSize) {
+        case SMALL:
+          return GEORGIA_12_FONT_ID;
+        case MEDIUM:
+        default:
+          return GEORGIA_14_FONT_ID;
+        case LARGE:
+          return GEORGIA_16_FONT_ID;
+        case EXTRA_LARGE:
+          return GEORGIA_18_FONT_ID;
       }
   }
 }

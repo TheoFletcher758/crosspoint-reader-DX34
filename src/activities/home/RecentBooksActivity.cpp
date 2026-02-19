@@ -10,6 +10,7 @@
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/BookProgress.h"
 #include "util/StringUtils.h"
 
 namespace {
@@ -26,7 +27,9 @@ void RecentBooksActivity::loadRecentBooks() {
     if (!Storage.exists(book.path.c_str())) {
       continue;
     }
-    recentBooks.push_back(book);
+    RecentBook decorated = book;
+    decorated.title = BookProgress::withPrefix(book.path, book.title);
+    recentBooks.push_back(std::move(decorated));
   }
 }
 

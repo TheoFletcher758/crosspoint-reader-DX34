@@ -65,6 +65,31 @@ EpdFont bookerly18BoldItalicFont(&bookerly_18_bolditalic);
 EpdFontFamily bookerly18FontFamily(&bookerly18RegularFont, &bookerly18BoldFont, &bookerly18ItalicFont,
                                    &bookerly18BoldItalicFont);
 
+EpdFont georgia12RegularFont(&georgia_12_regular);
+EpdFont georgia12BoldFont(&georgia_12_bold);
+EpdFont georgia12ItalicFont(&georgia_12_italic);
+EpdFont georgia12BoldItalicFont(&georgia_12_bolditalic);
+EpdFontFamily georgia12FontFamily(&georgia12RegularFont, &georgia12BoldFont, &georgia12ItalicFont,
+                                  &georgia12BoldItalicFont);
+EpdFont georgia14RegularFont(&georgia_14_regular);
+EpdFont georgia14BoldFont(&georgia_14_bold);
+EpdFont georgia14ItalicFont(&georgia_14_italic);
+EpdFont georgia14BoldItalicFont(&georgia_14_bolditalic);
+EpdFontFamily georgia14FontFamily(&georgia14RegularFont, &georgia14BoldFont, &georgia14ItalicFont,
+                                  &georgia14BoldItalicFont);
+EpdFont georgia16RegularFont(&georgia_16_regular);
+EpdFont georgia16BoldFont(&georgia_16_bold);
+EpdFont georgia16ItalicFont(&georgia_16_italic);
+EpdFont georgia16BoldItalicFont(&georgia_16_bolditalic);
+EpdFontFamily georgia16FontFamily(&georgia16RegularFont, &georgia16BoldFont, &georgia16ItalicFont,
+                                  &georgia16BoldItalicFont);
+EpdFont georgia18RegularFont(&georgia_18_regular);
+EpdFont georgia18BoldFont(&georgia_18_bold);
+EpdFont georgia18ItalicFont(&georgia_18_italic);
+EpdFont georgia18BoldItalicFont(&georgia_18_bolditalic);
+EpdFontFamily georgia18FontFamily(&georgia18RegularFont, &georgia18BoldFont, &georgia18ItalicFont,
+                                  &georgia18BoldItalicFont);
+
 EpdFont unifont14RegularFont(&unifont_14_regular);
 EpdFont unifont14BoldFont(&unifont_14_regular);
 EpdFont unifont14ItalicFont(&unifont_14_regular);
@@ -251,6 +276,10 @@ void setupDisplayAndFonts() {
   renderer.insertFont(BOOKERLY_12_FONT_ID, bookerly12FontFamily);
   renderer.insertFont(BOOKERLY_16_FONT_ID, bookerly16FontFamily);
   renderer.insertFont(BOOKERLY_18_FONT_ID, bookerly18FontFamily);
+  renderer.insertFont(GEORGIA_12_FONT_ID, georgia12FontFamily);
+  renderer.insertFont(GEORGIA_14_FONT_ID, georgia14FontFamily);
+  renderer.insertFont(GEORGIA_16_FONT_ID, georgia16FontFamily);
+  renderer.insertFont(GEORGIA_18_FONT_ID, georgia18FontFamily);
   renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
   renderer.insertFont(UNIFONT_16_FONT_ID, unifont16FontFamily);
   renderer.insertFont(UNIFONT_18_FONT_ID, unifont18FontFamily);
