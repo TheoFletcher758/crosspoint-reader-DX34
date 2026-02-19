@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "../Activity.h"
@@ -16,6 +17,7 @@ class MyLibraryActivity final : public Activity {
   // Files state
   std::string basepath = "/";
   std::vector<std::string> files;
+  std::unordered_map<std::string, std::string> progressPrefixCache;
 
   // Callbacks
   const std::function<void(const std::string& path)> onSelectBook;
@@ -23,6 +25,7 @@ class MyLibraryActivity final : public Activity {
 
   // Data loading
   void loadFiles();
+  std::string getDisplayNameForEntry(size_t index);
   size_t findEntry(const std::string& name) const;
 
  public:

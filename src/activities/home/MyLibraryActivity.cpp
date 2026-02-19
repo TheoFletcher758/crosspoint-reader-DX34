@@ -9,6 +9,7 @@
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/BookProgress.h"
 #include "util/StringUtils.h"
 
 namespace {
@@ -69,6 +70,7 @@ void sortFileList(std::vector<std::string>& strs) {
 
 void MyLibraryActivity::loadFiles() {
   files.clear();
+  progressPrefixCache.clear();
 
   auto root = Storage.open(basepath.c_str());
   if (!root || !root.isDirectory()) {
@@ -100,6 +102,30 @@ void MyLibraryActivity::loadFiles() {
   }
   root.close();
   sortFileList(files);
+}
+
+std::string MyLibraryActivity::getDisplayNameForEntry(const size_t index) {
+  if (index >= files.size()) {
+    return "";
+  }
+
+  const std::string& name = files[index];
+  if (!name.empty() && name.back() == '/') {
+    return name;
+  }
+
+  std::string fullPath = basepath;
+  if (fullPath.empty() || fullPath.back() != '/') {
+    fullPath += "/";
+  }
+  fullPath += name;
+
+  auto cached = progressPrefixCache.find(fullPath);
+  if (cached == progressPrefixCache.end()) {
+    cached = progressPrefixCache.emplace(fullPath, BookProgress::getPrefix(fullPath)).first;
+  }
+
+  return cached->second + " " + name;
 }
 
 void MyLibraryActivity::onEnter() {
@@ -206,7 +232,7 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
   } else {
     GUI.drawList(
         renderer, Rect{0, contentTop, pageWidth, contentHeight}, files.size(), selectorIndex,
-        [this](int index) { return files[index]; }, nullptr, nullptr, nullptr);
+        [this](int index) { return getDisplayNameForEntry(static_cast<size_t>(index)); }, nullptr, nullptr, nullptr);
   }
 
   // Help text

@@ -18,6 +18,7 @@
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/BookProgress.h"
 #include "util/StringUtils.h"
 
 int HomeActivity::getMenuItemCount() const {
@@ -51,6 +52,7 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
     }
 
     RecentBook bookWithoutCover = book;
+    bookWithoutCover.title = BookProgress::withPrefix(book.path, book.title);
     // Home screen should never attempt to load/render cover images.
     bookWithoutCover.coverBmpPath.clear();
     recentBooks.push_back(bookWithoutCover);
