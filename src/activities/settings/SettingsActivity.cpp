@@ -155,8 +155,22 @@ void SettingsActivity::toggleCurrentSetting() {
     const bool currentValue = SETTINGS.*(setting.valuePtr);
     SETTINGS.*(setting.valuePtr) = !currentValue;
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
-    const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
-    SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
+    if (setting.valuePtr == &CrossPointSettings::fontSize &&
+        SETTINGS.fontFamily == CrossPointSettings::OPENDYSLEXIC) {
+      // Unifont exposes two reader sizes only: Small (18) and Medium/Large (20).
+      SETTINGS.fontSize =
+          (SETTINGS.fontSize == CrossPointSettings::SMALL) ? CrossPointSettings::MEDIUM : CrossPointSettings::SMALL;
+    } else {
+      const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
+      SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
+
+      if (setting.valuePtr == &CrossPointSettings::fontFamily &&
+          SETTINGS.fontFamily == CrossPointSettings::OPENDYSLEXIC) {
+        if (SETTINGS.fontSize == CrossPointSettings::LARGE) {
+          SETTINGS.fontSize = CrossPointSettings::MEDIUM;
+        }
+      }
+    }
   } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
     const int8_t currentValue = SETTINGS.*(setting.valuePtr);
     if (currentValue + setting.valueRange.step > setting.valueRange.max) {
@@ -249,8 +263,13 @@ void SettingsActivity::render(Activity::RenderLock&&) {
           const bool value = SETTINGS.*(setting.valuePtr);
           valueText = value ? tr(STR_STATE_ON) : tr(STR_STATE_OFF);
         } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
-          const uint8_t value = SETTINGS.*(setting.valuePtr);
-          valueText = I18N.get(setting.enumValues[value]);
+          if (setting.valuePtr == &CrossPointSettings::fontSize &&
+              SETTINGS.fontFamily == CrossPointSettings::OPENDYSLEXIC) {
+            valueText = (SETTINGS.fontSize == CrossPointSettings::SMALL) ? tr(STR_SMALL) : tr(STR_MEDIUM);
+          } else {
+            const uint8_t value = SETTINGS.*(setting.valuePtr);
+            valueText = I18N.get(setting.enumValues[value]);
+          }
         } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
           valueText = std::to_string(SETTINGS.*(setting.valuePtr));
         }

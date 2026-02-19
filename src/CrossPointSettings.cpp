@@ -308,7 +308,6 @@ bool CrossPointSettings::loadFromFile() {
 float CrossPointSettings::getReaderLineCompression() const {
   switch (fontFamily) {
     case BOOKERLY:
-    case GEORGIA:
     default:
       switch (lineSpacing) {
         case TIGHT:
@@ -370,38 +369,22 @@ int CrossPointSettings::getReaderFontId() const {
     default:
       switch (fontSize) {
         case SMALL:
-          return BOOKERLY_12_FONT_ID;
-        case MEDIUM:
-        default:
-          return BOOKERLY_14_FONT_ID;
-        case LARGE:
-          return BOOKERLY_16_FONT_ID;
-        case EXTRA_LARGE:
           return BOOKERLY_18_FONT_ID;
+        case MEDIUM:
+          return BOOKERLY_21_FONT_ID;
+        case LARGE:
+        default:
+          return BOOKERLY_23_FONT_ID;
       }
     case OPENDYSLEXIC:
       switch (fontSize) {
         case SMALL:
-          return UNIFONT_16_FONT_ID;
-        case MEDIUM:
-        default:
           return UNIFONT_18_FONT_ID;
-        case LARGE:
-          return UNIFONT_20_FONT_ID;
-        case EXTRA_LARGE:
-          return UNIFONT_22_FONT_ID;
-      }
-    case GEORGIA:
-      switch (fontSize) {
-        case SMALL:
-          return GEORGIA_12_FONT_ID;
         case MEDIUM:
-        default:
-          return GEORGIA_14_FONT_ID;
+          return UNIFONT_20_FONT_ID;
         case LARGE:
-          return GEORGIA_16_FONT_ID;
-        case EXTRA_LARGE:
-          return GEORGIA_18_FONT_ID;
+        default:
+          return UNIFONT_20_FONT_ID;
       }
   }
 }

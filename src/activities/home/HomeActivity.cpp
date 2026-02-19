@@ -8,6 +8,7 @@
 #include <Utf8.h>
 #include <Xtc.h>
 
+#include <algorithm>
 #include <cstring>
 #include <vector>
 
@@ -21,9 +22,13 @@
 #include "util/BookProgress.h"
 #include "util/StringUtils.h"
 
+namespace {
+constexpr const char* seeMoreLabel = "See all...";
+}
+
 int HomeActivity::getMenuItemCount() const {
   const int recentSlots = getRecentSlotCount();
-  int count = 4;  // My Library, Recents, File transfer, Settings
+  int count = 3;  // Browse files, file transfer, settings
   count += recentSlots;
   if (hasOpdsUrl) {
     count++;
@@ -32,23 +37,29 @@ int HomeActivity::getMenuItemCount() const {
 }
 
 int HomeActivity::getRecentSlotCount() const {
-  return UITheme::getInstance().getMetrics().homeRecentBooksCount;
+  return std::max(1, static_cast<int>(recentBooks.size()));
 }
 
 void HomeActivity::loadRecentBooks(int maxBooks) {
   recentBooks.clear();
+  if (maxBooks <= 0) {
+    return;
+  }
+
   const auto& books = RECENT_BOOKS.getBooks();
-  recentBooks.reserve(std::min(static_cast<int>(books.size()), maxBooks));
+  recentBooks.reserve(maxBooks);
 
   for (const RecentBook& book : books) {
-    // Limit to maximum number of recent books
-    if (recentBooks.size() >= maxBooks) {
-      break;
-    }
-
     // Skip if file no longer exists
     if (!Storage.exists(book.path.c_str())) {
       continue;
+    }
+    const auto percent = BookProgress::getPercent(book.path);
+    if (!percent.has_value() || percent.value() <= 2) {
+      continue;
+    }
+    if (recentBooks.size() >= static_cast<size_t>(maxBooks - 1)) {
+      break;
     }
 
     RecentBook bookWithoutCover = book;
@@ -57,6 +68,13 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
     bookWithoutCover.coverBmpPath.clear();
     recentBooks.push_back(bookWithoutCover);
   }
+
+  RecentBook seeMoreRow;
+  seeMoreRow.path.clear();
+  seeMoreRow.title = seeMoreLabel;
+  seeMoreRow.author.clear();
+  seeMoreRow.coverBmpPath.clear();
+  recentBooks.push_back(std::move(seeMoreRow));
 }
 
 void HomeActivity::loadRecentCovers(int coverHeight) {
@@ -201,19 +219,21 @@ void HomeActivity::loop() {
     int idx = 0;
     int menuSelectedIndex = selectorIndex - recentSlots;
     const int myLibraryIdx = idx++;
-    const int recentsIdx = idx++;
     const int opdsLibraryIdx = hasOpdsUrl ? idx++ : -1;
     const int fileTransferIdx = idx++;
     const int settingsIdx = idx;
 
     if (selectorIndex < recentBooks.size()) {
-      onSelectBook(recentBooks[selectorIndex].path);
+      const std::string& selectedPath = recentBooks[selectorIndex].path;
+      if (selectedPath.empty()) {
+        onRecentsOpen();
+      } else {
+        onSelectBook(selectedPath);
+      }
     } else if (selectorIndex < recentSlots) {
       onMyLibraryOpen();
     } else if (menuSelectedIndex == myLibraryIdx) {
       onMyLibraryOpen();
-    } else if (menuSelectedIndex == recentsIdx) {
-      onRecentsOpen();
     } else if (menuSelectedIndex == opdsLibraryIdx) {
       onOpdsBrowserOpen();
     } else if (menuSelectedIndex == fileTransferIdx) {
@@ -240,19 +260,20 @@ void HomeActivity::render(Activity::RenderLock&&) {
                           std::bind(&HomeActivity::storeCoverBuffer, this));
 
   // Build menu items dynamically
-  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_MENU_RECENT_BOOKS), tr(STR_FILE_TRANSFER),
-                                        tr(STR_SETTINGS_TITLE)};
+  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_FILE_TRANSFER), tr(STR_SETTINGS_TITLE)};
   if (hasOpdsUrl) {
-    // Insert OPDS Browser after My Library
-    menuItems.insert(menuItems.begin() + 2, tr(STR_OPDS_BROWSER));
+    // Insert OPDS Browser after Browse Files.
+    menuItems.insert(menuItems.begin() + 1, tr(STR_OPDS_BROWSER));
   }
 
+  const int menuCount = static_cast<int>(menuItems.size());
+  const int menuBlockHeight = metrics.verticalSpacing + menuCount * metrics.menuRowHeight +
+                              (menuCount > 0 ? (menuCount - 1) * metrics.menuSpacing : 0);
+  const int menuBottomGap = 8;  // Keep a small gap above bottom button hints.
+  const int menuY = pageHeight - metrics.buttonHintsHeight - menuBottomGap - menuBlockHeight;
+
   GUI.drawButtonMenu(
-      renderer,
-      Rect{0, metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.verticalSpacing, pageWidth,
-           pageHeight - (metrics.headerHeight + metrics.homeTopPadding + metrics.verticalSpacing * 2 +
-                         metrics.buttonHintsHeight)},
-      static_cast<int>(menuItems.size()), selectorIndex - recentSlots,
+      renderer, Rect{0, menuY, pageWidth, menuBlockHeight}, menuCount, selectorIndex - recentSlots,
       [&menuItems](int index) { return std::string(menuItems[index]); }, nullptr);
 
   const auto labels = mappedInput.mapLabels("", tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));

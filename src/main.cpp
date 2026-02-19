@@ -39,93 +39,38 @@ GfxRenderer renderer(display);
 Activity* currentActivity;
 
 // Fonts
-EpdFont bookerly14RegularFont(&bookerly_14_regular);
-EpdFont bookerly14BoldFont(&bookerly_14_bold);
-EpdFont bookerly14ItalicFont(&bookerly_14_italic);
-EpdFont bookerly14BoldItalicFont(&bookerly_14_bolditalic);
-EpdFontFamily bookerly14FontFamily(&bookerly14RegularFont, &bookerly14BoldFont, &bookerly14ItalicFont,
-                                   &bookerly14BoldItalicFont);
-#ifndef OMIT_FONTS
-EpdFont bookerly12RegularFont(&bookerly_12_regular);
-EpdFont bookerly12BoldFont(&bookerly_12_bold);
-EpdFont bookerly12ItalicFont(&bookerly_12_italic);
-EpdFont bookerly12BoldItalicFont(&bookerly_12_bolditalic);
-EpdFontFamily bookerly12FontFamily(&bookerly12RegularFont, &bookerly12BoldFont, &bookerly12ItalicFont,
-                                   &bookerly12BoldItalicFont);
-EpdFont bookerly16RegularFont(&bookerly_16_regular);
-EpdFont bookerly16BoldFont(&bookerly_16_bold);
-EpdFont bookerly16ItalicFont(&bookerly_16_italic);
-EpdFont bookerly16BoldItalicFont(&bookerly_16_bolditalic);
-EpdFontFamily bookerly16FontFamily(&bookerly16RegularFont, &bookerly16BoldFont, &bookerly16ItalicFont,
-                                   &bookerly16BoldItalicFont);
 EpdFont bookerly18RegularFont(&bookerly_18_regular);
 EpdFont bookerly18BoldFont(&bookerly_18_bold);
 EpdFont bookerly18ItalicFont(&bookerly_18_italic);
 EpdFont bookerly18BoldItalicFont(&bookerly_18_bolditalic);
 EpdFontFamily bookerly18FontFamily(&bookerly18RegularFont, &bookerly18BoldFont, &bookerly18ItalicFont,
                                    &bookerly18BoldItalicFont);
+#ifndef OMIT_FONTS
+EpdFont bookerly21RegularFont(&bookerly_21_regular);
+EpdFont bookerly21BoldFont(&bookerly_21_bold);
+EpdFont bookerly21ItalicFont(&bookerly_21_italic);
+EpdFont bookerly21BoldItalicFont(&bookerly_21_bolditalic);
+EpdFontFamily bookerly21FontFamily(&bookerly21RegularFont, &bookerly21BoldFont, &bookerly21ItalicFont,
+                                   &bookerly21BoldItalicFont);
+EpdFont bookerly23RegularFont(&bookerly_23_regular);
+EpdFont bookerly23BoldFont(&bookerly_23_bold);
+EpdFont bookerly23ItalicFont(&bookerly_23_italic);
+EpdFont bookerly23BoldItalicFont(&bookerly_23_bolditalic);
+EpdFontFamily bookerly23FontFamily(&bookerly23RegularFont, &bookerly23BoldFont, &bookerly23ItalicFont,
+                                   &bookerly23BoldItalicFont);
 
-EpdFont georgia12RegularFont(&georgia_12_regular);
-EpdFont georgia12BoldFont(&georgia_12_bold);
-EpdFont georgia12ItalicFont(&georgia_12_italic);
-EpdFont georgia12BoldItalicFont(&georgia_12_bolditalic);
-EpdFontFamily georgia12FontFamily(&georgia12RegularFont, &georgia12BoldFont, &georgia12ItalicFont,
-                                  &georgia12BoldItalicFont);
-EpdFont georgia14RegularFont(&georgia_14_regular);
-EpdFont georgia14BoldFont(&georgia_14_bold);
-EpdFont georgia14ItalicFont(&georgia_14_italic);
-EpdFont georgia14BoldItalicFont(&georgia_14_bolditalic);
-EpdFontFamily georgia14FontFamily(&georgia14RegularFont, &georgia14BoldFont, &georgia14ItalicFont,
-                                  &georgia14BoldItalicFont);
-EpdFont georgia16RegularFont(&georgia_16_regular);
-EpdFont georgia16BoldFont(&georgia_16_bold);
-EpdFont georgia16ItalicFont(&georgia_16_italic);
-EpdFont georgia16BoldItalicFont(&georgia_16_bolditalic);
-EpdFontFamily georgia16FontFamily(&georgia16RegularFont, &georgia16BoldFont, &georgia16ItalicFont,
-                                  &georgia16BoldItalicFont);
-EpdFont georgia18RegularFont(&georgia_18_regular);
-EpdFont georgia18BoldFont(&georgia_18_bold);
-EpdFont georgia18ItalicFont(&georgia_18_italic);
-EpdFont georgia18BoldItalicFont(&georgia_18_bolditalic);
-EpdFontFamily georgia18FontFamily(&georgia18RegularFont, &georgia18BoldFont, &georgia18ItalicFont,
-                                  &georgia18BoldItalicFont);
-
-EpdFont unifont14RegularFont(&unifont_14_regular);
-EpdFont unifont14BoldFont(&unifont_14_regular);
-EpdFont unifont14ItalicFont(&unifont_14_regular);
-EpdFont unifont14BoldItalicFont(&unifont_14_regular);
-EpdFontFamily unifont14FontFamily(&unifont14RegularFont, &unifont14BoldFont, &unifont14ItalicFont,
-                                  &unifont14BoldItalicFont, 1, 1, true);
-EpdFont unifont16RegularFont(&unifont_16_regular);
-EpdFont unifont16BoldFont(&unifont_16_regular);
-EpdFont unifont16ItalicFont(&unifont_16_regular);
-EpdFont unifont16BoldItalicFont(&unifont_16_regular);
-EpdFontFamily unifont16FontFamily(&unifont16RegularFont, &unifont16BoldFont, &unifont16ItalicFont,
-                                  &unifont16BoldItalicFont, 1, 1, true);
 EpdFont unifont18RegularFont(&unifont_18_regular);
-EpdFont unifont18BoldFont(&unifont_18_regular);
-EpdFont unifont18ItalicFont(&unifont_18_regular);
-EpdFont unifont18BoldItalicFont(&unifont_18_regular);
+EpdFont unifont18BoldFont(&unifont_18_bold);
+EpdFont unifont18ItalicFont(&unifont_18_italic);
+EpdFont unifont18BoldItalicFont(&unifont_18_bolditalic);
 EpdFontFamily unifont18FontFamily(&unifont18RegularFont, &unifont18BoldFont, &unifont18ItalicFont,
-                                  &unifont18BoldItalicFont, 1, 1, true);
+                                  &unifont18BoldItalicFont);
 EpdFont unifont20RegularFont(&unifont_20_regular);
-EpdFont unifont20BoldFont(&unifont_20_regular);
-EpdFont unifont20ItalicFont(&unifont_20_regular);
-EpdFont unifont20BoldItalicFont(&unifont_20_regular);
+EpdFont unifont20BoldFont(&unifont_20_bold);
+EpdFont unifont20ItalicFont(&unifont_20_italic);
+EpdFont unifont20BoldItalicFont(&unifont_20_bolditalic);
 EpdFontFamily unifont20FontFamily(&unifont20RegularFont, &unifont20BoldFont, &unifont20ItalicFont,
-                                  &unifont20BoldItalicFont, 1, 1, true);
-EpdFont unifont22RegularFont(&unifont_22_regular);
-EpdFont unifont22BoldFont(&unifont_22_regular);
-EpdFont unifont22ItalicFont(&unifont_22_regular);
-EpdFont unifont22BoldItalicFont(&unifont_22_regular);
-EpdFontFamily unifont22FontFamily(&unifont22RegularFont, &unifont22BoldFont, &unifont22ItalicFont,
-                                  &unifont22BoldItalicFont, 1, 1, true);
-EpdFont unifont24RegularFont(&unifont_24_regular);
-EpdFont unifont24BoldFont(&unifont_24_regular);
-EpdFont unifont24ItalicFont(&unifont_24_regular);
-EpdFont unifont24BoldItalicFont(&unifont_24_regular);
-EpdFontFamily unifont24FontFamily(&unifont24RegularFont, &unifont24BoldFont, &unifont24ItalicFont,
-                                  &unifont24BoldItalicFont, 1, 1, true);
+                                  &unifont20BoldItalicFont);
 #endif  // OMIT_FONTS
 
 EpdFont smallFont(&unifont_8_regular);
@@ -271,21 +216,12 @@ void setupDisplayAndFonts() {
   display.begin();
   renderer.begin();
   LOG_DBG("MAIN", "Display initialized");
-  renderer.insertFont(BOOKERLY_14_FONT_ID, bookerly14FontFamily);
-#ifndef OMIT_FONTS
-  renderer.insertFont(BOOKERLY_12_FONT_ID, bookerly12FontFamily);
-  renderer.insertFont(BOOKERLY_16_FONT_ID, bookerly16FontFamily);
   renderer.insertFont(BOOKERLY_18_FONT_ID, bookerly18FontFamily);
-  renderer.insertFont(GEORGIA_12_FONT_ID, georgia12FontFamily);
-  renderer.insertFont(GEORGIA_14_FONT_ID, georgia14FontFamily);
-  renderer.insertFont(GEORGIA_16_FONT_ID, georgia16FontFamily);
-  renderer.insertFont(GEORGIA_18_FONT_ID, georgia18FontFamily);
-  renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
-  renderer.insertFont(UNIFONT_16_FONT_ID, unifont16FontFamily);
+#ifndef OMIT_FONTS
+  renderer.insertFont(BOOKERLY_21_FONT_ID, bookerly21FontFamily);
+  renderer.insertFont(BOOKERLY_23_FONT_ID, bookerly23FontFamily);
   renderer.insertFont(UNIFONT_18_FONT_ID, unifont18FontFamily);
   renderer.insertFont(UNIFONT_20_FONT_ID, unifont20FontFamily);
-  renderer.insertFont(UNIFONT_22_FONT_ID, unifont22FontFamily);
-  renderer.insertFont(UNIFONT_24_FONT_ID, unifont24FontFamily);
 #endif  // OMIT_FONTS
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);
   renderer.insertFont(UI_12_FONT_ID, ui12FontFamily);

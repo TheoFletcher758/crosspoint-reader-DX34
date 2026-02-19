@@ -120,7 +120,7 @@ void drawSleepFilenameLabel(GfxRenderer& renderer, const char* filename) {
 
   const int screenWidth = renderer.getScreenWidth();
   const int screenHeight = renderer.getScreenHeight();
-  const int safeInset = 10;  // Keep label away from bezel-clipped edge area on real device.
+  const int safeInset = 18;  // Keep label well inside visible area to avoid bezel clipping.
   const int paddingX = 4;
   const int paddingY = 2;
   const int maxBoxWidth = std::max(1, screenWidth - safeInset * 2);

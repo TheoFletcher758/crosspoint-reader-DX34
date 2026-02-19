@@ -444,30 +444,38 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     return initials;
   };
 
-  constexpr int maxRows = 4;
+  const int maxRowsCap = std::max(1, UITheme::getInstance().getMetrics().homeRecentBooksCount);
   constexpr const char* placeholderLabel = "Open another book...";
-  const int count = std::min(static_cast<int>(recentBooks.size()), maxRows);
-  constexpr int rowGap = 4;
+  const int count = std::min(static_cast<int>(recentBooks.size()), maxRowsCap);
+  const int visibleRows = std::max(1, count);
+  constexpr int rowGap = 3;
   const int lineHeight = renderer.getLineHeight(UI_10_FONT_ID);
   const int preferredRowHeight = lineHeight + 6;  // Keep rows tight around text.
-  const int maxRowHeight = (rect.height - rowGap * (maxRows - 1)) / maxRows;
-  const int rowHeight = std::min(preferredRowHeight, maxRowHeight);
-  const int totalRowsHeight = rowHeight * maxRows + rowGap * (maxRows - 1);
-  const int topOffset = std::max(0, (rect.height - totalRowsHeight) / 2);
+  constexpr int statsTopInset = 18;  // Keep away from battery area.
+  constexpr int statsTextInsetY = 4;
+  constexpr int statsLineGap = 2;
+  constexpr int statsToRowsGap = 14;  // Bigger visual gap between stats and recents.
+  constexpr int rowsBottomInset = 6;
+  const int statsTextBlockHeight = lineHeight * 3 + statsLineGap * 2;
+  const int statsBoxHeight = statsTextBlockHeight + statsTextInsetY * 2;
+  const int statsTopY = rect.y + statsTopInset;
+  const int rowsTopY = statsTopY + statsBoxHeight + statsToRowsGap;
+  const int rowsAvailableHeight = rect.y + rect.height - rowsBottomInset - rowsTopY;
+  const int maxRowHeight = (rowsAvailableHeight - rowGap * (visibleRows - 1)) / visibleRows;
+  const int rowHeight = std::max(lineHeight + 2, std::min(preferredRowHeight, maxRowHeight));
   const int textYInset = std::max(2, (rowHeight - renderer.getLineHeight(UI_10_FONT_ID)) / 2);
   const int rowX = rect.x + BaseMetrics::values.contentSidePadding;
   const int rowW = rect.width - BaseMetrics::values.contentSidePadding * 2;
   const int contentX = rowX + 12;
   const int contentW = rowW - 24;
 
-  // Use the blank area above recents to show home stats.
-  const int tipAreaHeight = topOffset - 12;
-  if (tipAreaHeight >= 44) {
+  // Use the area above recents to show home stats.
+  if (rowHeight >= lineHeight + 2 && rowsAvailableHeight > 0) {
     const auto& stats = getHomeInfoStats();
     const int tipX = rowX;
-    const int tipY = rect.y + 6;
+    const int tipY = statsTopY;
     const int tipW = rowW;
-    const int tipH = tipAreaHeight;
+    const int tipH = statsBoxHeight;
     drawDashedRect(renderer, tipX, tipY, tipW, tipH);
 
     const uint64_t gbScale = 1024ull * 1024ull * 1024ull;
@@ -478,49 +486,50 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
                               std::to_string(freeTenthsGb % 10ull) + " GB";
 
     const int tipTextMaxWidth = tipW - 16;
-    const int lineStep = renderer.getLineHeight(UI_10_FONT_ID) + 2;
-    const int textY = tipY + 4;
-    renderer.drawText(UI_10_FONT_ID, tipX + 8, textY, renderer.truncatedText(UI_10_FONT_ID, line1.c_str(), tipTextMaxWidth).c_str(), true, EpdFontFamily::BOLD);
+    const int lineStep = lineHeight + statsLineGap;
+    const int textY = tipY + statsTextInsetY;
+    renderer.drawText(
+        UI_10_FONT_ID, tipX + 8, textY, renderer.truncatedText(UI_10_FONT_ID, line1.c_str(), tipTextMaxWidth).c_str(),
+        true, EpdFontFamily::BOLD);
     renderer.drawText(UI_10_FONT_ID, tipX + 8, textY + lineStep,
                       renderer.truncatedText(UI_10_FONT_ID, line2.c_str(), tipTextMaxWidth).c_str(), true);
     renderer.drawText(UI_10_FONT_ID, tipX + 8, textY + lineStep * 2,
                       renderer.truncatedText(UI_10_FONT_ID, line3.c_str(), tipTextMaxWidth).c_str(), true);
-  }
+    for (int i = 0; i < visibleRows; i++) {
+      const bool hasBook = i < count;
+      const int rowY = rowsTopY + i * (rowHeight + rowGap);
+      const bool isCurrent = hasBook && (i == 0);  // Most recent/currently open entry
+      const bool selected = (selectorIndex == i);
+      const bool filledRow = isCurrent || selected;
+      const bool textBlack = !filledRow;
 
-  for (int i = 0; i < maxRows; i++) {
-    const bool hasBook = i < count;
-    const int rowY = rect.y + topOffset + i * (rowHeight + rowGap);
-    const bool isCurrent = hasBook && (i == 0);  // Most recent/currently open entry
-    const bool selected = (selectorIndex == i);
-    const bool filledRow = isCurrent || selected;
-    const bool textBlack = !filledRow;
+      if (filledRow) {
+        renderer.fillRect(rowX, rowY, rowW, rowHeight, true);
+      } else {
+        renderer.drawRect(rowX, rowY, rowW, rowHeight, true);
+      }
 
-    if (filledRow) {
-      renderer.fillRect(rowX, rowY, rowW, rowHeight, true);
-    } else {
-      renderer.drawRect(rowX, rowY, rowW, rowHeight, true);
+      if (selected) {
+        renderer.drawRect(rowX + 2, rowY + 2, rowW - 4, rowHeight - 4, !filledRow);
+      }
+
+      const int baselineY = rowY + textYInset;
+      if (!hasBook) {
+        const std::string placeholder = renderer.truncatedText(UI_10_FONT_ID, placeholderLabel, contentW);
+        const int placeholderWidth = renderer.getTextWidth(UI_10_FONT_ID, placeholder.c_str());
+        renderer.drawText(UI_10_FONT_ID, contentX + (contentW - placeholderWidth) / 2, baselineY, placeholder.c_str(),
+                          textBlack);
+        continue;
+      }
+
+      const std::string initials = buildAuthorInitials(recentBooks[i].author);
+      const int initialsWidth = renderer.getTextWidth(UI_10_FONT_ID, initials.c_str());
+      const int titleMaxWidth = contentW - initialsWidth - 10;
+      const std::string title = renderer.truncatedText(UI_10_FONT_ID, recentBooks[i].title.c_str(), titleMaxWidth);
+
+      renderer.drawText(UI_10_FONT_ID, contentX, baselineY, title.c_str(), textBlack);
+      renderer.drawText(UI_10_FONT_ID, contentX + contentW - initialsWidth, baselineY, initials.c_str(), textBlack);
     }
-
-    if (selected) {
-      renderer.drawRect(rowX + 2, rowY + 2, rowW - 4, rowHeight - 4, !filledRow);
-    }
-
-    const int baselineY = rowY + textYInset;
-    if (!hasBook) {
-      const std::string placeholder = renderer.truncatedText(UI_10_FONT_ID, placeholderLabel, contentW);
-      const int placeholderWidth = renderer.getTextWidth(UI_10_FONT_ID, placeholder.c_str());
-      renderer.drawText(UI_10_FONT_ID, contentX + (contentW - placeholderWidth) / 2, baselineY, placeholder.c_str(),
-                        textBlack);
-      continue;
-    }
-
-    const std::string initials = buildAuthorInitials(recentBooks[i].author);
-    const int initialsWidth = renderer.getTextWidth(UI_10_FONT_ID, initials.c_str());
-    const int titleMaxWidth = contentW - initialsWidth - 10;
-    const std::string title = renderer.truncatedText(UI_10_FONT_ID, recentBooks[i].title.c_str(), titleMaxWidth);
-
-    renderer.drawText(UI_10_FONT_ID, contentX, baselineY, title.c_str(), textBlack);
-    renderer.drawText(UI_10_FONT_ID, contentX + contentW - initialsWidth, baselineY, initials.c_str(), textBlack);
   }
 }
 
@@ -593,6 +602,7 @@ void BaseTheme::drawReadingProgressBar(const GfxRenderer& renderer, const size_t
   const int progressBarMaxWidth = renderer.getScreenWidth() - vieweableMarginLeft - vieweableMarginRight;
   const int progressBarY =
       renderer.getScreenHeight() - vieweableMarginBottom - BaseMetrics::values.bookProgressBarHeight;
+  const int progressBarHeight = BaseMetrics::values.bookProgressBarHeight + vieweableMarginBottom;
   const int barWidth = progressBarMaxWidth * bookProgress / 100;
-  renderer.fillRect(vieweableMarginLeft, progressBarY, barWidth, BaseMetrics::values.bookProgressBarHeight, true);
+  renderer.fillRect(vieweableMarginLeft, progressBarY, barWidth, progressBarHeight, true);
 }

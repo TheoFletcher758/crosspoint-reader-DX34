@@ -13,7 +13,7 @@
 namespace {
 constexpr uint8_t RECENT_BOOKS_FILE_VERSION = 3;
 constexpr char RECENT_BOOKS_FILE[] = "/.crosspoint/recent.bin";
-constexpr int MAX_RECENT_BOOKS = 10;
+constexpr int MAX_RECENT_BOOKS = 100;
 }  // namespace
 
 RecentBooksStore RecentBooksStore::instance;

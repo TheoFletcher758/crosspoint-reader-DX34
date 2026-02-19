@@ -27,6 +27,10 @@ void RecentBooksActivity::loadRecentBooks() {
     if (!Storage.exists(book.path.c_str())) {
       continue;
     }
+    const auto percent = BookProgress::getPercent(book.path);
+    if (!percent.has_value() || percent.value() <= 2) {
+      continue;
+    }
     RecentBook decorated = book;
     decorated.title = BookProgress::withPrefix(book.path, book.title);
     recentBooks.push_back(std::move(decorated));
@@ -102,10 +106,8 @@ void RecentBooksActivity::render(Activity::RenderLock&&) {
   if (recentBooks.empty()) {
     renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, contentTop + 20, tr(STR_NO_RECENT_BOOKS));
   } else {
-    GUI.drawList(
-        renderer, Rect{0, contentTop, pageWidth, contentHeight}, recentBooks.size(), selectorIndex,
-        [this](int index) { return recentBooks[index].title; }, [this](int index) { return recentBooks[index].author; },
-        nullptr, nullptr);
+    GUI.drawList(renderer, Rect{0, contentTop, pageWidth, contentHeight}, recentBooks.size(), selectorIndex,
+                 [this](int index) { return recentBooks[index].title; }, nullptr, nullptr, nullptr);
   }
 
   // Help text
