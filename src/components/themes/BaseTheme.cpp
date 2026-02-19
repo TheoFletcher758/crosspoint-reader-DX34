@@ -332,43 +332,53 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     return initials;
   };
 
-  const int count = std::min(static_cast<int>(recentBooks.size()), 4);
-  if (count == 0) {
-    renderer.drawCenteredText(UI_12_FONT_ID, rect.y + rect.height / 2 - 12, tr(STR_NO_RECENT_BOOKS));
-    return;
-  }
-
-  constexpr int rowGap = 6;
-  const int rowHeight = (rect.height - rowGap * (count - 1)) / count;
+  constexpr int maxRows = 4;
+  constexpr const char* placeholderLabel = "Open another book...";
+  const int count = std::min(static_cast<int>(recentBooks.size()), maxRows);
+  constexpr int rowGap = 4;
+  const int lineHeight = renderer.getLineHeight(UI_10_FONT_ID);
+  const int preferredRowHeight = lineHeight + 6;  // Keep rows tight around text.
+  const int maxRowHeight = (rect.height - rowGap * (maxRows - 1)) / maxRows;
+  const int rowHeight = std::min(preferredRowHeight, maxRowHeight);
+  const int totalRowsHeight = rowHeight * maxRows + rowGap * (maxRows - 1);
+  const int topOffset = std::max(0, (rect.height - totalRowsHeight) / 2);
   const int textYInset = std::max(2, (rowHeight - renderer.getLineHeight(UI_10_FONT_ID)) / 2);
+  const int rowX = rect.x + BaseMetrics::values.contentSidePadding;
+  const int rowW = rect.width - BaseMetrics::values.contentSidePadding * 2;
+  const int contentX = rowX + 12;
+  const int contentW = rowW - 24;
 
-  for (int i = 0; i < count; i++) {
-    const int rowY = rect.y + i * (rowHeight + rowGap);
-    const bool isCurrent = (i == 0);  // Most recent/currently open entry
+  for (int i = 0; i < maxRows; i++) {
+    const bool hasBook = i < count;
+    const int rowY = rect.y + topOffset + i * (rowHeight + rowGap);
+    const bool isCurrent = hasBook && (i == 0);  // Most recent/currently open entry
     const bool selected = (selectorIndex == i);
-    const bool textBlack = !isCurrent;
+    const bool filledRow = isCurrent || selected;
+    const bool textBlack = !filledRow;
 
-    if (isCurrent) {
-      renderer.fillRoundedRect(rect.x + BaseMetrics::values.contentSidePadding, rowY,
-                               rect.width - BaseMetrics::values.contentSidePadding * 2, rowHeight, 6, Color::Black);
+    if (filledRow) {
+      renderer.fillRect(rowX, rowY, rowW, rowHeight, true);
     } else {
-      renderer.drawRoundedRect(rect.x + BaseMetrics::values.contentSidePadding, rowY,
-                               rect.width - BaseMetrics::values.contentSidePadding * 2, rowHeight, 1, 6, true);
+      renderer.drawRect(rowX, rowY, rowW, rowHeight, true);
     }
 
     if (selected) {
-      renderer.drawRoundedRect(rect.x + BaseMetrics::values.contentSidePadding + 2, rowY + 2,
-                               rect.width - BaseMetrics::values.contentSidePadding * 2 - 4, rowHeight - 4, 1, 5,
-                               !isCurrent);
+      renderer.drawRect(rowX + 2, rowY + 2, rowW - 4, rowHeight - 4, !filledRow);
+    }
+
+    const int baselineY = rowY + textYInset;
+    if (!hasBook) {
+      const std::string placeholder = renderer.truncatedText(UI_10_FONT_ID, placeholderLabel, contentW);
+      const int placeholderWidth = renderer.getTextWidth(UI_10_FONT_ID, placeholder.c_str());
+      renderer.drawText(UI_10_FONT_ID, contentX + (contentW - placeholderWidth) / 2, baselineY, placeholder.c_str(),
+                        textBlack);
+      continue;
     }
 
     const std::string initials = buildAuthorInitials(recentBooks[i].author);
     const int initialsWidth = renderer.getTextWidth(UI_10_FONT_ID, initials.c_str());
-    const int contentX = rect.x + BaseMetrics::values.contentSidePadding + 12;
-    const int contentW = rect.width - BaseMetrics::values.contentSidePadding * 2 - 24;
     const int titleMaxWidth = contentW - initialsWidth - 10;
     const std::string title = renderer.truncatedText(UI_10_FONT_ID, recentBooks[i].title.c_str(), titleMaxWidth);
-    const int baselineY = rowY + textYInset;
 
     renderer.drawText(UI_10_FONT_ID, contentX, baselineY, title.c_str(), textBlack);
     renderer.drawText(UI_10_FONT_ID, contentX + contentW - initialsWidth, baselineY, initials.c_str(), textBlack);

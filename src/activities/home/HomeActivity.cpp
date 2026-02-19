@@ -21,14 +21,17 @@
 #include "util/StringUtils.h"
 
 int HomeActivity::getMenuItemCount() const {
+  const int recentSlots = getRecentSlotCount();
   int count = 4;  // My Library, Recents, File transfer, Settings
-  if (!recentBooks.empty()) {
-    count += recentBooks.size();
-  }
+  count += recentSlots;
   if (hasOpdsUrl) {
     count++;
   }
   return count;
+}
+
+int HomeActivity::getRecentSlotCount() const {
+  return UITheme::getInstance().getMetrics().homeRecentBooksCount;
 }
 
 void HomeActivity::loadRecentBooks(int maxBooks) {
@@ -177,6 +180,7 @@ void HomeActivity::freeCoverBuffer() {
 }
 
 void HomeActivity::loop() {
+  const int recentSlots = getRecentSlotCount();
   const int menuCount = getMenuItemCount();
 
   buttonNavigator.onNext([this, menuCount] {
@@ -192,7 +196,7 @@ void HomeActivity::loop() {
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     // Calculate dynamic indices based on which options are available
     int idx = 0;
-    int menuSelectedIndex = selectorIndex - static_cast<int>(recentBooks.size());
+    int menuSelectedIndex = selectorIndex - recentSlots;
     const int myLibraryIdx = idx++;
     const int recentsIdx = idx++;
     const int opdsLibraryIdx = hasOpdsUrl ? idx++ : -1;
@@ -201,6 +205,8 @@ void HomeActivity::loop() {
 
     if (selectorIndex < recentBooks.size()) {
       onSelectBook(recentBooks[selectorIndex].path);
+    } else if (selectorIndex < recentSlots) {
+      onMyLibraryOpen();
     } else if (menuSelectedIndex == myLibraryIdx) {
       onMyLibraryOpen();
     } else if (menuSelectedIndex == recentsIdx) {
@@ -217,6 +223,7 @@ void HomeActivity::loop() {
 
 void HomeActivity::render(Activity::RenderLock&&) {
   auto metrics = UITheme::getInstance().getMetrics();
+  const int recentSlots = getRecentSlotCount();
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
 
@@ -242,7 +249,7 @@ void HomeActivity::render(Activity::RenderLock&&) {
       Rect{0, metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.verticalSpacing, pageWidth,
            pageHeight - (metrics.headerHeight + metrics.homeTopPadding + metrics.verticalSpacing * 2 +
                          metrics.buttonHintsHeight)},
-      static_cast<int>(menuItems.size()), selectorIndex - recentBooks.size(),
+      static_cast<int>(menuItems.size()), selectorIndex - recentSlots,
       [&menuItems](int index) { return std::string(menuItems[index]); }, nullptr);
 
   const auto labels = mappedInput.mapLabels("", tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
