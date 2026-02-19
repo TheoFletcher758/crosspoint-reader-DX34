@@ -23,6 +23,7 @@ namespace {
 constexpr unsigned long skipChapterMs = 700;
 constexpr unsigned long goHomeMs = 1000;
 constexpr unsigned long doubleBackMs = 350;
+constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int statusBarMargin = 19;
 constexpr int progressBarMarginTop = 1;
 constexpr int recentSwitcherRows = 8;
@@ -80,11 +81,17 @@ void EpubReaderActivity::onEnter() {
     if (dataSize == 4 || dataSize == 6) {
       currentSpineIndex = data[0] + (data[1] << 8);
       nextPageNumber = data[2] + (data[3] << 8);
+      lastSavedSpineIndex = currentSpineIndex;
+      lastSavedPage = nextPageNumber;
+      lastObservedSpineIndex = currentSpineIndex;
+      lastObservedPage = nextPageNumber;
       cachedSpineIndex = currentSpineIndex;
       LOG_DBG("ERS", "Loaded cache: %d, %d", currentSpineIndex, nextPageNumber);
     }
     if (dataSize == 6) {
       cachedChapterTotalPageCount = data[4] + (data[5] << 8);
+      lastSavedPageCount = cachedChapterTotalPageCount;
+      lastObservedPageCount = cachedChapterTotalPageCount;
     }
     f.close();
   }
@@ -108,6 +115,7 @@ void EpubReaderActivity::onEnter() {
 }
 
 void EpubReaderActivity::onExit() {
+  flushProgressIfNeeded(true);
   ActivityWithSubactivity::onExit();
 
   // Reset orientation back to portrait for the rest of the UI
@@ -120,6 +128,8 @@ void EpubReaderActivity::onExit() {
 }
 
 void EpubReaderActivity::loop() {
+  flushProgressIfNeeded(false);
+
   // Pass input responsibility to sub activity if exists
   if (subActivity) {
     subActivity->loop();
@@ -482,6 +492,13 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
           epub->setupCacheDir();
 
           saveProgress(backupSpine, backupPage, backupPageCount);
+          lastSavedSpineIndex = backupSpine;
+          lastSavedPage = backupPage;
+          lastSavedPageCount = backupPageCount;
+          lastObservedSpineIndex = backupSpine;
+          lastObservedPage = backupPage;
+          lastObservedPageCount = backupPageCount;
+          progressDirty = false;
         }
       }
       // Defer go home to avoid race condition with display task
@@ -699,7 +716,19 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
     renderContents(std::move(p), orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
     LOG_DBG("ERS", "Rendered page in %dms", millis() - start);
   }
-  saveProgress(currentSpineIndex, section->currentPage, section->pageCount);
+  if (lastObservedSpineIndex != currentSpineIndex || lastObservedPage != section->currentPage ||
+      lastObservedPageCount != section->pageCount) {
+    lastObservedSpineIndex = currentSpineIndex;
+    lastObservedPage = section->currentPage;
+    lastObservedPageCount = section->pageCount;
+    if (lastSavedSpineIndex != currentSpineIndex || lastSavedPage != section->currentPage ||
+        lastSavedPageCount != section->pageCount) {
+      progressDirty = true;
+      lastProgressChangeMs = millis();
+    }
+  }
+
+  flushProgressIfNeeded(false);
 }
 
 void EpubReaderActivity::loadRecentSwitcherBooks() {
@@ -777,6 +806,26 @@ void EpubReaderActivity::saveProgress(int spineIndex, int currentPage, int pageC
   } else {
     LOG_ERR("ERS", "Could not save progress!");
   }
+}
+
+void EpubReaderActivity::flushProgressIfNeeded(const bool force) {
+  if (!epub || !section || section->pageCount <= 0) {
+    return;
+  }
+  if (!progressDirty) {
+    return;
+  }
+
+  const auto now = millis();
+  if (!force && now - lastProgressChangeMs < progressSaveDebounceMs) {
+    return;
+  }
+
+  saveProgress(currentSpineIndex, section->currentPage, section->pageCount);
+  lastSavedSpineIndex = currentSpineIndex;
+  lastSavedPage = section->currentPage;
+  lastSavedPageCount = section->pageCount;
+  progressDirty = false;
 }
 void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int orientedMarginTop,
                                         const int orientedMarginRight, const int orientedMarginBottom,

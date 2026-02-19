@@ -24,6 +24,7 @@ namespace {
 constexpr unsigned long skipPageMs = 700;
 constexpr unsigned long goHomeMs = 1000;
 constexpr unsigned long doubleBackMs = 350;
+constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int recentSwitcherRows = 8;
 }  // namespace
 
@@ -49,6 +50,7 @@ void XtcReaderActivity::onEnter() {
 }
 
 void XtcReaderActivity::onExit() {
+  flushProgressIfNeeded(true);
   ActivityWithSubactivity::onExit();
 
   APP_STATE.readerActivityLoadCount = 0;
@@ -57,6 +59,8 @@ void XtcReaderActivity::onExit() {
 }
 
 void XtcReaderActivity::loop() {
+  flushProgressIfNeeded(false);
+
   // Pass input responsibility to sub activity if exists
   if (subActivity) {
     subActivity->loop();
@@ -205,7 +209,14 @@ void XtcReaderActivity::render(Activity::RenderLock&&) {
   }
 
   renderPage();
-  saveProgress();
+  if (lastObservedPage != static_cast<int32_t>(currentPage)) {
+    lastObservedPage = static_cast<int32_t>(currentPage);
+    if (lastSavedPage != static_cast<int32_t>(currentPage)) {
+      progressDirty = true;
+      lastProgressChangeMs = millis();
+    }
+  }
+  flushProgressIfNeeded(false);
 }
 
 void XtcReaderActivity::loadRecentSwitcherBooks() {
@@ -337,16 +348,6 @@ void XtcReaderActivity::renderPage() {
     // Optimized grayscale rendering without storeBwBuffer (saves 48KB peak memory)
     // Flow: BW display → LSB/MSB passes → grayscale display → re-render BW for next frame
 
-    // Count pixel distribution for debugging
-    uint32_t pixelCounts[4] = {0, 0, 0, 0};
-    for (uint16_t y = 0; y < pageHeight; y++) {
-      for (uint16_t x = 0; x < pageWidth; x++) {
-        pixelCounts[getPixelValue(x, y)]++;
-      }
-    }
-    LOG_DBG("XTR", "Pixel distribution: White=%lu, DarkGrey=%lu, LightGrey=%lu, Black=%lu", pixelCounts[0],
-            pixelCounts[1], pixelCounts[2], pixelCounts[3]);
-
     // Pass 1: BW buffer - draw all non-white pixels as black
     for (uint16_t y = 0; y < pageHeight; y++) {
       for (uint16_t x = 0; x < pageWidth; x++) {
@@ -460,6 +461,21 @@ void XtcReaderActivity::saveProgress() const {
   }
 }
 
+void XtcReaderActivity::flushProgressIfNeeded(const bool force) {
+  if (!xtc || !progressDirty) {
+    return;
+  }
+
+  const auto now = millis();
+  if (!force && now - lastProgressChangeMs < progressSaveDebounceMs) {
+    return;
+  }
+
+  saveProgress();
+  lastSavedPage = static_cast<int32_t>(currentPage);
+  progressDirty = false;
+}
+
 void XtcReaderActivity::loadProgress() {
   FsFile f;
   if (Storage.openFileForRead("XTR", xtc->getCachePath() + "/progress.bin", f)) {
@@ -467,6 +483,9 @@ void XtcReaderActivity::loadProgress() {
     if (f.read(data, 4) == 4) {
       currentPage = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
       LOG_DBG("XTR", "Loaded progress: page %lu", currentPage);
+      lastSavedPage = static_cast<int32_t>(currentPage);
+      lastObservedPage = static_cast<int32_t>(currentPage);
+      progressDirty = false;
 
       // Validate page number
       if (currentPage >= xtc->getPageCount()) {

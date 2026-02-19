@@ -15,6 +15,9 @@ void Activity::renderTaskLoop() {
       RenderLock lock(*this);
       render(std::move(lock));
     }
+    if (renderDoneSemaphore) {
+      xSemaphoreGive(renderDoneSemaphore);
+    }
   }
 }
 
@@ -48,8 +51,16 @@ void Activity::requestUpdate() {
 }
 
 void Activity::requestUpdateAndWait() {
-  // FIXME @ngxson : properly implement this using freeRTOS notification
-  delay(100);
+  if (!renderTaskHandle || !renderDoneSemaphore) {
+    return;
+  }
+
+  // Drain stale completion signals so we wait for the frame we are about to request.
+  while (xSemaphoreTake(renderDoneSemaphore, 0) == pdTRUE) {
+  }
+
+  requestUpdate();
+  xSemaphoreTake(renderDoneSemaphore, pdMS_TO_TICKS(250));
 }
 
 // RenderLock

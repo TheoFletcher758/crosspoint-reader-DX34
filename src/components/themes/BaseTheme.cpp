@@ -20,6 +20,111 @@ constexpr int batteryPercentSpacing = 4;
 constexpr int homeMenuMargin = 20;
 constexpr int homeMarginTop = 30;
 
+bool endsWithIgnoreCase(const char* text, const char* suffix) {
+  if (!text || !suffix) return false;
+  size_t textLen = 0;
+  while (text[textLen] != '\0') textLen++;
+  size_t suffixLen = 0;
+  while (suffix[suffixLen] != '\0') suffixLen++;
+  if (suffixLen > textLen) return false;
+
+  const size_t start = textLen - suffixLen;
+  for (size_t i = 0; i < suffixLen; ++i) {
+    char a = text[start + i];
+    char b = suffix[i];
+    if (a >= 'A' && a <= 'Z') a = static_cast<char>(a + ('a' - 'A'));
+    if (b >= 'A' && b <= 'Z') b = static_cast<char>(b + ('a' - 'A'));
+    if (a != b) return false;
+  }
+  return true;
+}
+
+bool isBookFile(const char* name) {
+  return endsWithIgnoreCase(name, ".epub") || endsWithIgnoreCase(name, ".xtc") || endsWithIgnoreCase(name, ".xtch") ||
+         endsWithIgnoreCase(name, ".txt");
+}
+
+bool isBmpFile(const char* name) { return endsWithIgnoreCase(name, ".bmp"); }
+
+void countFilesRecursive(FsFile& dir, uint32_t& bookCount, uint32_t& bmpCount, bool countBooks, bool countBmps) {
+  char name[256];
+  for (auto entry = dir.openNextFile(); entry; entry = dir.openNextFile()) {
+    entry.getName(name, sizeof(name));
+    if (entry.isDirectory()) {
+      if (name[0] != '.') {
+        countFilesRecursive(entry, bookCount, bmpCount, countBooks, countBmps);
+      }
+      entry.close();
+      continue;
+    }
+
+    if (countBooks && isBookFile(name)) {
+      ++bookCount;
+    }
+    if (countBmps && isBmpFile(name)) {
+      ++bmpCount;
+    }
+    entry.close();
+  }
+}
+
+void drawDashedRect(const GfxRenderer& renderer, int x, int y, int w, int h) {
+  constexpr int dash = 5;
+  constexpr int gap = 3;
+  constexpr int step = dash + gap;
+  const int x2 = x + w - 1;
+  const int y2 = y + h - 1;
+
+  for (int px = x; px <= x2; px += step) {
+    const int end = std::min(px + dash - 1, x2);
+    renderer.drawLine(px, y, end, y);
+    renderer.drawLine(px, y2, end, y2);
+  }
+  for (int py = y; py <= y2; py += step) {
+    const int end = std::min(py + dash - 1, y2);
+    renderer.drawLine(x, py, x, end);
+    renderer.drawLine(x2, py, x2, end);
+  }
+}
+
+struct HomeInfoStats {
+  uint32_t bookCount = 0;
+  uint32_t sleepBmpCount = 0;
+  uint64_t freeBytes = 0;
+  bool valid = false;
+};
+
+HomeInfoStats gHomeInfoStats;
+
+void scanHomeInfoStats(HomeInfoStats& stats) {
+  stats.bookCount = 0;
+  stats.sleepBmpCount = 0;
+  stats.freeBytes = Storage.freeBytes();
+
+  auto root = Storage.open("/");
+  if (root && root.isDirectory()) {
+    countFilesRecursive(root, stats.bookCount, stats.sleepBmpCount, true, false);
+    root.close();
+  }
+
+  auto sleepDir = Storage.open("/sleep");
+  if (sleepDir && sleepDir.isDirectory()) {
+    countFilesRecursive(sleepDir, stats.bookCount, stats.sleepBmpCount, false, true);
+    sleepDir.close();
+  }
+
+  stats.valid = true;
+}
+
+const HomeInfoStats& getHomeInfoStats() {
+  if (gHomeInfoStats.valid) {
+    return gHomeInfoStats;
+  }
+
+  scanHomeInfoStats(gHomeInfoStats);
+  return gHomeInfoStats;
+}
+
 // Helper: draw battery icon at given position
 void drawBatteryIcon(const GfxRenderer& renderer, int x, int y, int battWidth, int rectHeight, uint16_t percentage) {
   // Top line
@@ -43,6 +148,13 @@ void drawBatteryIcon(const GfxRenderer& renderer, int x, int y, int battWidth, i
   renderer.fillRect(x + 2, y + 2, filledWidth, rectHeight - 4);
 }
 }  // namespace
+
+void BaseTheme::invalidateHomeInfoStats() { gHomeInfoStats.valid = false; }
+
+void BaseTheme::refreshHomeInfoStats() {
+  gHomeInfoStats.valid = false;
+  scanHomeInfoStats(gHomeInfoStats);
+}
 
 void BaseTheme::drawBatteryLeft(const GfxRenderer& renderer, Rect rect, const bool showPercentage) const {
   // Left aligned: icon on left, percentage on right (reader mode)
@@ -347,6 +459,33 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   const int rowW = rect.width - BaseMetrics::values.contentSidePadding * 2;
   const int contentX = rowX + 12;
   const int contentW = rowW - 24;
+
+  // Use the blank area above recents to show home stats.
+  const int tipAreaHeight = topOffset - 12;
+  if (tipAreaHeight >= 44) {
+    const auto& stats = getHomeInfoStats();
+    const int tipX = rowX;
+    const int tipY = rect.y + 6;
+    const int tipW = rowW;
+    const int tipH = tipAreaHeight;
+    drawDashedRect(renderer, tipX, tipY, tipW, tipH);
+
+    const uint64_t gbScale = 1024ull * 1024ull * 1024ull;
+    const uint64_t freeTenthsGb = (stats.freeBytes * 10ull) / gbScale;
+    const std::string line1 = "# of books: " + std::to_string(stats.bookCount);
+    const std::string line2 = "# of .bmp images: " + std::to_string(stats.sleepBmpCount);
+    const std::string line3 = "Free Space in SD card: " + std::to_string(freeTenthsGb / 10ull) + "." +
+                              std::to_string(freeTenthsGb % 10ull) + " GB";
+
+    const int tipTextMaxWidth = tipW - 16;
+    const int lineStep = renderer.getLineHeight(UI_10_FONT_ID) + 2;
+    const int textY = tipY + 4;
+    renderer.drawText(UI_10_FONT_ID, tipX + 8, textY, renderer.truncatedText(UI_10_FONT_ID, line1.c_str(), tipTextMaxWidth).c_str(), true, EpdFontFamily::BOLD);
+    renderer.drawText(UI_10_FONT_ID, tipX + 8, textY + lineStep,
+                      renderer.truncatedText(UI_10_FONT_ID, line2.c_str(), tipTextMaxWidth).c_str(), true);
+    renderer.drawText(UI_10_FONT_ID, tipX + 8, textY + lineStep * 2,
+                      renderer.truncatedText(UI_10_FONT_ID, line3.c_str(), tipTextMaxWidth).c_str(), true);
+  }
 
   for (int i = 0; i < maxRows; i++) {
     const bool hasBook = i < count;

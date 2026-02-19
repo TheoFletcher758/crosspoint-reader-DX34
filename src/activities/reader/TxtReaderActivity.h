@@ -22,6 +22,10 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   bool recentSwitcherOpen = false;
   bool pendingSingleBack = false;
   unsigned long lastBackReleaseMs = 0;
+  bool progressDirty = false;
+  unsigned long lastProgressChangeMs = 0;
+  int lastObservedPage = -1;
+  int lastSavedPage = -1;
   int recentSwitcherSelection = 0;
   std::vector<RecentBook> recentSwitcherBooks;
 
@@ -50,6 +54,7 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   bool loadPageIndexCache();
   void savePageIndexCache() const;
   void saveProgress() const;
+  void flushProgressIfNeeded(bool force);
   void loadProgress();
 
  public:

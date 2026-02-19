@@ -17,6 +17,7 @@
 namespace {
 constexpr unsigned long goHomeMs = 1000;
 constexpr unsigned long doubleBackMs = 350;
+constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int statusBarMargin = 25;
 constexpr int progressBarMarginTop = 1;
 constexpr int recentSwitcherRows = 8;
@@ -66,6 +67,7 @@ void TxtReaderActivity::onEnter() {
 }
 
 void TxtReaderActivity::onExit() {
+  flushProgressIfNeeded(true);
   ActivityWithSubactivity::onExit();
 
   // Reset orientation back to portrait for the rest of the UI
@@ -79,6 +81,8 @@ void TxtReaderActivity::onExit() {
 }
 
 void TxtReaderActivity::loop() {
+  flushProgressIfNeeded(false);
+
   if (subActivity) {
     subActivity->loop();
     return;
@@ -427,8 +431,15 @@ void TxtReaderActivity::render(Activity::RenderLock&&) {
   renderer.clearScreen();
   renderPage();
 
-  // Save progress
-  saveProgress();
+  if (lastObservedPage != currentPage) {
+    lastObservedPage = currentPage;
+    if (lastSavedPage != currentPage) {
+      progressDirty = true;
+      lastProgressChangeMs = millis();
+    }
+  }
+
+  flushProgressIfNeeded(false);
 }
 
 void TxtReaderActivity::loadRecentSwitcherBooks() {
@@ -668,6 +679,21 @@ void TxtReaderActivity::saveProgress() const {
   }
 }
 
+void TxtReaderActivity::flushProgressIfNeeded(const bool force) {
+  if (!txt || !progressDirty) {
+    return;
+  }
+
+  const auto now = millis();
+  if (!force && now - lastProgressChangeMs < progressSaveDebounceMs) {
+    return;
+  }
+
+  saveProgress();
+  lastSavedPage = currentPage;
+  progressDirty = false;
+}
+
 void TxtReaderActivity::loadProgress() {
   FsFile f;
   if (Storage.openFileForRead("TRS", txt->getCachePath() + "/progress.bin", f)) {
@@ -681,6 +707,9 @@ void TxtReaderActivity::loadProgress() {
         currentPage = 0;
       }
       LOG_DBG("TRS", "Loaded progress: page %d/%d", currentPage, totalPages);
+      lastSavedPage = currentPage;
+      lastObservedPage = currentPage;
+      progressDirty = false;
     }
     f.close();
   }

@@ -127,6 +127,7 @@ void HomeActivity::onEnter() {
 
   auto metrics = UITheme::getInstance().getMetrics();
   loadRecentBooks(metrics.homeRecentBooksCount);
+  BaseTheme::refreshHomeInfoStats();
 
   // Trigger first update
   requestUpdate();

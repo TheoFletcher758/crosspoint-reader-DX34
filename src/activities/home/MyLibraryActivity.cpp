@@ -108,6 +108,17 @@ void MyLibraryActivity::loadFiles() {
   }
   root.close();
   sortFileList(files);
+
+  for (const auto& name : files) {
+    if (!name.empty() && name.back() == '/') {
+      continue;
+    }
+    if (!isBookFile(name)) {
+      continue;
+    }
+    const std::string fullPath = makeAbsolutePath(name);
+    progressPrefixCache.emplace(fullPath, BookProgress::getPrefix(fullPath));
+  }
 }
 
 std::string MyLibraryActivity::makeAbsolutePath(const std::string& name) const {
@@ -121,6 +132,15 @@ std::string MyLibraryActivity::makeAbsolutePath(const std::string& name) const {
 std::string MyLibraryActivity::getBasename(const std::string& path) {
   const auto slashPos = path.find_last_of('/');
   return (slashPos == std::string::npos) ? path : path.substr(slashPos + 1);
+}
+
+std::string MyLibraryActivity::getParentPath(const std::string& path) {
+  if (path.empty() || path == "/") return "/";
+  std::string trimmed = path;
+  if (trimmed.back() == '/' && trimmed.size() > 1) trimmed.pop_back();
+  const auto slashPos = trimmed.find_last_of('/');
+  if (slashPos == std::string::npos || slashPos == 0) return "/";
+  return trimmed.substr(0, slashPos);
 }
 
 bool MyLibraryActivity::isBookFile(const std::string& filename) {
@@ -172,36 +192,55 @@ void MyLibraryActivity::enterFileActions(const std::string& filePath) {
   requestUpdate();
 }
 
-void MyLibraryActivity::buildFileMoveTargets() {
-  fileMoveTargets.clear();
-  fileMoveTargetIndex = 0;
+void MyLibraryActivity::enterFileMoveBrowser() {
+  moveBrowserPath = basepath.empty() ? "/" : basepath;
+  if (moveBrowserPath.back() == '/' && moveBrowserPath.size() > 1) {
+    moveBrowserPath.pop_back();
+  }
+  fileMoveIndex = 0;
+  loadMoveBrowseEntries();
+  mode = Mode::FILE_MOVE_BROWSER;
+}
 
-  fileMoveTargets.push_back({"[Root] /", "/"});
+void MyLibraryActivity::loadMoveBrowseEntries() {
+  moveBrowseEntries.clear();
 
-  if (basepath != "/") {
-    std::string parent = basepath;
-    parent.replace(parent.find_last_of('/'), std::string::npos, "");
-    if (parent.empty()) parent = "/";
-    fileMoveTargets.push_back({"[..] Parent", parent});
+  if (moveBrowserPath != "/") {
+    moveBrowseEntries.push_back({"[..]", getParentPath(moveBrowserPath), true, false});
   }
 
-  std::string currentDir = basepath;
-  if (currentDir.empty()) currentDir = "/";
-  if (currentDir.back() == '/' && currentDir.size() > 1) {
-    currentDir.pop_back();
-  }
-
-  for (const auto& entry : files) {
-    if (entry.empty() || entry.back() != '/') continue;
-    const std::string dirName = entry.substr(0, entry.size() - 1);
-    const std::string dirPath = makeAbsolutePath(dirName);
-    if (dirPath == currentDir) continue;
-
-    const auto exists = std::find_if(fileMoveTargets.begin(), fileMoveTargets.end(),
-                                     [&dirPath](const MoveTarget& t) { return t.path == dirPath; });
-    if (exists == fileMoveTargets.end()) {
-      fileMoveTargets.push_back({entry, dirPath});
+  auto dir = Storage.open(moveBrowserPath.c_str());
+  if (dir && dir.isDirectory()) {
+    char name[500];
+    std::vector<std::string> directories;
+    for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
+      file.getName(name, sizeof(name));
+      if (name[0] == '.' || strcmp(name, "System Volume Information") == 0) {
+        file.close();
+        continue;
+      }
+      if (file.isDirectory()) {
+        directories.emplace_back(std::string(name) + "/");
+      }
+      file.close();
     }
+    dir.close();
+    sortFileList(directories);
+
+    for (const auto& entry : directories) {
+      const std::string dirName = entry.substr(0, entry.size() - 1);
+      std::string path = moveBrowserPath;
+      if (path.empty() || path.back() != '/') path += "/";
+      path += dirName;
+      moveBrowseEntries.push_back({entry, path, false, false});
+    }
+  } else if (dir) {
+    dir.close();
+  }
+
+  moveBrowseEntries.push_back({"[Move Here]", moveBrowserPath, false, true});
+  if (fileMoveIndex >= static_cast<int>(moveBrowseEntries.size())) {
+    fileMoveIndex = std::max(0, static_cast<int>(moveBrowseEntries.size()) - 1);
   }
 }
 
@@ -233,7 +272,7 @@ bool MyLibraryActivity::copyFile(const std::string& srcPath, const std::string& 
   return true;
 }
 
-bool MyLibraryActivity::moveSelectedFileTo(const std::string& targetDir) {
+bool MyLibraryActivity::moveSelectedFileTo(const std::string& targetDir) const {
   if (selectedFilePath.empty()) return false;
 
   std::string normalizedTarget = targetDir;
@@ -260,7 +299,6 @@ bool MyLibraryActivity::moveSelectedFileTo(const std::string& targetDir) {
   if (isBookFile(selectedFilePath)) {
     RECENT_BOOKS.removeBook(selectedFilePath);
   }
-  selectedFilePath = destination;
   return true;
 }
 
@@ -342,8 +380,7 @@ void MyLibraryActivity::loop() {
           }
           break;
         case 1:
-          buildFileMoveTargets();
-          mode = Mode::FILE_MOVE_TARGET;
+          enterFileMoveBrowser();
           break;
         case 2:
           deleteSelectedFile();
@@ -360,36 +397,54 @@ void MyLibraryActivity::loop() {
     return;
   }
 
-  if (mode == Mode::FILE_MOVE_TARGET) {
+  if (mode == Mode::FILE_MOVE_BROWSER) {
     if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-      mode = Mode::FILE_ACTIONS;
+      if (moveBrowserPath != "/") {
+        moveBrowserPath = getParentPath(moveBrowserPath);
+        fileMoveIndex = 0;
+        loadMoveBrowseEntries();
+      } else {
+        mode = Mode::FILE_ACTIONS;
+      }
       requestUpdate();
       return;
     }
 
-    const int targetCount = static_cast<int>(fileMoveTargets.size());
-    if (targetCount == 0) {
+    const int targetCount = static_cast<int>(moveBrowseEntries.size());
+    if (targetCount <= 0) {
       mode = Mode::FILE_ACTIONS;
       requestUpdate();
       return;
     }
 
     buttonNavigator.onNextRelease([this, targetCount] {
-      fileMoveTargetIndex = ButtonNavigator::nextIndex(fileMoveTargetIndex, targetCount);
+      fileMoveIndex = ButtonNavigator::nextIndex(fileMoveIndex, targetCount);
       requestUpdate();
     });
     buttonNavigator.onPreviousRelease([this, targetCount] {
-      fileMoveTargetIndex = ButtonNavigator::previousIndex(fileMoveTargetIndex, targetCount);
+      fileMoveIndex = ButtonNavigator::previousIndex(fileMoveIndex, targetCount);
       requestUpdate();
     });
 
     if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-      if (moveSelectedFileTo(fileMoveTargets[fileMoveTargetIndex].path)) {
-        mode = Mode::BROWSE;
-        loadFiles();
-        selectorIndex = 0;
+      const auto& entry = moveBrowseEntries[fileMoveIndex];
+      if (entry.isMoveHere) {
+        if (moveSelectedFileTo(entry.path)) {
+          mode = Mode::BROWSE;
+          loadFiles();
+          selectorIndex = 0;
+        } else {
+          // Keep browsing destination after a failed move (existing file/same path).
+          loadMoveBrowseEntries();
+        }
+      } else if (entry.isParent) {
+        moveBrowserPath = entry.path;
+        fileMoveIndex = 0;
+        loadMoveBrowseEntries();
       } else {
-        mode = Mode::FILE_ACTIONS;
+        moveBrowserPath = entry.path;
+        fileMoveIndex = 0;
+        loadMoveBrowseEntries();
       }
       requestUpdate();
     }
@@ -489,8 +544,8 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
     return;
   }
 
-  if (mode == Mode::FILE_MOVE_TARGET) {
-    renderFileMoveTargetPicker();
+  if (mode == Mode::FILE_MOVE_BROWSER) {
+    renderFileMoveBrowser();
     return;
   }
 
@@ -517,9 +572,8 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
   const bool hasSelectedFile = !files.empty() && selectorIndex < files.size() && isManagedFile(files[selectorIndex]);
   const bool hasSelectedBmp = !files.empty() && selectorIndex < files.size() && isBmpFile(files[selectorIndex]);
   const auto labels = mappedInput.mapLabels(basepath == "/" ? tr(STR_HOME) : tr(STR_BACK),
-                                            hasSelectedFile
-                                                ? (hasSelectedBmp ? "View (hold: actions)" : "Open (hold: actions)")
-                                                : tr(STR_OPEN),
+                                            hasSelectedFile ? (hasSelectedBmp ? "View/Menu" : "Open/Menu")
+                                                            : tr(STR_OPEN),
                                             tr(STR_DIR_UP),
                                             tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
@@ -605,7 +659,7 @@ void MyLibraryActivity::renderFileActions() {
   renderer.displayBuffer();
 }
 
-void MyLibraryActivity::renderFileMoveTargetPicker() {
+void MyLibraryActivity::renderFileMoveBrowser() {
   renderer.clearScreen();
   const int screenW = renderer.getScreenWidth();
   const int screenH = renderer.getScreenHeight();
@@ -615,25 +669,27 @@ void MyLibraryActivity::renderFileMoveTargetPicker() {
   const int popupH = screenH - popupY * 2;
 
   renderer.drawRect(popupX, popupY, popupW, popupH, true);
-  renderer.drawCenteredText(UI_12_FONT_ID, popupY + 10, "Move File To", true, EpdFontFamily::BOLD);
+  std::string title = "Move To: " + ((moveBrowserPath == "/") ? std::string("/") : getBasename(moveBrowserPath));
+  title = renderer.truncatedText(UI_12_FONT_ID, title.c_str(), popupW - 24);
+  renderer.drawCenteredText(UI_12_FONT_ID, popupY + 10, title.c_str(), true, EpdFontFamily::BOLD);
 
   const int maxRows = 8;
   const int rowStartY = popupY + 34;
   const int rowH = 24;
   int startIndex = 0;
-  if (fileMoveTargetIndex >= maxRows) {
-    startIndex = fileMoveTargetIndex - maxRows + 1;
+  if (fileMoveIndex >= maxRows) {
+    startIndex = fileMoveIndex - maxRows + 1;
   }
 
   for (int row = 0; row < maxRows; row++) {
     const int idx = startIndex + row;
-    if (idx >= static_cast<int>(fileMoveTargets.size())) break;
+    if (idx >= static_cast<int>(moveBrowseEntries.size())) break;
     const int rowY = rowStartY + row * rowH;
-    const bool selected = (idx == fileMoveTargetIndex);
+    const bool selected = (idx == fileMoveIndex);
     if (selected) {
       renderer.fillRect(popupX + 8, rowY - 2, popupW - 16, rowH, true);
     }
-    std::string label = renderer.truncatedText(UI_10_FONT_ID, fileMoveTargets[idx].label.c_str(), popupW - 26);
+    std::string label = renderer.truncatedText(UI_10_FONT_ID, moveBrowseEntries[idx].name.c_str(), popupW - 26);
     renderer.drawText(UI_10_FONT_ID, popupX + 13, rowY, label.c_str(), !selected);
   }
 

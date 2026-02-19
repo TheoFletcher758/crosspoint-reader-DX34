@@ -29,6 +29,14 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   bool recentSwitcherOpen = false;
   bool pendingSingleBack = false;
   unsigned long lastBackReleaseMs = 0;
+  bool progressDirty = false;
+  unsigned long lastProgressChangeMs = 0;
+  int lastObservedSpineIndex = -1;
+  int lastObservedPage = -1;
+  int lastObservedPageCount = -1;
+  int lastSavedSpineIndex = -1;
+  int lastSavedPage = -1;
+  int lastSavedPageCount = -1;
   int recentSwitcherSelection = 0;
   std::vector<RecentBook> recentSwitcherBooks;
   const std::function<void()> onGoBack;
@@ -41,6 +49,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   void loadRecentSwitcherBooks();
   void renderRecentSwitcher();
   void saveProgress(int spineIndex, int currentPage, int pageCount);
+  void flushProgressIfNeeded(bool force);
   // Jump to a percentage of the book (0-100), mapping it to spine and page.
   void jumpToPercent(int percent);
   void onReaderMenuBack(uint8_t orientation);

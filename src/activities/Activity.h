@@ -25,15 +25,24 @@ class Activity {
 
   // Mutex to protect rendering operations from being deleted mid-render
   SemaphoreHandle_t renderingMutex = nullptr;
+  // Signaled by render task after a frame finishes, used by requestUpdateAndWait().
+  SemaphoreHandle_t renderDoneSemaphore = nullptr;
 
  public:
   explicit Activity(std::string name, GfxRenderer& renderer, MappedInputManager& mappedInput)
-      : name(std::move(name)), renderer(renderer), mappedInput(mappedInput), renderingMutex(xSemaphoreCreateMutex()) {
+      : name(std::move(name)),
+        renderer(renderer),
+        mappedInput(mappedInput),
+        renderingMutex(xSemaphoreCreateMutex()),
+        renderDoneSemaphore(xSemaphoreCreateBinary()) {
     assert(renderingMutex != nullptr && "Failed to create rendering mutex");
+    assert(renderDoneSemaphore != nullptr && "Failed to create render completion semaphore");
   }
   virtual ~Activity() {
     vSemaphoreDelete(renderingMutex);
     renderingMutex = nullptr;
+    vSemaphoreDelete(renderDoneSemaphore);
+    renderDoneSemaphore = nullptr;
   };
   class RenderLock;
   virtual void onEnter();

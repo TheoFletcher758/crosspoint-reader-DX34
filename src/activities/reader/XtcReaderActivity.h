@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Xtc.h>
+#include <cstdint>
 #include <vector>
 
 #include "activities/ActivityWithSubactivity.h"
@@ -26,6 +27,10 @@ class XtcReaderActivity final : public ActivityWithSubactivity {
   bool recentSwitcherOpen = false;
   bool pendingSingleBack = false;
   unsigned long lastBackReleaseMs = 0;
+  bool progressDirty = false;
+  unsigned long lastProgressChangeMs = 0;
+  int32_t lastObservedPage = -1;
+  int32_t lastSavedPage = -1;
   int recentSwitcherSelection = 0;
   std::vector<RecentBook> recentSwitcherBooks;
 
@@ -33,6 +38,7 @@ class XtcReaderActivity final : public ActivityWithSubactivity {
   void loadRecentSwitcherBooks();
   void renderRecentSwitcher();
   void saveProgress() const;
+  void flushProgressIfNeeded(bool force);
   void loadProgress();
 
  public:
