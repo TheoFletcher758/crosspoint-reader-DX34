@@ -150,6 +150,13 @@ void EpubReaderActivity::loop() {
     }
     return;  // Don't access 'this' after callback
   }
+  if (pendingGoLibrary) {
+    pendingGoLibrary = false;
+    if (onGoBack) {
+      onGoBack();
+    }
+    return;  // Don't access 'this' after callback
+  }
 
   if (pendingSingleBack && (millis() - lastBackReleaseMs > doubleBackMs)) {
     pendingSingleBack = false;
@@ -502,6 +509,29 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
               pendingSubactivityExit = true;
             }));
       }
+      break;
+    }
+    case EpubReaderMenuActivity::MenuAction::DELETE_BOOK: {
+      std::string deletingPath;
+      {
+        RenderLock lock(*this);
+        if (epub) {
+          deletingPath = epub->getPath();
+          section.reset();
+          epub->clearCache();
+        }
+      }
+
+      if (!deletingPath.empty()) {
+        RECENT_BOOKS.removeBook(deletingPath);
+        if (APP_STATE.openEpubPath == deletingPath) {
+          APP_STATE.openEpubPath = "";
+          APP_STATE.saveToFile();
+        }
+        const bool removed = Storage.remove(deletingPath.c_str());
+        LOG_DBG("ERS", "Delete book '%s': %s", deletingPath.c_str(), removed ? "ok" : "failed");
+      }
+      pendingGoLibrary = true;
       break;
     }
   }

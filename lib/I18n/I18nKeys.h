@@ -352,6 +352,7 @@ enum class StrId : uint16_t {
   STR_SCREEN_MARGIN_HORIZONTAL,
   STR_SCREEN_MARGIN_TOP,
   STR_SCREEN_MARGIN_BOTTOM,
+  STR_DELETE_BOOK,
   // Sentinel - must be last
   _COUNT
 };

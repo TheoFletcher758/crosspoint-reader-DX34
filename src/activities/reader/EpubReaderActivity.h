@@ -24,6 +24,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   float pendingSpineProgress = 0.0f;
   bool pendingSubactivityExit = false;  // Defer subactivity exit to avoid use-after-free
   bool pendingGoHome = false;           // Defer go home to avoid race condition with display task
+  bool pendingGoLibrary = false;        // Defer go library after destructive actions
   bool skipNextButtonCheck = false;     // Skip button processing for one frame after subactivity exit
   bool recentSwitcherOpen = false;
   bool pendingSingleBack = false;
