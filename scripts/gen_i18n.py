@@ -26,7 +26,7 @@ import sys
 import os
 import re
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +105,7 @@ def parse_yaml_file(filepath: str) -> Dict[str, str]:
 
 def load_translations(
     translations_dir: str,
+    include_language_codes: Optional[List[str]] = None,
 ) -> Tuple[List[str], List[str], List[str], Dict[str, List[str]]]:
     """
     Read every YAML file in *translations_dir* and return:
@@ -137,6 +138,22 @@ def load_translations(
 
     if english_file is None:
         raise ValueError("No YAML file with _language_code: ENGLISH found")
+
+    # Optionally filter to a subset of language codes.
+    if include_language_codes:
+        include_set = {code.upper() for code in include_language_codes}
+        filtered: Dict[str, Dict[str, str]] = {}
+        for name, data in parsed.items():
+            code = data.get("_language_code", "").upper()
+            if code in include_set:
+                filtered[name] = data
+        if not filtered:
+            raise ValueError(
+                f"No translations matched requested languages: {', '.join(include_language_codes)}"
+            )
+        if english_file not in filtered:
+            raise ValueError("ENGLISH must be included in requested language set")
+        parsed = filtered
 
     # Order: English first, then by _order metadata (falls back to filename)
     def sort_key(fname: str) -> Tuple[int, int, str]:
@@ -587,9 +604,16 @@ def main(translations_dir=None, output_dir=None) -> None:
     print(f"Output directory: {output_dir}")
     print()
 
+    # English-only by default to keep firmware size low.
+    # Set CROSSPOINT_I18N_LANGS=ALL to include every language.
+    langs_env = os.environ.get("CROSSPOINT_I18N_LANGS", "ENGLISH").strip()
+    include_language_codes = None
+    if langs_env and langs_env.upper() != "ALL":
+        include_language_codes = [x.strip().upper() for x in langs_env.split(",") if x.strip()]
+
     try:
         languages, language_names, string_keys, translations = load_translations(
-            translations_dir
+            translations_dir, include_language_codes
         )
 
         out = Path(output_dir)
