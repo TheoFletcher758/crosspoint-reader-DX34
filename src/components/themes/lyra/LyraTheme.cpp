@@ -334,7 +334,7 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   const int count = std::min(static_cast<int>(recentBooks.size()), maxRows);
   constexpr int rowGap = 4;
   const int lineHeight = renderer.getLineHeight(UI_10_FONT_ID);
-  const int preferredRowHeight = lineHeight + 6;  // Keep rows tight around text.
+  const int preferredRowHeight = (LyraMetrics::values.menuRowHeight * 8) / 10;  // 80% of home menu button height.
   const int maxRowHeight = (rect.height - rowGap * (maxRows - 1)) / maxRows;
   const int rowHeight = std::min(preferredRowHeight, maxRowHeight);
   const int totalRowsHeight = rowHeight * maxRows + rowGap * (maxRows - 1);

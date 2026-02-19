@@ -450,7 +450,8 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   const int visibleRows = std::max(1, count);
   constexpr int rowGap = 3;
   const int lineHeight = renderer.getLineHeight(UI_12_FONT_ID);
-  const int preferredRowHeight = (BaseMetrics::values.menuRowHeight * 8) / 10;  // 80% of home menu button height.
+  const int preferredRowHeight =
+      (UITheme::getInstance().getMetrics().menuRowHeight * 8) / 10;  // 80% of home menu button height.
   constexpr int statsTopInset = 18;  // Keep away from battery area.
   constexpr int statsTextInsetY = 4;
   constexpr int statsLineGap = 2;
@@ -503,8 +504,8 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
       renderer.drawText(UI_12_FONT_ID, textX + labelWidth, y, value.c_str(), true, EpdFontFamily::REGULAR);
     };
 
-    drawStatLine(textY, "Number of books: ", line1Value);
-    drawStatLine(textY + lineStep, "Number of .bmp images: ", line2Value);
+    drawStatLine(textY, "Number of book: ", line1Value);
+    drawStatLine(textY + lineStep, "Number of .bmp image: ", line2Value);
     drawStatLine(textY + lineStep * 2, "Free Space in SD card: ", line3Value);
     for (int i = 0; i < visibleRows; i++) {
       const bool hasBook = i < count;
