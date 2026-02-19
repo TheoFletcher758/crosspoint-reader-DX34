@@ -526,6 +526,9 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
                                  SETTINGS.statusBar == CrossPointSettings::STATUS_BAR_MODE::CHAPTER_PROGRESS_BAR;
     orientedMarginBottom += statusBarMargin - SETTINGS.screenMargin +
                             (showProgressBar ? (metrics.bookProgressBarHeight + progressBarMarginTop) : 0);
+  } else {
+    // When status bar is disabled, keep top/bottom text margins symmetric.
+    orientedMarginTop = orientedMarginBottom;
   }
 
   if (!section) {
