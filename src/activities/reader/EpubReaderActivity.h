@@ -2,8 +2,12 @@
 #include <Epub.h>
 #include <Epub/Section.h>
 
+#include <vector>
+
 #include "EpubReaderMenuActivity.h"
 #include "activities/ActivityWithSubactivity.h"
+
+struct RecentBook;
 
 class EpubReaderActivity final : public ActivityWithSubactivity {
   std::shared_ptr<Epub> epub;
@@ -21,12 +25,20 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   bool pendingSubactivityExit = false;  // Defer subactivity exit to avoid use-after-free
   bool pendingGoHome = false;           // Defer go home to avoid race condition with display task
   bool skipNextButtonCheck = false;     // Skip button processing for one frame after subactivity exit
+  bool recentSwitcherOpen = false;
+  bool pendingSingleBack = false;
+  unsigned long lastBackReleaseMs = 0;
+  int recentSwitcherSelection = 0;
+  std::vector<RecentBook> recentSwitcherBooks;
   const std::function<void()> onGoBack;
   const std::function<void()> onGoHome;
+  const std::function<void(const std::string&)> onOpenBook;
 
   void renderContents(std::unique_ptr<Page> page, int orientedMarginTop, int orientedMarginRight,
                       int orientedMarginBottom, int orientedMarginLeft);
   void renderStatusBar(int orientedMarginRight, int orientedMarginBottom, int orientedMarginLeft) const;
+  void loadRecentSwitcherBooks();
+  void renderRecentSwitcher();
   void saveProgress(int spineIndex, int currentPage, int pageCount);
   // Jump to a percentage of the book (0-100), mapping it to spine and page.
   void jumpToPercent(int percent);
@@ -36,11 +48,13 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
 
  public:
   explicit EpubReaderActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::unique_ptr<Epub> epub,
-                              const std::function<void()>& onGoBack, const std::function<void()>& onGoHome)
+                              const std::function<void()>& onGoBack, const std::function<void()>& onGoHome,
+                              const std::function<void(const std::string&)>& onOpenBook)
       : ActivityWithSubactivity("EpubReader", renderer, mappedInput),
         epub(std::move(epub)),
         onGoBack(onGoBack),
-        onGoHome(onGoHome) {}
+        onGoHome(onGoHome),
+        onOpenBook(onOpenBook) {}
   void onEnter() override;
   void onExit() override;
   void loop() override;

@@ -134,6 +134,9 @@ uint8_t CrossPointSettings::writeSettings(FsFile& file, bool count_only) const {
   writer.writeItem(file, frontButtonRight);
   writer.writeItem(file, fadingFix);
   writer.writeItem(file, embeddedStyle);
+  writer.writeItem(file, screenMarginHorizontal);
+  writer.writeItem(file, screenMarginTop);
+  writer.writeItem(file, screenMarginBottom);
   // New fields need to be added at end for backward compatibility
 
   return writer.item_count;
@@ -184,6 +187,7 @@ bool CrossPointSettings::loadFromFile() {
   uint8_t settingsRead = 0;
   // Track whether remap fields were present in the settings file.
   bool frontButtonMappingRead = false;
+  bool splitReaderMarginsRead = false;
   do {
     readAndValidate(inputFile, sleepScreen, SLEEP_SCREEN_MODE_COUNT);
     if (++settingsRead >= fileSettingsCount) break;
@@ -200,23 +204,16 @@ bool CrossPointSettings::loadFromFile() {
     readAndValidate(inputFile, sideButtonLayout, SIDE_BUTTON_LAYOUT_COUNT);
     if (++settingsRead >= fileSettingsCount) break;
     {
-      // Legacy migration:
-      // 0 = Bookerly (unchanged)
-      // 1 = Noto Sans (removed) -> map to Bookerly
-      // 2 = OpenDyslexic/Unifont (legacy) -> map to OPENDYSLEXIC
-      uint8_t legacyFontFamily = 0;
-      serialization::readPod(inputFile, legacyFontFamily);
-      switch (legacyFontFamily) {
-        case 0:
-          fontFamily = BOOKERLY;
-          break;
-        case 2:
-          fontFamily = OPENDYSLEXIC;
-          break;
-        case 1:
-        default:
-          fontFamily = BOOKERLY;
-          break;
+      uint8_t storedFontFamily = BOOKERLY;
+      serialization::readPod(inputFile, storedFontFamily);
+      // Current format: 0 = Bookerly, 1 = Unifont (OPENDYSLEXIC enum value).
+      // Legacy compatibility: accept old value 2 and map it to Unifont.
+      if (storedFontFamily < FONT_FAMILY_COUNT) {
+        fontFamily = storedFontFamily;
+      } else if (storedFontFamily == 2) {
+        fontFamily = OPENDYSLEXIC;
+      } else {
+        fontFamily = BOOKERLY;
       }
     }
     if (++settingsRead >= fileSettingsCount) break;
@@ -280,6 +277,13 @@ bool CrossPointSettings::loadFromFile() {
     if (++settingsRead >= fileSettingsCount) break;
     serialization::readPod(inputFile, embeddedStyle);
     if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, screenMarginHorizontal);
+    if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, screenMarginTop);
+    if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, screenMarginBottom);
+    splitReaderMarginsRead = true;
+    if (++settingsRead >= fileSettingsCount) break;
     // New fields added at end for backward compatibility
   } while (false);
 
@@ -287,6 +291,13 @@ bool CrossPointSettings::loadFromFile() {
     validateFrontButtonMapping(*this);
   } else {
     applyLegacyFrontButtonLayout(*this);
+  }
+
+  // Migration path for older settings files that only had uniform screenMargin.
+  if (!splitReaderMarginsRead) {
+    screenMarginHorizontal = screenMargin;
+    screenMarginTop = screenMargin;
+    screenMarginBottom = screenMargin;
   }
 
   inputFile.close();

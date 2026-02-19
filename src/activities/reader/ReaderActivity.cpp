@@ -85,7 +85,8 @@ void ReaderActivity::onGoToEpubReader(std::unique_ptr<Epub> epub) {
   currentBookPath = epubPath;
   exitActivity();
   enterNewActivity(new EpubReaderActivity(
-      renderer, mappedInput, std::move(epub), [this, epubPath] { goToLibrary(epubPath); }, [this] { onGoBack(); }));
+      renderer, mappedInput, std::move(epub), [this, epubPath] { goToLibrary(epubPath); }, [this] { onGoBack(); },
+      [this](const std::string& path) { openBookPath(path); }));
 }
 
 void ReaderActivity::onGoToXtcReader(std::unique_ptr<Xtc> xtc) {
@@ -93,7 +94,8 @@ void ReaderActivity::onGoToXtcReader(std::unique_ptr<Xtc> xtc) {
   currentBookPath = xtcPath;
   exitActivity();
   enterNewActivity(new XtcReaderActivity(
-      renderer, mappedInput, std::move(xtc), [this, xtcPath] { goToLibrary(xtcPath); }, [this] { onGoBack(); }));
+      renderer, mappedInput, std::move(xtc), [this, xtcPath] { goToLibrary(xtcPath); }, [this] { onGoBack(); },
+      [this](const std::string& path) { openBookPath(path); }));
 }
 
 void ReaderActivity::onGoToTxtReader(std::unique_ptr<Txt> txt) {
@@ -101,7 +103,36 @@ void ReaderActivity::onGoToTxtReader(std::unique_ptr<Txt> txt) {
   currentBookPath = txtPath;
   exitActivity();
   enterNewActivity(new TxtReaderActivity(
-      renderer, mappedInput, std::move(txt), [this, txtPath] { goToLibrary(txtPath); }, [this] { onGoBack(); }));
+      renderer, mappedInput, std::move(txt), [this, txtPath] { goToLibrary(txtPath); }, [this] { onGoBack(); },
+      [this](const std::string& path) { openBookPath(path); }));
+}
+
+void ReaderActivity::openBookPath(const std::string& bookPath) {
+  if (bookPath.empty()) {
+    return;
+  }
+
+  currentBookPath = bookPath;
+  if (isXtcFile(bookPath)) {
+    auto xtc = loadXtc(bookPath);
+    if (xtc) {
+      onGoToXtcReader(std::move(xtc));
+    }
+    return;
+  }
+
+  if (isTxtFile(bookPath)) {
+    auto txt = loadTxt(bookPath);
+    if (txt) {
+      onGoToTxtReader(std::move(txt));
+    }
+    return;
+  }
+
+  auto epub = loadEpub(bookPath);
+  if (epub) {
+    onGoToEpubReader(std::move(epub));
+  }
 }
 
 void ReaderActivity::onEnter() {
@@ -111,29 +142,8 @@ void ReaderActivity::onEnter() {
     goToLibrary();  // Start from root when entering via Browse
     return;
   }
-
-  currentBookPath = initialBookPath;
-
-  if (isXtcFile(initialBookPath)) {
-    auto xtc = loadXtc(initialBookPath);
-    if (!xtc) {
-      onGoBack();
-      return;
-    }
-    onGoToXtcReader(std::move(xtc));
-  } else if (isTxtFile(initialBookPath)) {
-    auto txt = loadTxt(initialBookPath);
-    if (!txt) {
-      onGoBack();
-      return;
-    }
-    onGoToTxtReader(std::move(txt));
-  } else {
-    auto epub = loadEpub(initialBookPath);
-    if (!epub) {
-      onGoBack();
-      return;
-    }
-    onGoToEpubReader(std::move(epub));
+  openBookPath(initialBookPath);
+  if (!subActivity) {
+    onGoBack();
   }
 }

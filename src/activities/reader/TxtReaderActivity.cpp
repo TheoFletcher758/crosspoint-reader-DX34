@@ -12,16 +12,19 @@
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/StringUtils.h"
 
 namespace {
 constexpr unsigned long goHomeMs = 1000;
+constexpr unsigned long doubleBackMs = 350;
 constexpr int statusBarMargin = 25;
 constexpr int progressBarMarginTop = 1;
+constexpr int recentSwitcherRows = 8;
 constexpr size_t CHUNK_SIZE = 8 * 1024;  // 8KB chunk for reading
 
 // Cache file magic and version
 constexpr uint32_t CACHE_MAGIC = 0x54585449;  // "TXTI"
-constexpr uint8_t CACHE_VERSION = 2;          // Increment when cache format changes
+constexpr uint8_t CACHE_VERSION = 3;          // Increment when cache format changes
 }  // namespace
 
 void TxtReaderActivity::onEnter() {
@@ -81,15 +84,63 @@ void TxtReaderActivity::loop() {
     return;
   }
 
+  if (pendingSingleBack && (millis() - lastBackReleaseMs > doubleBackMs)) {
+    pendingSingleBack = false;
+    onGoHome();
+    return;
+  }
+
+  if (recentSwitcherOpen) {
+    const bool prevTriggered = mappedInput.wasReleased(MappedInputManager::Button::PageBack) ||
+                               mappedInput.wasReleased(MappedInputManager::Button::Left);
+    const bool nextTriggered = mappedInput.wasReleased(MappedInputManager::Button::PageForward) ||
+                               mappedInput.wasReleased(MappedInputManager::Button::Right);
+    if (prevTriggered && !recentSwitcherBooks.empty()) {
+      recentSwitcherSelection =
+          (recentSwitcherSelection + static_cast<int>(recentSwitcherBooks.size()) - 1) % recentSwitcherBooks.size();
+      requestUpdate();
+      return;
+    }
+    if (nextTriggered && !recentSwitcherBooks.empty()) {
+      recentSwitcherSelection = (recentSwitcherSelection + 1) % recentSwitcherBooks.size();
+      requestUpdate();
+      return;
+    }
+    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) && !recentSwitcherBooks.empty()) {
+      const std::string selectedPath = recentSwitcherBooks[recentSwitcherSelection].path;
+      recentSwitcherOpen = false;
+      if (!selectedPath.empty()) {
+        onOpenBook(selectedPath);
+      }
+      return;
+    }
+    if (mappedInput.wasReleased(MappedInputManager::Button::Back) && mappedInput.getHeldTime() < goHomeMs) {
+      recentSwitcherOpen = false;
+      requestUpdate();
+      return;
+    }
+    return;
+  }
+
   // Long press BACK (1s+) goes to file selection
   if (mappedInput.isPressed(MappedInputManager::Button::Back) && mappedInput.getHeldTime() >= goHomeMs) {
+    pendingSingleBack = false;
     onGoBack();
     return;
   }
 
-  // Short press BACK goes directly to home
+  // Short BACK: single press goes home, double press opens recent switcher.
   if (mappedInput.wasReleased(MappedInputManager::Button::Back) && mappedInput.getHeldTime() < goHomeMs) {
-    onGoHome();
+    const auto now = millis();
+    if (pendingSingleBack && now - lastBackReleaseMs <= doubleBackMs) {
+      pendingSingleBack = false;
+      recentSwitcherOpen = true;
+      loadRecentSwitcherBooks();
+      requestUpdate();
+    } else {
+      pendingSingleBack = true;
+      lastBackReleaseMs = now;
+    }
     return;
   }
 
@@ -127,17 +178,19 @@ void TxtReaderActivity::initializeReader() {
 
   // Store current settings for cache validation
   cachedFontId = SETTINGS.getReaderFontId();
-  cachedScreenMargin = SETTINGS.screenMargin;
+  cachedScreenMarginHorizontal = SETTINGS.screenMarginHorizontal;
+  cachedScreenMarginTop = SETTINGS.screenMarginTop;
+  cachedScreenMarginBottom = SETTINGS.screenMarginBottom;
   cachedParagraphAlignment = SETTINGS.paragraphAlignment;
 
   // Calculate viewport dimensions
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
                                    &orientedMarginLeft);
-  orientedMarginTop += cachedScreenMargin;
-  orientedMarginLeft += cachedScreenMargin;
-  orientedMarginRight += cachedScreenMargin;
-  orientedMarginBottom += cachedScreenMargin;
+  orientedMarginTop += cachedScreenMarginTop;
+  orientedMarginLeft += cachedScreenMarginHorizontal;
+  orientedMarginRight += cachedScreenMarginHorizontal;
+  orientedMarginBottom += cachedScreenMarginBottom;
 
   auto metrics = UITheme::getInstance().getMetrics();
 
@@ -147,7 +200,7 @@ void TxtReaderActivity::initializeReader() {
     const bool showProgressBar = SETTINGS.statusBar == CrossPointSettings::STATUS_BAR_MODE::BOOK_PROGRESS_BAR ||
                                  SETTINGS.statusBar == CrossPointSettings::STATUS_BAR_MODE::ONLY_BOOK_PROGRESS_BAR ||
                                  SETTINGS.statusBar == CrossPointSettings::STATUS_BAR_MODE::CHAPTER_PROGRESS_BAR;
-    orientedMarginBottom += statusBarMargin - cachedScreenMargin +
+    orientedMarginBottom += statusBarMargin - cachedScreenMarginBottom +
                             (showProgressBar ? (metrics.bookProgressBarHeight + progressBarMarginTop) : 0);
   }
 
@@ -344,6 +397,11 @@ void TxtReaderActivity::render(Activity::RenderLock&&) {
     return;
   }
 
+  if (recentSwitcherOpen) {
+    renderRecentSwitcher();
+    return;
+  }
+
   // Initialize reader if not done
   if (!initialized) {
     initializeReader();
@@ -373,14 +431,82 @@ void TxtReaderActivity::render(Activity::RenderLock&&) {
   saveProgress();
 }
 
+void TxtReaderActivity::loadRecentSwitcherBooks() {
+  recentSwitcherBooks.clear();
+  const auto& books = RECENT_BOOKS.getBooks();
+  for (const auto& book : books) {
+    if (recentSwitcherBooks.size() >= recentSwitcherRows) {
+      break;
+    }
+    if (!Storage.exists(book.path.c_str())) {
+      continue;
+    }
+    recentSwitcherBooks.push_back(book);
+  }
+  recentSwitcherSelection = 0;
+}
+
+void TxtReaderActivity::renderRecentSwitcher() {
+  const int screenW = renderer.getScreenWidth();
+  const int screenH = renderer.getScreenHeight();
+  const int popupX = 18;
+  const int popupY = 24;
+  const int popupW = screenW - popupX * 2;
+  const int popupH = screenH - popupY * 2;
+  const int titleY = popupY + 8;
+  const int rowsY = popupY + 30;
+  const int rowsH = popupH - 40;
+  const int rowH = rowsH / recentSwitcherRows;
+
+  renderer.clearScreen();
+  renderer.drawRect(popupX, popupY, popupW, popupH, true);
+  renderer.drawCenteredText(UI_12_FONT_ID, titleY, tr(STR_MENU_RECENT_BOOKS), true, EpdFontFamily::BOLD);
+
+  for (int i = 0; i < recentSwitcherRows; i++) {
+    const int rowY = rowsY + i * rowH;
+    const bool hasBook = i < static_cast<int>(recentSwitcherBooks.size());
+    const bool selected = hasBook && i == recentSwitcherSelection;
+
+    if (selected) {
+      renderer.fillRect(popupX + 8, rowY, popupW - 16, rowH - 2, true);
+      renderer.drawRect(popupX + 10, rowY + 2, popupW - 20, rowH - 6, false);
+    } else {
+      renderer.drawRect(popupX + 8, rowY, popupW - 16, rowH - 2, true);
+    }
+
+    std::string title = " ";
+    if (hasBook) {
+      title = recentSwitcherBooks[i].title;
+      if (title.empty()) {
+        const size_t lastSlash = recentSwitcherBooks[i].path.find_last_of('/');
+        title = (lastSlash == std::string::npos) ? recentSwitcherBooks[i].path
+                                                 : recentSwitcherBooks[i].path.substr(lastSlash + 1);
+      }
+      title = renderer.truncatedText(UI_10_FONT_ID, title.c_str(), popupW - 28);
+    }
+    renderer.drawText(UI_10_FONT_ID, popupX + 14, rowY + 3, title.c_str(), !selected);
+  }
+
+  renderer.displayBuffer();
+}
+
 void TxtReaderActivity::renderPage() {
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
                                    &orientedMarginLeft);
-  orientedMarginTop += cachedScreenMargin;
-  orientedMarginLeft += cachedScreenMargin;
-  orientedMarginRight += cachedScreenMargin;
-  orientedMarginBottom += statusBarMargin;
+  orientedMarginTop += cachedScreenMarginTop;
+  orientedMarginLeft += cachedScreenMarginHorizontal;
+  orientedMarginRight += cachedScreenMarginHorizontal;
+  orientedMarginBottom += cachedScreenMarginBottom;
+
+  auto metrics = UITheme::getInstance().getMetrics();
+  if (SETTINGS.statusBar != CrossPointSettings::STATUS_BAR_MODE::NONE) {
+    const bool showProgressBar = SETTINGS.statusBar == CrossPointSettings::STATUS_BAR_MODE::BOOK_PROGRESS_BAR ||
+                                 SETTINGS.statusBar == CrossPointSettings::STATUS_BAR_MODE::ONLY_BOOK_PROGRESS_BAR ||
+                                 SETTINGS.statusBar == CrossPointSettings::STATUS_BAR_MODE::CHAPTER_PROGRESS_BAR;
+    orientedMarginBottom += statusBarMargin - cachedScreenMarginBottom +
+                            (showProgressBar ? (metrics.bookProgressBarHeight + progressBarMarginTop) : 0);
+  }
 
   const int lineHeight = renderer.getLineHeight(cachedFontId);
   const int contentWidth = viewportWidth;
@@ -568,7 +694,7 @@ bool TxtReaderActivity::loadPageIndexCache() {
   // - int32_t: viewport width
   // - int32_t: lines per page
   // - int32_t: font ID (to invalidate cache on font change)
-  // - int32_t: screen margin (to invalidate cache on margin change)
+  // - int32_t: horizontal/top/bottom margins (to invalidate cache on margin changes)
   // - uint8_t: paragraph alignment (to invalidate cache on alignment change)
   // - uint32_t: total pages count
   // - N * uint32_t: page offsets
@@ -629,10 +755,15 @@ bool TxtReaderActivity::loadPageIndexCache() {
     return false;
   }
 
-  int32_t margin;
-  serialization::readPod(f, margin);
-  if (margin != cachedScreenMargin) {
-    LOG_DBG("TRS", "Cache screen margin mismatch, rebuilding");
+  int32_t marginHorizontal;
+  serialization::readPod(f, marginHorizontal);
+  int32_t marginTop;
+  serialization::readPod(f, marginTop);
+  int32_t marginBottom;
+  serialization::readPod(f, marginBottom);
+  if (marginHorizontal != cachedScreenMarginHorizontal || marginTop != cachedScreenMarginTop ||
+      marginBottom != cachedScreenMarginBottom) {
+    LOG_DBG("TRS", "Cache screen margins mismatch, rebuilding");
     f.close();
     return false;
   }
@@ -679,7 +810,9 @@ void TxtReaderActivity::savePageIndexCache() const {
   serialization::writePod(f, static_cast<int32_t>(viewportWidth));
   serialization::writePod(f, static_cast<int32_t>(linesPerPage));
   serialization::writePod(f, static_cast<int32_t>(cachedFontId));
-  serialization::writePod(f, static_cast<int32_t>(cachedScreenMargin));
+  serialization::writePod(f, static_cast<int32_t>(cachedScreenMarginHorizontal));
+  serialization::writePod(f, static_cast<int32_t>(cachedScreenMarginTop));
+  serialization::writePod(f, static_cast<int32_t>(cachedScreenMarginBottom));
   serialization::writePod(f, cachedParagraphAlignment);
   serialization::writePod(f, static_cast<uint32_t>(pageOffsets.size()));
 

@@ -22,8 +22,10 @@ namespace {
 // pagesPerRefresh now comes from SETTINGS.getRefreshFrequency()
 constexpr unsigned long skipChapterMs = 700;
 constexpr unsigned long goHomeMs = 1000;
+constexpr unsigned long doubleBackMs = 350;
 constexpr int statusBarMargin = 19;
 constexpr int progressBarMarginTop = 1;
+constexpr int recentSwitcherRows = 8;
 
 int clampPercent(int percent) {
   if (percent < 0) {
@@ -149,6 +151,44 @@ void EpubReaderActivity::loop() {
     return;  // Don't access 'this' after callback
   }
 
+  if (pendingSingleBack && (millis() - lastBackReleaseMs > doubleBackMs)) {
+    pendingSingleBack = false;
+    onGoHome();
+    return;
+  }
+
+  if (recentSwitcherOpen) {
+    const bool prevTriggered = mappedInput.wasReleased(MappedInputManager::Button::PageBack) ||
+                               mappedInput.wasReleased(MappedInputManager::Button::Left);
+    const bool nextTriggered = mappedInput.wasReleased(MappedInputManager::Button::PageForward) ||
+                               mappedInput.wasReleased(MappedInputManager::Button::Right);
+    if (prevTriggered && !recentSwitcherBooks.empty()) {
+      recentSwitcherSelection =
+          (recentSwitcherSelection + static_cast<int>(recentSwitcherBooks.size()) - 1) % recentSwitcherBooks.size();
+      requestUpdate();
+      return;
+    }
+    if (nextTriggered && !recentSwitcherBooks.empty()) {
+      recentSwitcherSelection = (recentSwitcherSelection + 1) % recentSwitcherBooks.size();
+      requestUpdate();
+      return;
+    }
+    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) && !recentSwitcherBooks.empty()) {
+      const std::string selectedPath = recentSwitcherBooks[recentSwitcherSelection].path;
+      recentSwitcherOpen = false;
+      if (!selectedPath.empty()) {
+        onOpenBook(selectedPath);
+      }
+      return;
+    }
+    if (mappedInput.wasReleased(MappedInputManager::Button::Back) && mappedInput.getHeldTime() < goHomeMs) {
+      recentSwitcherOpen = false;
+      requestUpdate();
+      return;
+    }
+    return;
+  }
+
   // Skip button processing after returning from subactivity
   // This prevents stale button release events from triggering actions
   // We wait until: (1) all relevant buttons are released, AND (2) wasReleased events have been cleared
@@ -182,13 +222,23 @@ void EpubReaderActivity::loop() {
 
   // Long press BACK (1s+) goes to file selection
   if (mappedInput.isPressed(MappedInputManager::Button::Back) && mappedInput.getHeldTime() >= goHomeMs) {
+    pendingSingleBack = false;
     onGoBack();
     return;
   }
 
-  // Short press BACK goes directly to home
+  // Short BACK: single press goes home, double press opens recent switcher.
   if (mappedInput.wasReleased(MappedInputManager::Button::Back) && mappedInput.getHeldTime() < goHomeMs) {
-    onGoHome();
+    const auto now = millis();
+    if (pendingSingleBack && now - lastBackReleaseMs <= doubleBackMs) {
+      pendingSingleBack = false;
+      recentSwitcherOpen = true;
+      loadRecentSwitcherBooks();
+      requestUpdate();
+    } else {
+      pendingSingleBack = true;
+      lastBackReleaseMs = now;
+    }
     return;
   }
 
@@ -490,6 +540,11 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
     return;
   }
 
+  if (recentSwitcherOpen) {
+    renderRecentSwitcher();
+    return;
+  }
+
   // edge case handling for sub-zero spine index
   if (currentSpineIndex < 0) {
     currentSpineIndex = 0;
@@ -511,10 +566,10 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
                                    &orientedMarginLeft);
-  orientedMarginTop += SETTINGS.screenMargin;
-  orientedMarginLeft += SETTINGS.screenMargin;
-  orientedMarginRight += SETTINGS.screenMargin;
-  orientedMarginBottom += SETTINGS.screenMargin;
+  orientedMarginTop += SETTINGS.screenMarginTop;
+  orientedMarginLeft += SETTINGS.screenMarginHorizontal;
+  orientedMarginRight += SETTINGS.screenMarginHorizontal;
+  orientedMarginBottom += SETTINGS.screenMarginBottom;
 
   auto metrics = UITheme::getInstance().getMetrics();
 
@@ -524,11 +579,8 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
     const bool showProgressBar = SETTINGS.statusBar == CrossPointSettings::STATUS_BAR_MODE::BOOK_PROGRESS_BAR ||
                                  SETTINGS.statusBar == CrossPointSettings::STATUS_BAR_MODE::ONLY_BOOK_PROGRESS_BAR ||
                                  SETTINGS.statusBar == CrossPointSettings::STATUS_BAR_MODE::CHAPTER_PROGRESS_BAR;
-    orientedMarginBottom += statusBarMargin - SETTINGS.screenMargin +
+    orientedMarginBottom += statusBarMargin - SETTINGS.screenMarginBottom +
                             (showProgressBar ? (metrics.bookProgressBarHeight + progressBarMarginTop) : 0);
-  } else {
-    // When status bar is disabled, keep top/bottom text margins symmetric.
-    orientedMarginTop = orientedMarginBottom;
   }
 
   if (!section) {
@@ -618,6 +670,65 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
     LOG_DBG("ERS", "Rendered page in %dms", millis() - start);
   }
   saveProgress(currentSpineIndex, section->currentPage, section->pageCount);
+}
+
+void EpubReaderActivity::loadRecentSwitcherBooks() {
+  recentSwitcherBooks.clear();
+  const auto& books = RECENT_BOOKS.getBooks();
+  for (const auto& book : books) {
+    if (recentSwitcherBooks.size() >= recentSwitcherRows) {
+      break;
+    }
+    if (!Storage.exists(book.path.c_str())) {
+      continue;
+    }
+    recentSwitcherBooks.push_back(book);
+  }
+  recentSwitcherSelection = 0;
+}
+
+void EpubReaderActivity::renderRecentSwitcher() {
+  const int screenW = renderer.getScreenWidth();
+  const int screenH = renderer.getScreenHeight();
+  const int popupX = 18;
+  const int popupY = 24;
+  const int popupW = screenW - popupX * 2;
+  const int popupH = screenH - popupY * 2;
+  const int titleY = popupY + 8;
+  const int rowsY = popupY + 30;
+  const int rowsH = popupH - 40;
+  const int rowH = rowsH / recentSwitcherRows;
+
+  renderer.clearScreen();
+  renderer.drawRect(popupX, popupY, popupW, popupH, true);
+  renderer.drawCenteredText(UI_12_FONT_ID, titleY, tr(STR_MENU_RECENT_BOOKS), true, EpdFontFamily::BOLD);
+
+  for (int i = 0; i < recentSwitcherRows; i++) {
+    const int rowY = rowsY + i * rowH;
+    const bool hasBook = i < static_cast<int>(recentSwitcherBooks.size());
+    const bool selected = hasBook && i == recentSwitcherSelection;
+
+    if (selected) {
+      renderer.fillRect(popupX + 8, rowY, popupW - 16, rowH - 2, true);
+      renderer.drawRect(popupX + 10, rowY + 2, popupW - 20, rowH - 6, false);
+    } else {
+      renderer.drawRect(popupX + 8, rowY, popupW - 16, rowH - 2, true);
+    }
+
+    std::string title = " ";
+    if (hasBook) {
+      title = recentSwitcherBooks[i].title;
+      if (title.empty()) {
+        const size_t lastSlash = recentSwitcherBooks[i].path.find_last_of('/');
+        title = (lastSlash == std::string::npos) ? recentSwitcherBooks[i].path
+                                                 : recentSwitcherBooks[i].path.substr(lastSlash + 1);
+      }
+      title = renderer.truncatedText(UI_10_FONT_ID, title.c_str(), popupW - 28);
+    }
+    renderer.drawText(UI_10_FONT_ID, popupX + 14, rowY + 3, title.c_str(), !selected);
+  }
+
+  renderer.displayBuffer();
 }
 
 void EpubReaderActivity::saveProgress(int spineIndex, int currentPage, int pageCount) {

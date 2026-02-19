@@ -8,8 +8,11 @@
 #pragma once
 
 #include <Xtc.h>
+#include <vector>
 
 #include "activities/ActivityWithSubactivity.h"
+
+struct RecentBook;
 
 class XtcReaderActivity final : public ActivityWithSubactivity {
   std::shared_ptr<Xtc> xtc;
@@ -19,18 +22,28 @@ class XtcReaderActivity final : public ActivityWithSubactivity {
 
   const std::function<void()> onGoBack;
   const std::function<void()> onGoHome;
+  const std::function<void(const std::string&)> onOpenBook;
+  bool recentSwitcherOpen = false;
+  bool pendingSingleBack = false;
+  unsigned long lastBackReleaseMs = 0;
+  int recentSwitcherSelection = 0;
+  std::vector<RecentBook> recentSwitcherBooks;
 
   void renderPage();
+  void loadRecentSwitcherBooks();
+  void renderRecentSwitcher();
   void saveProgress() const;
   void loadProgress();
 
  public:
   explicit XtcReaderActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::unique_ptr<Xtc> xtc,
-                             const std::function<void()>& onGoBack, const std::function<void()>& onGoHome)
+                             const std::function<void()>& onGoBack, const std::function<void()>& onGoHome,
+                             const std::function<void(const std::string&)>& onOpenBook)
       : ActivityWithSubactivity("XtcReader", renderer, mappedInput),
         xtc(std::move(xtc)),
         onGoBack(onGoBack),
-        onGoHome(onGoHome) {}
+        onGoHome(onGoHome),
+        onOpenBook(onOpenBook) {}
   void onEnter() override;
   void onExit() override;
   void loop() override;
