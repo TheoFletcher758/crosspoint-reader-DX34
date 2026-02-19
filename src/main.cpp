@@ -77,12 +77,24 @@ EpdFont unifont16ItalicFont(&unifont_16_regular);
 EpdFont unifont16BoldItalicFont(&unifont_16_regular);
 EpdFontFamily unifont16FontFamily(&unifont16RegularFont, &unifont16BoldFont, &unifont16ItalicFont,
                                   &unifont16BoldItalicFont, 1, 1, true);
+EpdFont unifont18RegularFont(&unifont_18_regular);
+EpdFont unifont18BoldFont(&unifont_18_regular);
+EpdFont unifont18ItalicFont(&unifont_18_regular);
+EpdFont unifont18BoldItalicFont(&unifont_18_regular);
+EpdFontFamily unifont18FontFamily(&unifont18RegularFont, &unifont18BoldFont, &unifont18ItalicFont,
+                                  &unifont18BoldItalicFont, 1, 1, true);
 EpdFont unifont20RegularFont(&unifont_20_regular);
 EpdFont unifont20BoldFont(&unifont_20_regular);
 EpdFont unifont20ItalicFont(&unifont_20_regular);
 EpdFont unifont20BoldItalicFont(&unifont_20_regular);
 EpdFontFamily unifont20FontFamily(&unifont20RegularFont, &unifont20BoldFont, &unifont20ItalicFont,
                                   &unifont20BoldItalicFont, 1, 1, true);
+EpdFont unifont22RegularFont(&unifont_22_regular);
+EpdFont unifont22BoldFont(&unifont_22_regular);
+EpdFont unifont22ItalicFont(&unifont_22_regular);
+EpdFont unifont22BoldItalicFont(&unifont_22_regular);
+EpdFontFamily unifont22FontFamily(&unifont22RegularFont, &unifont22BoldFont, &unifont22ItalicFont,
+                                  &unifont22BoldItalicFont, 1, 1, true);
 EpdFont unifont24RegularFont(&unifont_24_regular);
 EpdFont unifont24BoldFont(&unifont_24_regular);
 EpdFont unifont24ItalicFont(&unifont_24_regular);
@@ -241,7 +253,9 @@ void setupDisplayAndFonts() {
   renderer.insertFont(BOOKERLY_18_FONT_ID, bookerly18FontFamily);
   renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
   renderer.insertFont(UNIFONT_16_FONT_ID, unifont16FontFamily);
+  renderer.insertFont(UNIFONT_18_FONT_ID, unifont18FontFamily);
   renderer.insertFont(UNIFONT_20_FONT_ID, unifont20FontFamily);
+  renderer.insertFont(UNIFONT_22_FONT_ID, unifont22FontFamily);
   renderer.insertFont(UNIFONT_24_FONT_ID, unifont24FontFamily);
 #endif  // OMIT_FONTS
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);

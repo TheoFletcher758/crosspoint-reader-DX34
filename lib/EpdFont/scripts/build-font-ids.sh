@@ -98,12 +98,30 @@ ruby -rdigest -e 'puts [
 ].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
 ))"
 
+echo "#define UNIFONT_18_FONT_ID ($(
+ruby -rdigest -e 'puts [
+  "./unifont_18_regular.h",
+  "./unifont_18_bold.h",
+  "./unifont_18_bolditalic.h",
+  "./unifont_18_italic.h",
+].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
+))"
+
 echo "#define UNIFONT_20_FONT_ID ($(
 ruby -rdigest -e 'puts [
   "./unifont_20_regular.h",
   "./unifont_20_bold.h",
   "./unifont_20_bolditalic.h",
   "./unifont_20_italic.h",
+].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
+))"
+
+echo "#define UNIFONT_22_FONT_ID ($(
+ruby -rdigest -e 'puts [
+  "./unifont_22_regular.h",
+  "./unifont_22_bold.h",
+  "./unifont_22_bolditalic.h",
+  "./unifont_22_italic.h",
 ].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
 ))"
 
