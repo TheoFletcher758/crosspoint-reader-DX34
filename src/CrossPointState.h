@@ -1,6 +1,7 @@
 #pragma once
 #include <iosfwd>
 #include <string>
+#include <vector>
 
 class CrossPointState {
   // Static instance
@@ -9,6 +10,7 @@ class CrossPointState {
  public:
   std::string openEpubPath;
   uint8_t lastSleepImage;
+  std::vector<std::string> sleepImagePlaylist;
   uint8_t readerActivityLoadCount = 0;
   bool lastSleepFromReader = false;
   ~CrossPointState() = default;

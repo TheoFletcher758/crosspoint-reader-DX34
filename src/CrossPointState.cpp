@@ -5,7 +5,7 @@
 #include <Serialization.h>
 
 namespace {
-constexpr uint8_t STATE_FILE_VERSION = 4;
+constexpr uint8_t STATE_FILE_VERSION = 5;
 constexpr char STATE_FILE[] = "/.crosspoint/state.bin";
 }  // namespace
 
@@ -20,6 +20,10 @@ bool CrossPointState::saveToFile() const {
   serialization::writePod(outputFile, STATE_FILE_VERSION);
   serialization::writeString(outputFile, openEpubPath);
   serialization::writePod(outputFile, lastSleepImage);
+  serialization::writePod(outputFile, static_cast<uint16_t>(sleepImagePlaylist.size()));
+  for (const auto& filename : sleepImagePlaylist) {
+    serialization::writeString(outputFile, filename);
+  }
   serialization::writePod(outputFile, readerActivityLoadCount);
   serialization::writePod(outputFile, lastSleepFromReader);
   outputFile.close();
@@ -45,6 +49,20 @@ bool CrossPointState::loadFromFile() {
     serialization::readPod(inputFile, lastSleepImage);
   } else {
     lastSleepImage = 0;
+  }
+
+  if (version >= 5) {
+    uint16_t playlistCount = 0;
+    serialization::readPod(inputFile, playlistCount);
+    sleepImagePlaylist.clear();
+    sleepImagePlaylist.reserve(playlistCount);
+    for (uint16_t i = 0; i < playlistCount; i++) {
+      std::string filename;
+      serialization::readString(inputFile, filename);
+      sleepImagePlaylist.push_back(std::move(filename));
+    }
+  } else {
+    sleepImagePlaylist.clear();
   }
 
   if (version >= 3) {

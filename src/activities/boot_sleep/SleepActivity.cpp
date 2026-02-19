@@ -1,5 +1,6 @@
 #include "SleepActivity.h"
 
+#include <algorithm>
 #include <Epub.h>
 #include <GfxRenderer.h>
 #include <HalStorage.h>
@@ -13,6 +14,107 @@
 #include "fontIds.h"
 #include "images/Logo120.h"
 #include "util/StringUtils.h"
+
+namespace {
+std::vector<std::string> getValidSleepBitmaps() {
+  std::vector<std::string> files;
+  auto dir = Storage.open("/sleep");
+  if (!dir || !dir.isDirectory()) {
+    if (dir) dir.close();
+    return files;
+  }
+
+  char name[500];
+  for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
+    if (file.isDirectory()) {
+      file.close();
+      continue;
+    }
+
+    file.getName(name, sizeof(name));
+    std::string filename(name);
+    if (filename.empty() || filename[0] == '.') {
+      file.close();
+      continue;
+    }
+
+    if (filename.size() < 4 || filename.substr(filename.size() - 4) != ".bmp") {
+      file.close();
+      continue;
+    }
+
+    Bitmap bitmap(file);
+    if (bitmap.parseHeaders() != BmpReaderError::Ok) {
+      file.close();
+      continue;
+    }
+
+    files.emplace_back(std::move(filename));
+    file.close();
+  }
+  dir.close();
+
+  std::sort(files.begin(), files.end());
+  return files;
+}
+
+void shuffleSleepPlaylist(std::vector<std::string>& files) {
+  if (files.size() <= 1) return;
+  for (size_t i = files.size() - 1; i > 0; --i) {
+    const auto j = static_cast<size_t>(random(i + 1));
+    std::swap(files[i], files[j]);
+  }
+}
+
+void syncSleepPlaylistWithFiles(const std::vector<std::string>& files, bool forceReshuffle) {
+  auto& playlist = APP_STATE.sleepImagePlaylist;
+  bool changed = false;
+
+  if (files.empty()) {
+    if (!playlist.empty()) {
+      playlist.clear();
+      APP_STATE.saveToFile();
+    }
+    return;
+  }
+
+  if (forceReshuffle || playlist.empty()) {
+    playlist = files;
+    shuffleSleepPlaylist(playlist);
+    APP_STATE.saveToFile();
+    return;
+  }
+
+  // Remove entries that no longer exist.
+  const auto oldSize = playlist.size();
+  playlist.erase(std::remove_if(playlist.begin(), playlist.end(),
+                                [&files](const std::string& entry) {
+                                  return std::find(files.begin(), files.end(), entry) == files.end();
+                                }),
+                 playlist.end());
+  if (playlist.size() != oldSize) {
+    changed = true;
+  }
+
+  // Add newly discovered files to the end so they appear on next sleep screens.
+  for (const auto& file : files) {
+    if (std::find(playlist.begin(), playlist.end(), file) == playlist.end()) {
+      playlist.push_back(file);
+      changed = true;
+    }
+  }
+
+  if (playlist.empty()) {
+    playlist = files;
+    shuffleSleepPlaylist(playlist);
+    changed = true;
+  }
+
+  if (changed) {
+    APP_STATE.saveToFile();
+  }
+}
+}  // namespace
 
 void SleepActivity::onEnter() {
   Activity::onEnter();
@@ -32,63 +134,29 @@ void SleepActivity::onEnter() {
 }
 
 void SleepActivity::renderCustomSleepScreen() const {
-  // Check if we have a /sleep directory
-  auto dir = Storage.open("/sleep");
-  if (dir && dir.isDirectory()) {
-    std::vector<std::string> files;
-    char name[500];
-    // collect all valid BMP files
-    for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
-      if (file.isDirectory()) {
-        file.close();
-        continue;
-      }
-      file.getName(name, sizeof(name));
-      auto filename = std::string(name);
-      if (filename[0] == '.') {
-        file.close();
-        continue;
-      }
-
-      if (filename.substr(filename.length() - 4) != ".bmp") {
-        LOG_DBG("SLP", "Skipping non-.bmp file name: %s", name);
-        file.close();
-        continue;
-      }
-      Bitmap bitmap(file);
-      if (bitmap.parseHeaders() != BmpReaderError::Ok) {
-        LOG_DBG("SLP", "Skipping invalid BMP file: %s", name);
-        file.close();
-        continue;
-      }
-      files.emplace_back(filename);
-      file.close();
-    }
-    const auto numFiles = files.size();
-    if (numFiles > 0) {
-      // Generate a random number between 1 and numFiles
-      auto randomFileIndex = random(numFiles);
-      // If we picked the same image as last time, reroll
-      while (numFiles > 1 && randomFileIndex == APP_STATE.lastSleepImage) {
-        randomFileIndex = random(numFiles);
-      }
-      APP_STATE.lastSleepImage = randomFileIndex;
+  const auto files = getValidSleepBitmaps();
+  if (!files.empty()) {
+    syncSleepPlaylistWithFiles(files, false);
+    auto& playlist = APP_STATE.sleepImagePlaylist;
+    if (!playlist.empty()) {
+      const auto selectedImage = playlist.back();
+      playlist.pop_back();
+      playlist.insert(playlist.begin(), selectedImage);
       APP_STATE.saveToFile();
-      const auto filename = "/sleep/" + files[randomFileIndex];
+
+      const auto filename = "/sleep/" + selectedImage;
       FsFile file;
       if (Storage.openFileForRead("SLP", filename, file)) {
-        LOG_DBG("SLP", "Randomly loading: /sleep/%s", files[randomFileIndex].c_str());
+        LOG_DBG("SLP", "Playlist loading: %s", filename.c_str());
         delay(100);
         Bitmap bitmap(file, true);
         if (bitmap.parseHeaders() == BmpReaderError::Ok) {
           renderBitmapSleepScreen(bitmap);
-          dir.close();
           return;
         }
       }
     }
   }
-  if (dir) dir.close();
 
   // Look for sleep.bmp on the root of the sd card to determine if we should
   // render a custom sleep screen instead of the default.
@@ -103,6 +171,20 @@ void SleepActivity::renderCustomSleepScreen() const {
   }
 
   renderDefaultSleepScreen();
+}
+
+bool SleepActivity::randomizeSleepImagePlaylist() {
+  const auto files = getValidSleepBitmaps();
+  if (files.empty()) {
+    if (!APP_STATE.sleepImagePlaylist.empty()) {
+      APP_STATE.sleepImagePlaylist.clear();
+      APP_STATE.saveToFile();
+    }
+    return false;
+  }
+
+  syncSleepPlaylistWithFiles(files, true);
+  return true;
 }
 
 void SleepActivity::renderDefaultSleepScreen() const {

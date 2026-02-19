@@ -12,6 +12,7 @@
 #include "MappedInputManager.h"
 #include "OtaUpdateActivity.h"
 #include "SettingsList.h"
+#include "activities/boot_sleep/SleepActivity.h"
 #include "activities/network/WifiSelectionActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -41,6 +42,8 @@ void SettingsActivity::onEnter() {
     }
     // Web-only categories (KOReader Sync, OPDS Browser) are skipped for device UI
   }
+
+  displaySettings.push_back(SettingInfo::Action(StrId::STR_RANDOMIZE_SLEEP_IMAGES, SettingAction::RandomizeSleepImages));
 
   // Append device-only ACTION items
   controlsSettings.insert(controlsSettings.begin(),
@@ -198,6 +201,9 @@ void SettingsActivity::toggleCurrentSetting() {
         break;
       case SettingAction::Language:
         enterSubActivity(new LanguageSelectActivity(renderer, mappedInput, onComplete));
+        break;
+      case SettingAction::RandomizeSleepImages:
+        SleepActivity::randomizeSleepImagePlaylist();
         break;
       case SettingAction::None:
         // Do nothing
