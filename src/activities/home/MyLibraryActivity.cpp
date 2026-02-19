@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "CrossPointState.h"
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -76,6 +77,47 @@ void sortFileList(std::vector<std::string>& strs) {
   });
 }
 
+void orderSleepFolderByPlaylist(std::vector<std::string>& entries) {
+  // In /sleep, prioritize BMP files by the persisted sleep playlist order.
+  // The playlist stores the most recently displayed image at index 0.
+  if (APP_STATE.sleepImagePlaylist.empty()) {
+    return;
+  }
+
+  std::vector<std::string> directories;
+  std::vector<std::string> orderedBmps;
+  std::vector<std::string> remaining;
+
+  for (const auto& name : entries) {
+    if (!name.empty() && name.back() == '/') {
+      directories.push_back(name);
+    }
+  }
+
+  for (const auto& playlistName : APP_STATE.sleepImagePlaylist) {
+    const auto it = std::find(entries.begin(), entries.end(), playlistName);
+    if (it != entries.end()) {
+      orderedBmps.push_back(*it);
+    }
+  }
+
+  for (const auto& name : entries) {
+    if (!name.empty() && name.back() == '/') {
+      continue;
+    }
+    if (std::find(orderedBmps.begin(), orderedBmps.end(), name) != orderedBmps.end()) {
+      continue;
+    }
+    remaining.push_back(name);
+  }
+
+  entries.clear();
+  entries.reserve(directories.size() + orderedBmps.size() + remaining.size());
+  entries.insert(entries.end(), directories.begin(), directories.end());
+  entries.insert(entries.end(), orderedBmps.begin(), orderedBmps.end());
+  entries.insert(entries.end(), remaining.begin(), remaining.end());
+}
+
 void MyLibraryActivity::loadFiles() {
   files.clear();
   progressPrefixCache.clear();
@@ -108,6 +150,9 @@ void MyLibraryActivity::loadFiles() {
   }
   root.close();
   sortFileList(files);
+  if (basepath == "/sleep") {
+    orderSleepFolderByPlaylist(files);
+  }
 
   for (const auto& name : files) {
     if (!name.empty() && name.back() == '/') {
