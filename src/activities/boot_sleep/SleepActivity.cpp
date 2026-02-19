@@ -114,6 +114,29 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string>& files, bool forc
     APP_STATE.saveToFile();
   }
 }
+
+void drawSleepFilenameLabel(GfxRenderer& renderer, const char* filename) {
+  if (!filename || filename[0] == '\0') return;
+
+  const int screenWidth = renderer.getScreenWidth();
+  const int screenHeight = renderer.getScreenHeight();
+  const int paddingX = 4;
+  const int paddingY = 2;
+  const int margin = 2;
+
+  std::string text = renderer.truncatedText(UI_10_FONT_ID, filename, screenWidth - (margin * 2 + paddingX * 2 + 2));
+  const int textWidth = renderer.getTextWidth(UI_10_FONT_ID, text.c_str(), EpdFontFamily::BOLD);
+  const int boxWidth = textWidth + paddingX * 2;
+  const int boxHeight = 14;
+  const int boxX = margin;
+  const int boxY = screenHeight - boxHeight - margin;
+  const int textX = boxX + paddingX;
+  const int textY = boxY + paddingY;
+
+  renderer.fillRect(boxX, boxY, boxWidth, boxHeight, true);
+  renderer.drawRect(boxX, boxY, boxWidth, boxHeight, false);
+  renderer.drawText(UI_10_FONT_ID, textX, textY, text.c_str(), false, EpdFontFamily::BOLD);
+}
 }  // namespace
 
 void SleepActivity::onEnter() {
@@ -151,7 +174,7 @@ void SleepActivity::renderCustomSleepScreen() const {
         delay(100);
         Bitmap bitmap(file, true);
         if (bitmap.parseHeaders() == BmpReaderError::Ok) {
-          renderBitmapSleepScreen(bitmap);
+          renderBitmapSleepScreen(bitmap, selectedImage.c_str());
           return;
         }
       }
@@ -165,7 +188,7 @@ void SleepActivity::renderCustomSleepScreen() const {
     Bitmap bitmap(file, true);
     if (bitmap.parseHeaders() == BmpReaderError::Ok) {
       LOG_DBG("SLP", "Loading: /sleep.bmp");
-      renderBitmapSleepScreen(bitmap);
+      renderBitmapSleepScreen(bitmap, "sleep.bmp");
       return;
     }
   }
@@ -204,7 +227,7 @@ void SleepActivity::renderDefaultSleepScreen() const {
   renderer.displayBuffer(HalDisplay::HALF_REFRESH);
 }
 
-void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap) const {
+void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const char* sourceFilename) const {
   int x, y;
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
@@ -254,6 +277,10 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap) const {
 
   if (SETTINGS.sleepScreenCoverFilter == CrossPointSettings::SLEEP_SCREEN_COVER_FILTER::INVERTED_BLACK_AND_WHITE) {
     renderer.invertScreen();
+  }
+
+  if (SETTINGS.showSleepImageFilename && sourceFilename != nullptr) {
+    drawSleepFilenameLabel(renderer, sourceFilename);
   }
 
   renderer.displayBuffer(HalDisplay::HALF_REFRESH);
