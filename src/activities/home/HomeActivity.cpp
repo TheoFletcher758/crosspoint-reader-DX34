@@ -18,6 +18,7 @@
 #include "MappedInputManager.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
+#include "components/themes/BaseTheme.h"
 #include "fontIds.h"
 #include "util/BookProgress.h"
 #include "util/StringUtils.h"
@@ -28,7 +29,7 @@ constexpr const char* seeMoreLabel = "See all...";
 
 int HomeActivity::getMenuItemCount() const {
   const int recentSlots = getRecentSlotCount();
-  int count = 3;  // Browse files, file transfer, settings
+  int count = 4;  // Browse files, file transfer, settings, refresh stats
   count += recentSlots;
   if (hasOpdsUrl) {
     count++;
@@ -145,8 +146,6 @@ void HomeActivity::onEnter() {
 
   auto metrics = UITheme::getInstance().getMetrics();
   loadRecentBooks(metrics.homeRecentBooksCount);
-  BaseTheme::refreshHomeInfoStats();
-
   // Trigger first update
   requestUpdate();
 }
@@ -221,7 +220,8 @@ void HomeActivity::loop() {
     const int myLibraryIdx = idx++;
     const int opdsLibraryIdx = hasOpdsUrl ? idx++ : -1;
     const int fileTransferIdx = idx++;
-    const int settingsIdx = idx;
+    const int settingsIdx = idx++;
+    const int refreshStatsIdx = idx;
 
     if (selectorIndex < recentBooks.size()) {
       const std::string& selectedPath = recentBooks[selectorIndex].path;
@@ -240,6 +240,13 @@ void HomeActivity::loop() {
       onFileTransferOpen();
     } else if (menuSelectedIndex == settingsIdx) {
       onSettingsOpen();
+    } else if (menuSelectedIndex == refreshStatsIdx) {
+      const uint64_t previousSignature = BaseTheme::homeInfoStatsSignature();
+      BaseTheme::refreshHomeInfoStats();
+      const uint64_t newSignature = BaseTheme::homeInfoStatsSignature();
+      GUI.drawPopup(renderer, previousSignature != newSignature ? "Stats changed" : "No stats changes");
+      delay(350);
+      requestUpdate();
     }
   }
 }
@@ -260,7 +267,8 @@ void HomeActivity::render(Activity::RenderLock&&) {
                           std::bind(&HomeActivity::storeCoverBuffer, this));
 
   // Build menu items dynamically
-  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_FILE_TRANSFER), tr(STR_SETTINGS_TITLE)};
+  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_FILE_TRANSFER), tr(STR_SETTINGS_TITLE),
+                                        "Refresh Stats"};
   if (hasOpdsUrl) {
     // Insert OPDS Browser after Browse Files.
     menuItems.insert(menuItems.begin() + 1, tr(STR_OPDS_BROWSER));

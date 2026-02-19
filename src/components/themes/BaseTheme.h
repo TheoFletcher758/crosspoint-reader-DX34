@@ -92,6 +92,7 @@ class BaseTheme {
   virtual ~BaseTheme() = default;
   static void invalidateHomeInfoStats();
   static void refreshHomeInfoStats();
+  static uint64_t homeInfoStatsSignature();
 
   // Component drawing methods
   virtual void drawProgressBar(const GfxRenderer& renderer, Rect rect, size_t current, size_t total) const;

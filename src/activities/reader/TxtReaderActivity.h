@@ -22,6 +22,7 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   bool recentSwitcherOpen = false;
   bool pendingSingleBack = false;
   unsigned long lastBackReleaseMs = 0;
+  bool confirmLongPressHandled = false;
   bool progressDirty = false;
   unsigned long lastProgressChangeMs = 0;
   int lastObservedPage = -1;

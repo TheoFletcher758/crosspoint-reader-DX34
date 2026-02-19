@@ -27,6 +27,8 @@ class XtcReaderActivity final : public ActivityWithSubactivity {
   bool recentSwitcherOpen = false;
   bool pendingSingleBack = false;
   unsigned long lastBackReleaseMs = 0;
+  bool confirmLongPressHandled = false;
+  bool suppressNextConfirmRelease = false;
   bool progressDirty = false;
   unsigned long lastProgressChangeMs = 0;
   int32_t lastObservedPage = -1;

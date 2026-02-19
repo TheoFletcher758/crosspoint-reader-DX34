@@ -23,7 +23,6 @@
 namespace {
 constexpr unsigned long skipPageMs = 700;
 constexpr unsigned long goHomeMs = 1000;
-constexpr unsigned long doubleBackMs = 350;
 constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int recentSwitcherRows = 8;
 }  // namespace
@@ -67,10 +66,8 @@ void XtcReaderActivity::loop() {
     return;
   }
 
-  if (pendingSingleBack && (millis() - lastBackReleaseMs > doubleBackMs)) {
-    pendingSingleBack = false;
-    onGoHome();
-    return;
+  if (!mappedInput.isPressed(MappedInputManager::Button::Confirm)) {
+    confirmLongPressHandled = false;
   }
 
   if (recentSwitcherOpen) {
@@ -107,6 +104,10 @@ void XtcReaderActivity::loop() {
 
   // Enter chapter selection activity
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+    if (suppressNextConfirmRelease) {
+      suppressNextConfirmRelease = false;
+      return;
+    }
     if (xtc && xtc->hasChapters() && !xtc->getChapters().empty()) {
       exitActivity();
       enterNewActivity(new XtcReaderChapterSelectionActivity(
@@ -123,25 +124,24 @@ void XtcReaderActivity::loop() {
     }
   }
 
-  // Long press BACK (1s+) goes to file selection
-  if (mappedInput.isPressed(MappedInputManager::Button::Back) && mappedInput.getHeldTime() >= goHomeMs) {
-    pendingSingleBack = false;
-    onGoBack();
+  // Long press CONFIRM (1s+) toggles orientation: Portrait <-> Landscape CCW.
+  if (!confirmLongPressHandled && mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
+      mappedInput.getHeldTime() >= goHomeMs) {
+    confirmLongPressHandled = true;
+    suppressNextConfirmRelease = true;
+    SETTINGS.orientation = (SETTINGS.orientation == CrossPointSettings::ORIENTATION::LANDSCAPE_CCW)
+                               ? CrossPointSettings::ORIENTATION::PORTRAIT
+                               : CrossPointSettings::ORIENTATION::LANDSCAPE_CCW;
+    renderer.setOrientation(SETTINGS.orientation == CrossPointSettings::ORIENTATION::LANDSCAPE_CCW
+                                ? GfxRenderer::Orientation::LandscapeCounterClockwise
+                                : GfxRenderer::Orientation::Portrait);
+    requestUpdate();
     return;
   }
 
-  // Short BACK: single press goes home, double press opens recent switcher.
-  if (mappedInput.wasReleased(MappedInputManager::Button::Back) && mappedInput.getHeldTime() < goHomeMs) {
-    const auto now = millis();
-    if (pendingSingleBack && now - lastBackReleaseMs <= doubleBackMs) {
-      pendingSingleBack = false;
-      recentSwitcherOpen = true;
-      loadRecentSwitcherBooks();
-      requestUpdate();
-    } else {
-      pendingSingleBack = true;
-      lastBackReleaseMs = now;
-    }
+  // BACK: go home immediately on press for snappier response.
+  if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
+    onGoHome();
     return;
   }
 

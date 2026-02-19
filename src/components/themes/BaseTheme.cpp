@@ -156,6 +156,13 @@ void BaseTheme::refreshHomeInfoStats() {
   scanHomeInfoStats(gHomeInfoStats);
 }
 
+uint64_t BaseTheme::homeInfoStatsSignature() {
+  const auto& stats = getHomeInfoStats();
+  // Compact signature from the three displayed values.
+  return (static_cast<uint64_t>(stats.bookCount) << 40) ^ (static_cast<uint64_t>(stats.sleepBmpCount) << 24) ^
+         stats.freeBytes;
+}
+
 void BaseTheme::drawBatteryLeft(const GfxRenderer& renderer, Rect rect, const bool showPercentage) const {
   // Left aligned: icon on left, percentage on right (reader mode)
   const uint16_t percentage = battery.readPercentage();
