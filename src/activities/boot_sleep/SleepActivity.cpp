@@ -123,13 +123,14 @@ void drawSleepFilenameLabel(GfxRenderer& renderer, const char* filename) {
   const int safeInset = 18;  // Keep label well inside visible area to avoid bezel clipping.
   const int paddingX = 4;
   const int paddingY = 2;
+  const int textLineHeight = renderer.getLineHeight(UI_10_FONT_ID);
   const int maxBoxWidth = std::max(1, screenWidth - safeInset * 2);
   const int maxTextWidth = std::max(1, maxBoxWidth - paddingX * 2 - 2);
 
   std::string text = renderer.truncatedText(UI_10_FONT_ID, filename, maxTextWidth);
-  const int textWidth = renderer.getTextWidth(UI_10_FONT_ID, text.c_str(), EpdFontFamily::BOLD);
+  const int textWidth = renderer.getTextWidth(UI_10_FONT_ID, text.c_str(), EpdFontFamily::REGULAR);
   const int boxWidth = std::min(textWidth + paddingX * 2, maxBoxWidth);
-  const int boxHeight = 14;
+  const int boxHeight = textLineHeight + paddingY * 2;
   const int boxX = safeInset;
   const int boxY = std::max(safeInset, screenHeight - boxHeight - safeInset);
   const int textX = boxX + paddingX;
@@ -137,7 +138,7 @@ void drawSleepFilenameLabel(GfxRenderer& renderer, const char* filename) {
 
   renderer.fillRect(boxX, boxY, boxWidth, boxHeight, true);
   renderer.drawRect(boxX, boxY, boxWidth, boxHeight, false);
-  renderer.drawText(UI_10_FONT_ID, textX, textY, text.c_str(), false, EpdFontFamily::BOLD);
+  renderer.drawText(UI_10_FONT_ID, textX, textY, text.c_str(), false, EpdFontFamily::REGULAR);
 }
 }  // namespace
 

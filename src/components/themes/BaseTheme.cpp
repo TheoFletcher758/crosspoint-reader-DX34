@@ -449,8 +449,8 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   const int count = std::min(static_cast<int>(recentBooks.size()), maxRowsCap);
   const int visibleRows = std::max(1, count);
   constexpr int rowGap = 3;
-  const int lineHeight = renderer.getLineHeight(UI_10_FONT_ID);
-  const int preferredRowHeight = lineHeight + 6;  // Keep rows tight around text.
+  const int lineHeight = renderer.getLineHeight(UI_12_FONT_ID);
+  const int preferredRowHeight = (BaseMetrics::values.menuRowHeight * 8) / 10;  // 80% of home menu button height.
   constexpr int statsTopInset = 18;  // Keep away from battery area.
   constexpr int statsTextInsetY = 4;
   constexpr int statsLineGap = 2;
@@ -463,7 +463,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   const int rowsAvailableHeight = rect.y + rect.height - rowsBottomInset - rowsTopY;
   const int maxRowHeight = (rowsAvailableHeight - rowGap * (visibleRows - 1)) / visibleRows;
   const int rowHeight = std::max(lineHeight + 2, std::min(preferredRowHeight, maxRowHeight));
-  const int textYInset = std::max(2, (rowHeight - renderer.getLineHeight(UI_10_FONT_ID)) / 2);
+  const int textYInset = std::max(2, (rowHeight - renderer.getLineHeight(UI_12_FONT_ID)) / 2);
   const int rowX = rect.x + BaseMetrics::values.contentSidePadding;
   const int rowW = rect.width - BaseMetrics::values.contentSidePadding * 2;
   const int contentX = rowX + 12;
@@ -480,21 +480,32 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
 
     const uint64_t gbScale = 1024ull * 1024ull * 1024ull;
     const uint64_t freeTenthsGb = (stats.freeBytes * 10ull) / gbScale;
-    const std::string line1 = "# of books: " + std::to_string(stats.bookCount);
-    const std::string line2 = "# of .bmp images: " + std::to_string(stats.sleepBmpCount);
-    const std::string line3 = "Free Space in SD card: " + std::to_string(freeTenthsGb / 10ull) + "." +
-                              std::to_string(freeTenthsGb % 10ull) + " GB";
+    const std::string line1Value = std::to_string(stats.bookCount);
+    const std::string line2Value = std::to_string(stats.sleepBmpCount);
+    const std::string line3Value =
+        std::to_string(freeTenthsGb / 10ull) + "." + std::to_string(freeTenthsGb % 10ull) + " GB";
 
     const int tipTextMaxWidth = tipW - 16;
     const int lineStep = lineHeight + statsLineGap;
     const int textY = tipY + statsTextInsetY;
-    renderer.drawText(
-        UI_10_FONT_ID, tipX + 8, textY, renderer.truncatedText(UI_10_FONT_ID, line1.c_str(), tipTextMaxWidth).c_str(),
-        true, EpdFontFamily::BOLD);
-    renderer.drawText(UI_10_FONT_ID, tipX + 8, textY + lineStep,
-                      renderer.truncatedText(UI_10_FONT_ID, line2.c_str(), tipTextMaxWidth).c_str(), true);
-    renderer.drawText(UI_10_FONT_ID, tipX + 8, textY + lineStep * 2,
-                      renderer.truncatedText(UI_10_FONT_ID, line3.c_str(), tipTextMaxWidth).c_str(), true);
+    const int textX = tipX + 8;
+    auto drawStatLine = [&](const int y, const char* labelBold, const std::string& valueRegular) {
+      const std::string label =
+          renderer.truncatedText(UI_12_FONT_ID, labelBold, tipTextMaxWidth, EpdFontFamily::BOLD);
+      const int labelWidth = renderer.getTextWidth(UI_12_FONT_ID, label.c_str(), EpdFontFamily::BOLD);
+
+      renderer.drawText(UI_12_FONT_ID, textX, y, label.c_str(), true, EpdFontFamily::BOLD);
+
+      const int remaining = tipTextMaxWidth - labelWidth;
+      if (remaining <= 0) return;
+
+      const std::string value = renderer.truncatedText(UI_12_FONT_ID, valueRegular.c_str(), remaining);
+      renderer.drawText(UI_12_FONT_ID, textX + labelWidth, y, value.c_str(), true, EpdFontFamily::REGULAR);
+    };
+
+    drawStatLine(textY, "Number of books: ", line1Value);
+    drawStatLine(textY + lineStep, "Number of .bmp images: ", line2Value);
+    drawStatLine(textY + lineStep * 2, "Free Space in SD card: ", line3Value);
     for (int i = 0; i < visibleRows; i++) {
       const bool hasBook = i < count;
       const int rowY = rowsTopY + i * (rowHeight + rowGap);
@@ -515,20 +526,20 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
 
       const int baselineY = rowY + textYInset;
       if (!hasBook) {
-        const std::string placeholder = renderer.truncatedText(UI_10_FONT_ID, placeholderLabel, contentW);
-        const int placeholderWidth = renderer.getTextWidth(UI_10_FONT_ID, placeholder.c_str());
-        renderer.drawText(UI_10_FONT_ID, contentX + (contentW - placeholderWidth) / 2, baselineY, placeholder.c_str(),
+        const std::string placeholder = renderer.truncatedText(UI_12_FONT_ID, placeholderLabel, contentW);
+        const int placeholderWidth = renderer.getTextWidth(UI_12_FONT_ID, placeholder.c_str());
+        renderer.drawText(UI_12_FONT_ID, contentX + (contentW - placeholderWidth) / 2, baselineY, placeholder.c_str(),
                           textBlack);
         continue;
       }
 
       const std::string initials = buildAuthorInitials(recentBooks[i].author);
-      const int initialsWidth = renderer.getTextWidth(UI_10_FONT_ID, initials.c_str());
+      const int initialsWidth = renderer.getTextWidth(UI_12_FONT_ID, initials.c_str());
       const int titleMaxWidth = contentW - initialsWidth - 10;
-      const std::string title = renderer.truncatedText(UI_10_FONT_ID, recentBooks[i].title.c_str(), titleMaxWidth);
+      const std::string title = renderer.truncatedText(UI_12_FONT_ID, recentBooks[i].title.c_str(), titleMaxWidth);
 
-      renderer.drawText(UI_10_FONT_ID, contentX, baselineY, title.c_str(), textBlack);
-      renderer.drawText(UI_10_FONT_ID, contentX + contentW - initialsWidth, baselineY, initials.c_str(), textBlack);
+      renderer.drawText(UI_12_FONT_ID, contentX, baselineY, title.c_str(), textBlack);
+      renderer.drawText(UI_12_FONT_ID, contentX + contentW - initialsWidth, baselineY, initials.c_str(), textBlack);
     }
   }
 }
@@ -552,13 +563,13 @@ void BaseTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount
 
     std::string labelStr = buttonLabel(i);
     const char* label = labelStr.c_str();
-    const int textWidth = renderer.getTextWidth(UI_10_FONT_ID, label);
+    const int textWidth = renderer.getTextWidth(UI_12_FONT_ID, label);
     const int textX = rect.x + (rect.width - textWidth) / 2;
-    const int lineHeight = renderer.getLineHeight(UI_10_FONT_ID);
+    const int lineHeight = renderer.getLineHeight(UI_12_FONT_ID);
     const int textY =
         tileY + (BaseMetrics::values.menuRowHeight - lineHeight) / 2;  // vertically centered assuming y is top of text
     // Invert text when the tile is selected, to contrast with the filled background
-    renderer.drawText(UI_10_FONT_ID, textX, textY, label, selectedIndex != i);
+    renderer.drawText(UI_12_FONT_ID, textX, textY, label, selectedIndex != i);
   }
 }
 
