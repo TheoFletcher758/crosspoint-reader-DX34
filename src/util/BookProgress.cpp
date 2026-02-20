@@ -9,7 +9,7 @@
 #include "StringUtils.h"
 
 namespace {
-constexpr const char* kUnreadPrefix = u8"―";
+constexpr const char* kUnreadPrefix = "[ ]";
 
 template <typename T>
 T clampValue(T value, T min, T max) {
@@ -148,7 +148,7 @@ std::string getPrefix(const std::string& path) {
   if (!percent.has_value() || percent.value() <= 1) {
     return kUnreadPrefix;
   }
-  return std::to_string(percent.value()) + "%";
+  return "[" + std::to_string(percent.value()) + "%]";
 }
 
 std::string withPrefix(const std::string& path, const std::string& title) {
@@ -156,4 +156,3 @@ std::string withPrefix(const std::string& path, const std::string& title) {
 }
 
 }  // namespace BookProgress
-

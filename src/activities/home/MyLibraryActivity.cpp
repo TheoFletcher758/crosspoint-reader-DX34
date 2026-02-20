@@ -23,6 +23,61 @@ constexpr unsigned long GO_HOME_MS = 1000;
 
 const char* const FILE_ACTION_LABELS[] = {"Open", "Move File", "Delete File", "Cancel"};
 constexpr int FILE_ACTION_COUNT = sizeof(FILE_ACTION_LABELS) / sizeof(FILE_ACTION_LABELS[0]);
+
+std::string rtrimSpaces(std::string text) {
+  while (!text.empty() && text.back() == ' ') {
+    text.pop_back();
+  }
+  return text;
+}
+
+std::vector<std::string> wrapTextToWidth(const GfxRenderer& renderer, const int fontId, const std::string& text,
+                                         const int maxWidth) {
+  if (text.empty()) return {""};
+
+  std::vector<std::string> lines;
+  size_t pos = 0;
+
+  while (pos < text.size()) {
+    while (pos < text.size() && text[pos] == ' ') pos++;
+    if (pos >= text.size()) break;
+
+    size_t end = pos;
+    size_t lastSpace = std::string::npos;
+
+    while (end < text.size()) {
+      if (text[end] == ' ') lastSpace = end;
+      const std::string candidate = text.substr(pos, end - pos + 1);
+      if (renderer.getTextWidth(fontId, candidate.c_str()) > maxWidth) break;
+      end++;
+    }
+
+    if (end >= text.size()) {
+      lines.push_back(rtrimSpaces(text.substr(pos)));
+      break;
+    }
+
+    if (end == pos) {
+      // Force at least one character so very long unbroken tokens still wrap.
+      size_t forcedEnd = pos + 1;
+      while (forcedEnd < text.size()) {
+        const std::string forcedCandidate = text.substr(pos, forcedEnd - pos + 1);
+        if (renderer.getTextWidth(fontId, forcedCandidate.c_str()) > maxWidth) break;
+        forcedEnd++;
+      }
+      lines.push_back(rtrimSpaces(text.substr(pos, forcedEnd - pos)));
+      pos = forcedEnd;
+      continue;
+    }
+
+    size_t split = (lastSpace != std::string::npos && lastSpace >= pos) ? lastSpace : (end - 1);
+    lines.push_back(rtrimSpaces(text.substr(pos, split - pos + 1)));
+    pos = split + 1;
+  }
+
+  if (lines.empty()) lines.push_back("");
+  return lines;
+}
 }  // namespace
 
 void sortFileList(std::vector<std::string>& strs) {
@@ -213,15 +268,7 @@ std::string MyLibraryActivity::getDisplayNameForEntry(const size_t index) {
   if (!isBookFile(name)) {
     return name;
   }
-
-  const std::string fullPath = makeAbsolutePath(name);
-
-  auto cached = progressPrefixCache.find(fullPath);
-  if (cached == progressPrefixCache.end()) {
-    cached = progressPrefixCache.emplace(fullPath, BookProgress::getPrefix(fullPath)).first;
-  }
-
-  return cached->second + " " + name;
+  return name;
 }
 
 void MyLibraryActivity::enterBmpView(const std::string& bmpPath) {
@@ -608,9 +655,77 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
   if (files.empty()) {
     renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, contentTop + 20, tr(STR_NO_BOOKS_FOUND));
   } else {
-    GUI.drawList(
-        renderer, Rect{0, contentTop, pageWidth, contentHeight}, files.size(), selectorIndex,
-        [this](int index) { return getDisplayNameForEntry(static_cast<size_t>(index)); }, nullptr, nullptr, nullptr);
+    const int pathY = contentTop;
+    const int pathWidth = pageWidth - metrics.contentSidePadding * 2;
+    const std::string pathLabel = renderer.truncatedText(SMALL_FONT_ID, basepath.c_str(), pathWidth);
+    renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding, pathY, pathLabel.c_str());
+
+    const int listTop = pathY + renderer.getLineHeight(SMALL_FONT_ID) + 2;
+    const int listHeight = pageHeight - listTop - metrics.buttonHintsHeight - metrics.verticalSpacing;
+    const int rowGap = 1;
+    const int lineHeight = renderer.getLineHeight(UI_10_FONT_ID);
+    const int rowPadY = 2;
+    const int oneLineRowHeight = lineHeight + rowPadY * 2;
+    const int listX = 0;
+    const int listW = pageWidth;
+    const int textX = listX + metrics.contentSidePadding;
+    const int textW = listW - metrics.contentSidePadding * 2 - 3;
+
+    std::vector<std::vector<std::string>> wrappedRows(files.size());
+    std::vector<int> rowHeights(files.size(), oneLineRowHeight);
+    for (size_t i = 0; i < files.size(); i++) {
+      const std::string& name = files[i];
+      std::string rowText = getDisplayNameForEntry(i);
+
+      if (!name.empty() && name.back() != '/' && isBookFile(name)) {
+        const std::string fullPath = makeAbsolutePath(name);
+        auto cached = progressPrefixCache.find(fullPath);
+        if (cached == progressPrefixCache.end()) {
+          cached = progressPrefixCache.emplace(fullPath, BookProgress::getPrefix(fullPath)).first;
+        }
+        std::string progressPrefix = cached->second.empty() ? "-" : cached->second;
+        if (progressPrefix == u8"―" || progressPrefix == "-") {
+          progressPrefix = "[ ]";
+        }
+        rowText = progressPrefix + " " + name;
+      }
+
+      wrappedRows[i] = wrapTextToWidth(renderer, UI_10_FONT_ID, rowText, textW);
+      rowHeights[i] = static_cast<int>(wrappedRows[i].size()) * lineHeight + rowPadY * 2;
+    }
+
+    if (selectorIndex >= files.size()) {
+      selectorIndex = files.empty() ? 0 : files.size() - 1;
+    }
+    const int selected = static_cast<int>(selectorIndex);
+
+    int startIndex = selected;
+    int usedHeight = 0;
+    while (startIndex >= 0) {
+      const int blockHeight = rowHeights[static_cast<size_t>(startIndex)] + (usedHeight > 0 ? rowGap : 0);
+      if (usedHeight + blockHeight > listHeight) break;
+      usedHeight += blockHeight;
+      startIndex--;
+    }
+    startIndex = std::max(0, startIndex + 1);
+
+    int y = listTop;
+    for (int i = startIndex; i < static_cast<int>(files.size()); i++) {
+      const int rowHeight = rowHeights[static_cast<size_t>(i)];
+      if (y + rowHeight > listTop + listHeight) break;
+
+      const bool isSelected = i == selected;
+      if (isSelected) {
+        renderer.fillRect(listX, y, listW, rowHeight, true);
+      }
+
+      int lineY = y + rowPadY;
+      for (const auto& line : wrappedRows[static_cast<size_t>(i)]) {
+        renderer.drawText(UI_10_FONT_ID, textX, lineY, line.c_str(), !isSelected);
+        lineY += lineHeight;
+      }
+      y += rowHeight + rowGap;
+    }
   }
 
   // Help text

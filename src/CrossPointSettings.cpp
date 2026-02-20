@@ -384,8 +384,15 @@ bool CrossPointSettings::loadFromFile() {
 }
 
 float CrossPointSettings::getReaderLineCompression() const {
-  const uint8_t clamped = (lineSpacingPercent < 80 || lineSpacingPercent > 200) ? 110 : lineSpacingPercent;
-  return static_cast<float>(clamped) / 100.0f;
+  switch (lineSpacing) {
+    case TIGHT:
+      return 0.95f;
+    case NORMAL:
+    default:
+      return 1.10f;
+    case WIDE:
+      return 1.25f;
+  }
 }
 
 unsigned long CrossPointSettings::getSleepTimeoutMs() const {

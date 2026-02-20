@@ -344,9 +344,6 @@ void SettingsActivity::render(Activity::RenderLock&&) {
       valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
     } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
       valueText = std::to_string(SETTINGS.*(setting.valuePtr));
-      if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
-        valueText += "%";
-      }
     }
 
     if (!valueText.empty()) {
