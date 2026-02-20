@@ -49,6 +49,8 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
 
   const auto& books = RECENT_BOOKS.getBooks();
   recentBooks.reserve(maxBooks);
+  size_t eligibleCount = 0;
+  const size_t maxVisibleBooks = static_cast<size_t>(maxBooks);
 
   for (const RecentBook& book : books) {
     // Skip if file no longer exists
@@ -59,23 +61,29 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
     if (!percent.has_value() || percent.value() <= 2) {
       continue;
     }
-    if (recentBooks.size() >= static_cast<size_t>(maxBooks - 1)) {
-      break;
-    }
+    eligibleCount++;
 
-    RecentBook bookWithoutCover = book;
-    bookWithoutCover.title = BookProgress::withPrefix(book.path, book.title);
-    // Home screen should never attempt to load/render cover images.
-    bookWithoutCover.coverBmpPath.clear();
-    recentBooks.push_back(bookWithoutCover);
+    if (recentBooks.size() < maxVisibleBooks) {
+      RecentBook bookWithoutCover = book;
+      bookWithoutCover.title = BookProgress::withPrefix(book.path, book.title);
+      // Home screen should never attempt to load/render cover images.
+      bookWithoutCover.coverBmpPath.clear();
+      recentBooks.push_back(bookWithoutCover);
+    }
   }
 
-  RecentBook seeMoreRow;
-  seeMoreRow.path.clear();
-  seeMoreRow.title = seeMoreLabel;
-  seeMoreRow.author.clear();
-  seeMoreRow.coverBmpPath.clear();
-  recentBooks.push_back(std::move(seeMoreRow));
+  if (eligibleCount > maxVisibleBooks && !recentBooks.empty()) {
+    // Keep one slot for "See all..." when there are hidden ongoing books.
+    if (recentBooks.size() == maxVisibleBooks) {
+      recentBooks.pop_back();
+    }
+    RecentBook seeMoreRow;
+    seeMoreRow.path.clear();
+    seeMoreRow.title = seeMoreLabel;
+    seeMoreRow.author.clear();
+    seeMoreRow.coverBmpPath.clear();
+    recentBooks.push_back(std::move(seeMoreRow));
+  }
 }
 
 void HomeActivity::loadRecentCovers(int coverHeight) {

@@ -547,7 +547,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     const int textY = tipY + statsTextInsetY;
     const int textX = tipX + 8;
     auto drawStatLine = [&](const int y, const char* labelText, const std::string& valueRegular) {
-      const std::string labelWithSeparator = std::string(labelText) + " - ";
+      const std::string labelWithSeparator = std::string(labelText) + "   ";
       const std::string label =
           renderer.truncatedText(SMALL_FONT_ID, labelWithSeparator.c_str(), tipTextMaxWidth, EpdFontFamily::REGULAR);
       const int labelWidth = renderer.getTextWidth(SMALL_FONT_ID, label.c_str(), EpdFontFamily::REGULAR);
@@ -557,7 +557,8 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
       const int remaining = tipTextMaxWidth - labelWidth;
       if (remaining <= 0) return;
 
-      const std::string value = renderer.truncatedText(SMALL_FONT_ID, valueRegular.c_str(), remaining);
+      const std::string valueBracketed = "[" + valueRegular + "]";
+      const std::string value = renderer.truncatedText(SMALL_FONT_ID, valueBracketed.c_str(), remaining);
       renderer.drawText(SMALL_FONT_ID, textX + labelWidth, y, value.c_str(), true, EpdFontFamily::REGULAR);
     };
 

@@ -148,7 +148,7 @@ std::string getPrefix(const std::string& path) {
   if (!percent.has_value() || percent.value() <= 1) {
     return kUnreadPrefix;
   }
-  return "[" + std::to_string(percent.value()) + "%]";
+  return "[" + std::to_string(percent.value()) + " %]";
 }
 
 std::string withPrefix(const std::string& path, const std::string& title) {
