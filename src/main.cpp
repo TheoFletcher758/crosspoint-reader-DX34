@@ -39,54 +39,63 @@ GfxRenderer renderer(display);
 Activity* currentActivity;
 
 // Fonts
+EpdFont bookerly12RegularFont(&bookerly_12_regular);
+EpdFont bookerly12BoldFont(&bookerly_12_bold);
+EpdFont bookerly12ItalicFont(&bookerly_12_italic);
+EpdFont bookerly12BoldItalicFont(&bookerly_12_bolditalic);
+EpdFontFamily bookerly12FontFamily(&bookerly12RegularFont, &bookerly12BoldFont, &bookerly12ItalicFont,
+                                   &bookerly12BoldItalicFont);
+EpdFont bookerly14RegularFont(&bookerly_14_regular);
+EpdFont bookerly14BoldFont(&bookerly_14_bold);
+EpdFont bookerly14ItalicFont(&bookerly_14_italic);
+EpdFont bookerly14BoldItalicFont(&bookerly_14_bolditalic);
+EpdFontFamily bookerly14FontFamily(&bookerly14RegularFont, &bookerly14BoldFont, &bookerly14ItalicFont,
+                                   &bookerly14BoldItalicFont);
+EpdFont bookerly16RegularFont(&bookerly_16_regular);
+EpdFont bookerly16BoldFont(&bookerly_16_bold);
+EpdFont bookerly16ItalicFont(&bookerly_16_italic);
+EpdFont bookerly16BoldItalicFont(&bookerly_16_bolditalic);
+EpdFontFamily bookerly16FontFamily(&bookerly16RegularFont, &bookerly16BoldFont, &bookerly16ItalicFont,
+                                   &bookerly16BoldItalicFont);
 EpdFont bookerly18RegularFont(&bookerly_18_regular);
 EpdFont bookerly18BoldFont(&bookerly_18_bold);
 EpdFont bookerly18ItalicFont(&bookerly_18_italic);
 EpdFont bookerly18BoldItalicFont(&bookerly_18_bolditalic);
 EpdFontFamily bookerly18FontFamily(&bookerly18RegularFont, &bookerly18BoldFont, &bookerly18ItalicFont,
                                    &bookerly18BoldItalicFont);
-#ifndef OMIT_FONTS
-EpdFont bookerly21RegularFont(&bookerly_20_regular);
-EpdFont bookerly21BoldFont(&bookerly_20_bold);
-EpdFont bookerly21ItalicFont(&bookerly_20_italic);
-EpdFont bookerly21BoldItalicFont(&bookerly_20_bolditalic);
-EpdFontFamily bookerly21FontFamily(&bookerly21RegularFont, &bookerly21BoldFont, &bookerly21ItalicFont,
-                                   &bookerly21BoldItalicFont);
-EpdFont bookerly23RegularFont(&bookerly_22_regular);
-EpdFont bookerly23BoldFont(&bookerly_22_bold);
-EpdFont bookerly23ItalicFont(&bookerly_22_italic);
-EpdFont bookerly23BoldItalicFont(&bookerly_22_bolditalic);
-EpdFontFamily bookerly23FontFamily(&bookerly23RegularFont, &bookerly23BoldFont, &bookerly23ItalicFont,
-                                   &bookerly23BoldItalicFont);
-EpdFont bookerly25RegularFont(&bookerly_22_regular);
-EpdFont bookerly25BoldFont(&bookerly_22_bold);
-EpdFont bookerly25ItalicFont(&bookerly_22_italic);
-EpdFont bookerly25BoldItalicFont(&bookerly_22_bolditalic);
-EpdFontFamily bookerly25FontFamily(&bookerly25RegularFont, &bookerly25BoldFont, &bookerly25ItalicFont,
-                                   &bookerly25BoldItalicFont);
-EpdFont ebgaramond16RegularFont(&ebgaramond_16_regular);
-EpdFont ebgaramond16BoldFont(&ebgaramond_16_bold);
-EpdFont ebgaramond16ItalicFont(&ebgaramond_16_italic);
-EpdFont ebgaramond16BoldItalicFont(&ebgaramond_16_bolditalic);
-EpdFontFamily ebgaramond16FontFamily(&ebgaramond16RegularFont, &ebgaramond16BoldFont, &ebgaramond16ItalicFont,
-                                     &ebgaramond16BoldItalicFont);
-EpdFont ebgaramond20RegularFont(&ebgaramond_20_regular);
-EpdFont ebgaramond20BoldFont(&ebgaramond_20_bold);
-EpdFont ebgaramond20ItalicFont(&ebgaramond_20_italic);
-EpdFont ebgaramond20BoldItalicFont(&ebgaramond_20_bolditalic);
-EpdFontFamily ebgaramond20FontFamily(&ebgaramond20RegularFont, &ebgaramond20BoldFont, &ebgaramond20ItalicFont,
-                                     &ebgaramond20BoldItalicFont);
 
-#endif  // OMIT_FONTS
+EpdFont chareink14RegularFont(&chareink_14_regular);
+EpdFont chareink14BoldFont(&chareink_14_bold);
+EpdFont chareink14ItalicFont(&chareink_14_italic);
+EpdFont chareink14BoldItalicFont(&chareink_14_bolditalic);
+EpdFontFamily chareink14FontFamily(&chareink14RegularFont, &chareink14BoldFont, &chareink14ItalicFont,
+                                   &chareink14BoldItalicFont);
+EpdFont chareink16RegularFont(&chareink_16_regular);
+EpdFont chareink16BoldFont(&chareink_16_bold);
+EpdFont chareink16ItalicFont(&chareink_16_italic);
+EpdFont chareink16BoldItalicFont(&chareink_16_bolditalic);
+EpdFontFamily chareink16FontFamily(&chareink16RegularFont, &chareink16BoldFont, &chareink16ItalicFont,
+                                   &chareink16BoldItalicFont);
+EpdFont chareink18RegularFont(&chareink_18_regular);
+EpdFont chareink18BoldFont(&chareink_18_bold);
+EpdFont chareink18ItalicFont(&chareink_18_italic);
+EpdFont chareink18BoldItalicFont(&chareink_18_bolditalic);
+EpdFontFamily chareink18FontFamily(&chareink18RegularFont, &chareink18BoldFont, &chareink18ItalicFont,
+                                   &chareink18BoldItalicFont);
+EpdFont chareink20RegularFont(&chareink_20_regular);
+EpdFont chareink20BoldFont(&chareink_20_bold);
+EpdFont chareink20ItalicFont(&chareink_20_italic);
+EpdFont chareink20BoldItalicFont(&chareink_20_bolditalic);
+EpdFontFamily chareink20FontFamily(&chareink20RegularFont, &chareink20BoldFont, &chareink20ItalicFont,
+                                   &chareink20BoldItalicFont);
 
-EpdFont smallFont(&atkinson_ui_small_regular);
+EpdFont smallFont(&ui_8_regular);
 EpdFontFamily smallFontFamily(&smallFont, nullptr, nullptr, nullptr, 1, 0, false);
-
-EpdFont ui10RegularFont(&atkinson_ui_10_regular);
+EpdFont ui10RegularFont(&ui_10_regular);
 EpdFontFamily ui10FontFamily(&ui10RegularFont, nullptr, nullptr, nullptr, 1, 1, false);
-
-EpdFont ui12RegularFont(&atkinson_ui_12_regular);
+EpdFont ui12RegularFont(&ui_12_regular);
 EpdFontFamily ui12FontFamily(&ui12RegularFont, nullptr, nullptr, nullptr, 1, 1, false);
+
 
 // measurement of power button press duration calibration value
 unsigned long t1 = 0;
@@ -220,14 +229,14 @@ void setupDisplayAndFonts() {
   display.begin();
   renderer.begin();
   LOG_DBG("MAIN", "Display initialized");
+  renderer.insertFont(BOOKERLY_12_FONT_ID, bookerly12FontFamily);
+  renderer.insertFont(BOOKERLY_14_FONT_ID, bookerly14FontFamily);
+  renderer.insertFont(BOOKERLY_16_FONT_ID, bookerly16FontFamily);
   renderer.insertFont(BOOKERLY_18_FONT_ID, bookerly18FontFamily);
-#ifndef OMIT_FONTS
-  renderer.insertFont(BOOKERLY_21_FONT_ID, bookerly21FontFamily);
-  renderer.insertFont(BOOKERLY_23_FONT_ID, bookerly23FontFamily);
-  renderer.insertFont(BOOKERLY_25_FONT_ID, bookerly25FontFamily);
-  renderer.insertFont(EBGARAMOND_16_FONT_ID, ebgaramond16FontFamily);
-  renderer.insertFont(EBGARAMOND_20_FONT_ID, ebgaramond20FontFamily);
-#endif  // OMIT_FONTS
+  renderer.insertFont(CHAREINK_14_FONT_ID, chareink14FontFamily);
+  renderer.insertFont(CHAREINK_16_FONT_ID, chareink16FontFamily);
+  renderer.insertFont(CHAREINK_18_FONT_ID, chareink18FontFamily);
+  renderer.insertFont(CHAREINK_20_FONT_ID, chareink20FontFamily);
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);
   renderer.insertFont(UI_12_FONT_ID, ui12FontFamily);
   renderer.insertFont(SMALL_FONT_ID, smallFontFamily);
