@@ -1054,7 +1054,6 @@ void EpubReaderActivity::saveProgress(int spineIndex, int currentPage,
     LOG_ERR("ERS", "Could not save progress!");
   }
 }
-
 void EpubReaderActivity::flushProgressIfNeeded(const bool force) {
   if (!epub || !section || section->pageCount <= 0) {
     return;
@@ -1074,13 +1073,16 @@ void EpubReaderActivity::flushProgressIfNeeded(const bool force) {
   lastSavedPageCount = section->pageCount;
   progressDirty = false;
 }
+
 void EpubReaderActivity::renderContents(std::unique_ptr<Page> page,
                                         const int orientedMarginTop,
                                         const int orientedMarginRight,
                                         const int orientedMarginBottom,
                                         const int orientedMarginLeft) {
   // Reader text AA is intentionally disabled: render EPUB pages in BW only.
-  bool forceFullRefresh = false;
+  // Force special handling for pages with images when anti-aliasing is on
+  bool imagePageWithAA = page->hasImages() && SETTINGS.textAntiAliasing;
+
   const int statusBarReserved =
       SETTINGS.statusBarEnabled
           ? computeStatusBarReservedHeight(renderer,
@@ -1101,9 +1103,28 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page,
                        orientedMarginRight,
                    viewportHeight);
   }
+
   renderStatusBar(orientedMarginRight, orientedMarginBottom,
                   orientedMarginLeft);
-  if (forceFullRefresh || pagesUntilFullRefresh <= 1) {
+
+  if (imagePageWithAA) {
+    // Double FAST_REFRESH with selective image blanking
+    int16_t imgX, imgY, imgW, imgH;
+    if (page->getImageBoundingBox(imgX, imgY, imgW, imgH)) {
+      renderer.fillRect(imgX + orientedMarginLeft, imgY + contentY, imgW, imgH,
+                        false);
+      renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+
+      // Re-render page content to restore images into the blanked area
+      page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft,
+                   contentY);
+      renderStatusBar(orientedMarginRight, orientedMarginBottom,
+                      orientedMarginLeft);
+      renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+    } else {
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+    }
+  } else if (pagesUntilFullRefresh <= 1) {
     renderer.displayBuffer(HalDisplay::HALF_REFRESH);
     pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
   } else {
