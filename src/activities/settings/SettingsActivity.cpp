@@ -18,7 +18,61 @@
 #include "fontIds.h"
 
 const StrId SettingsActivity::categoryNames[categoryCount] = {StrId::STR_CAT_DISPLAY, StrId::STR_CAT_READER,
-                                                              StrId::STR_CAT_CONTROLS, StrId::STR_CAT_SYSTEM};
+                                                              StrId::STR_STATUS_BAR, StrId::STR_CAT_CONTROLS,
+                                                              StrId::STR_CAT_SYSTEM};
+
+namespace {
+constexpr unsigned long doubleTapMs = 350;
+}
+
+const std::vector<SettingInfo>* SettingsActivity::settingsForCategory(const int categoryIndex) const {
+  switch (categoryIndex) {
+    case 0:
+      return &displaySettings;
+    case 1:
+      return &readerSettings;
+    case 2:
+      return &statusBarSettings;
+    case 3:
+      return &controlsSettings;
+    case 4:
+    default:
+      return &systemSettings;
+  }
+}
+
+int SettingsActivity::findNextEditableRow(const int startIndex, const int direction) const {
+  if (flatRows.empty()) {
+    return 0;
+  }
+  int idx = startIndex;
+  for (size_t i = 0; i < flatRows.size(); i++) {
+    idx = (direction > 0) ? ButtonNavigator::nextIndex(idx, static_cast<int>(flatRows.size()))
+                          : ButtonNavigator::previousIndex(idx, static_cast<int>(flatRows.size()));
+    if (!flatRows[idx].isHeader) {
+      return idx;
+    }
+  }
+  return startIndex;
+}
+
+void SettingsActivity::jumpCategory(const int direction) {
+  if (categoryHeaderRowIndices.empty()) {
+    return;
+  }
+  int currentCategory = flatRows[selectedRowIndex].categoryIndex;
+  int targetCategory = currentCategory;
+  for (int i = 0; i < categoryCount; i++) {
+    targetCategory = (direction > 0) ? ButtonNavigator::nextIndex(targetCategory, categoryCount)
+                                     : ButtonNavigator::previousIndex(targetCategory, categoryCount);
+    const auto* settings = settingsForCategory(targetCategory);
+    if (settings && !settings->empty()) {
+      break;
+    }
+  }
+  const int headerRow = categoryHeaderRowIndices[targetCategory];
+  selectedRowIndex = findNextEditableRow(headerRow, +1);
+}
 
 void SettingsActivity::onEnter() {
   Activity::onEnter();
@@ -26,8 +80,11 @@ void SettingsActivity::onEnter() {
   // Build per-category vectors from the shared settings list
   displaySettings.clear();
   readerSettings.clear();
+  statusBarSettings.clear();
   controlsSettings.clear();
   systemSettings.clear();
+  flatRows.clear();
+  categoryHeaderRowIndices.clear();
 
   for (auto& setting : getSettingsList()) {
     if (setting.category == StrId::STR_NONE_OPT) continue;
@@ -35,6 +92,8 @@ void SettingsActivity::onEnter() {
       displaySettings.push_back(std::move(setting));
     } else if (setting.category == StrId::STR_CAT_READER) {
       readerSettings.push_back(std::move(setting));
+    } else if (setting.category == StrId::STR_STATUS_BAR) {
+      statusBarSettings.push_back(std::move(setting));
     } else if (setting.category == StrId::STR_CAT_CONTROLS) {
       controlsSettings.push_back(std::move(setting));
     } else if (setting.category == StrId::STR_CAT_SYSTEM) {
@@ -55,13 +114,18 @@ void SettingsActivity::onEnter() {
   systemSettings.push_back(SettingInfo::Action(StrId::STR_CHECK_UPDATES, SettingAction::CheckForUpdates));
   systemSettings.push_back(SettingInfo::Action(StrId::STR_LANGUAGE, SettingAction::Language));
 
-  // Reset selection to first category
-  selectedCategoryIndex = 0;
-  selectedSettingIndex = 0;
-
-  // Initialize with first category (Display)
-  currentSettings = &displaySettings;
-  settingsCount = static_cast<int>(displaySettings.size());
+  categoryHeaderRowIndices.resize(categoryCount, 0);
+  for (int c = 0; c < categoryCount; c++) {
+    categoryHeaderRowIndices[c] = static_cast<int>(flatRows.size());
+    flatRows.push_back(FlatSettingRow{.isHeader = true, .categoryIndex = c, .settingIndex = -1});
+    const auto* settings = settingsForCategory(c);
+    for (size_t i = 0; i < settings->size(); i++) {
+      flatRows.push_back(FlatSettingRow{.isHeader = false, .categoryIndex = c, .settingIndex = static_cast<int>(i)});
+    }
+  }
+  selectedRowIndex = findNextEditableRow(0, +1);
+  lastNextTapMs = 0;
+  lastPreviousTapMs = 0;
 
   // Trigger first update
   requestUpdate();
@@ -78,19 +142,12 @@ void SettingsActivity::loop() {
     subActivity->loop();
     return;
   }
-  bool hasChangedCategory = false;
 
   // Handle actions with early return
   if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
-    if (selectedSettingIndex == 0) {
-      selectedCategoryIndex = (selectedCategoryIndex < categoryCount - 1) ? (selectedCategoryIndex + 1) : 0;
-      hasChangedCategory = true;
-      requestUpdate();
-    } else {
-      toggleCurrentSetting();
-      requestUpdate();
-      return;
-    }
+    toggleCurrentSetting();
+    requestUpdate();
+    return;
   }
 
   if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
@@ -101,54 +158,54 @@ void SettingsActivity::loop() {
 
   // Handle navigation
   buttonNavigator.onNextRelease([this] {
-    selectedSettingIndex = ButtonNavigator::nextIndex(selectedSettingIndex, settingsCount + 1);
+    const unsigned long now = millis();
+    if (lastNextTapMs > 0 && now - lastNextTapMs <= doubleTapMs) {
+      jumpCategory(+1);
+      lastNextTapMs = 0;
+    } else {
+      selectedRowIndex = findNextEditableRow(selectedRowIndex, +1);
+      lastNextTapMs = now;
+    }
     requestUpdate();
   });
 
   buttonNavigator.onPreviousRelease([this] {
-    selectedSettingIndex = ButtonNavigator::previousIndex(selectedSettingIndex, settingsCount + 1);
-    requestUpdate();
-  });
-
-  buttonNavigator.onNextContinuous([this, &hasChangedCategory] {
-    hasChangedCategory = true;
-    selectedCategoryIndex = ButtonNavigator::nextIndex(selectedCategoryIndex, categoryCount);
-    requestUpdate();
-  });
-
-  buttonNavigator.onPreviousContinuous([this, &hasChangedCategory] {
-    hasChangedCategory = true;
-    selectedCategoryIndex = ButtonNavigator::previousIndex(selectedCategoryIndex, categoryCount);
-    requestUpdate();
-  });
-
-  if (hasChangedCategory) {
-    selectedSettingIndex = (selectedSettingIndex == 0) ? 0 : 1;
-    switch (selectedCategoryIndex) {
-      case 0:
-        currentSettings = &displaySettings;
-        break;
-      case 1:
-        currentSettings = &readerSettings;
-        break;
-      case 2:
-        currentSettings = &controlsSettings;
-        break;
-      case 3:
-        currentSettings = &systemSettings;
-        break;
+    const unsigned long now = millis();
+    if (lastPreviousTapMs > 0 && now - lastPreviousTapMs <= doubleTapMs) {
+      jumpCategory(-1);
+      lastPreviousTapMs = 0;
+    } else {
+      selectedRowIndex = findNextEditableRow(selectedRowIndex, -1);
+      lastPreviousTapMs = now;
     }
-    settingsCount = static_cast<int>(currentSettings->size());
-  }
+    requestUpdate();
+  });
+
+  buttonNavigator.onNextContinuous([this] {
+    selectedRowIndex = findNextEditableRow(selectedRowIndex, +1);
+    requestUpdate();
+  });
+
+  buttonNavigator.onPreviousContinuous([this] {
+    selectedRowIndex = findNextEditableRow(selectedRowIndex, -1);
+    requestUpdate();
+  });
 }
 
 void SettingsActivity::toggleCurrentSetting() {
-  int selectedSetting = selectedSettingIndex - 1;
-  if (selectedSetting < 0 || selectedSetting >= settingsCount) {
+  if (selectedRowIndex < 0 || selectedRowIndex >= static_cast<int>(flatRows.size())) {
+    return;
+  }
+  const auto& row = flatRows[selectedRowIndex];
+  if (row.isHeader || row.settingIndex < 0) {
+    return;
+  }
+  const auto* settings = settingsForCategory(row.categoryIndex);
+  if (!settings || row.settingIndex >= static_cast<int>(settings->size())) {
     return;
   }
 
-  const auto& setting = (*currentSettings)[selectedSetting];
+  const auto& setting = (*settings)[row.settingIndex];
 
   if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
     // Toggle the boolean value using the member pointer
@@ -238,48 +295,61 @@ void SettingsActivity::render(Activity::RenderLock&&) {
 
   auto metrics = UITheme::getInstance().getMetrics();
 
-  GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight}, tr(STR_SETTINGS_TITLE));
+  // Top status line: version left, battery right
+  renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding, metrics.topPadding + 5, CROSSPOINT_VERSION);
+  const bool showBatteryPercentage =
+      SETTINGS.hideBatteryPercentage != CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_ALWAYS;
+  const int batteryX = pageWidth - 12 - metrics.batteryWidth;
+  GUI.drawBatteryRight(renderer, Rect{batteryX, metrics.topPadding + 5, metrics.batteryWidth, metrics.batteryHeight},
+                       showBatteryPercentage);
 
-  std::vector<TabInfo> tabs;
-  tabs.reserve(categoryCount);
-  for (int i = 0; i < categoryCount; i++) {
-    tabs.push_back({I18N.get(categoryNames[i]), selectedCategoryIndex == i});
+  const int contentY = metrics.topPadding + metrics.headerHeight;
+  const int contentHeight = pageHeight - (contentY + metrics.buttonHintsHeight + metrics.verticalSpacing);
+  const int rowHeight = metrics.listRowHeight;
+  const int pageItems = std::max(1, contentHeight / rowHeight);
+  const int pageStartIndex = (selectedRowIndex / pageItems) * pageItems;
+
+  for (int i = pageStartIndex; i < static_cast<int>(flatRows.size()) && i < pageStartIndex + pageItems; i++) {
+    const int rowY = contentY + (i - pageStartIndex) * rowHeight;
+    const auto& row = flatRows[i];
+
+    if (row.isHeader) {
+      renderer.fillRect(0, rowY, pageWidth, rowHeight, true);
+      const char* label = I18N.get(categoryNames[row.categoryIndex]);
+      const int textW = renderer.getTextWidth(UI_10_FONT_ID, label, EpdFontFamily::BOLD);
+      const int textX = (pageWidth - textW) / 2;
+      renderer.drawText(UI_10_FONT_ID, textX, rowY, label, false, EpdFontFamily::BOLD);
+      continue;
+    }
+
+    if (i == selectedRowIndex) {
+      renderer.fillRect(0, rowY, pageWidth, rowHeight, true);
+    }
+
+    const auto* settings = settingsForCategory(row.categoryIndex);
+    const auto& setting = (*settings)[row.settingIndex];
+    const bool black = (i != selectedRowIndex);
+
+    renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, rowY, I18N.get(setting.nameId), black);
+
+    std::string valueText;
+    if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
+      valueText = (SETTINGS.*(setting.valuePtr)) ? tr(STR_STATE_ON) : tr(STR_STATE_OFF);
+    } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
+      if (setting.valuePtr == &CrossPointSettings::fontSize && SETTINGS.fontFamily == CrossPointSettings::OPENDYSLEXIC) {
+        valueText = (SETTINGS.fontSize == CrossPointSettings::SMALL) ? tr(STR_SMALL) : tr(STR_MEDIUM);
+      } else {
+        valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
+      }
+    } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
+      valueText = std::to_string(SETTINGS.*(setting.valuePtr));
+    }
+
+    if (!valueText.empty()) {
+      const int valueW = renderer.getTextWidth(UI_10_FONT_ID, valueText.c_str());
+      renderer.drawText(UI_10_FONT_ID, pageWidth - metrics.contentSidePadding - valueW, rowY, valueText.c_str(), black);
+    }
   }
-  GUI.drawTabBar(renderer, Rect{0, metrics.topPadding + metrics.headerHeight, pageWidth, metrics.tabBarHeight}, tabs,
-                 selectedSettingIndex == 0);
-
-  const auto& settings = *currentSettings;
-  GUI.drawList(
-      renderer,
-      Rect{0, metrics.topPadding + metrics.headerHeight + metrics.tabBarHeight + metrics.verticalSpacing, pageWidth,
-           pageHeight - (metrics.topPadding + metrics.headerHeight + metrics.tabBarHeight + metrics.buttonHintsHeight +
-                         metrics.verticalSpacing * 2)},
-      settingsCount, selectedSettingIndex - 1,
-      [&settings](int index) { return std::string(I18N.get(settings[index].nameId)); }, nullptr, nullptr,
-      [&settings](int i) {
-        const auto& setting = settings[i];
-        std::string valueText = "";
-        if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
-          const bool value = SETTINGS.*(setting.valuePtr);
-          valueText = value ? tr(STR_STATE_ON) : tr(STR_STATE_OFF);
-        } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
-          if (setting.valuePtr == &CrossPointSettings::fontSize &&
-              SETTINGS.fontFamily == CrossPointSettings::OPENDYSLEXIC) {
-            valueText = (SETTINGS.fontSize == CrossPointSettings::SMALL) ? tr(STR_SMALL) : tr(STR_MEDIUM);
-          } else {
-            const uint8_t value = SETTINGS.*(setting.valuePtr);
-            valueText = I18N.get(setting.enumValues[value]);
-          }
-        } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
-          valueText = std::to_string(SETTINGS.*(setting.valuePtr));
-        }
-        return valueText;
-      });
-
-  // Draw version text
-  renderer.drawText(SMALL_FONT_ID,
-                    pageWidth - metrics.versionTextRightX - renderer.getTextWidth(SMALL_FONT_ID, CROSSPOINT_VERSION),
-                    metrics.versionTextY, CROSSPOINT_VERSION);
 
   // Draw help text
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_TOGGLE), tr(STR_DIR_UP), tr(STR_DIR_DOWN));

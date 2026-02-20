@@ -45,6 +45,8 @@ class CrossPointSettings {
     CHAPTER_PROGRESS_BAR = 5,
     STATUS_BAR_MODE_COUNT
   };
+  enum STATUS_BAR_TEXT_ALIGNMENT { STATUS_TEXT_RIGHT = 0, STATUS_TEXT_CENTER = 1, STATUS_TEXT_LEFT = 2, STATUS_TEXT_ALIGNMENT_COUNT };
+  enum STATUS_BAR_PROGRESS_STYLE { STATUS_BAR_THIN = 0, STATUS_BAR_THICK = 1, STATUS_BAR_DOTTED = 2, STATUS_BAR_PROGRESS_STYLE_COUNT };
 
   enum ORIENTATION {
     PORTRAIT = 0,       // 480x800 logical coordinates (current default)
@@ -132,6 +134,16 @@ class CrossPointSettings {
   uint8_t showSleepImageFilename = 0;
   // Status bar settings
   uint8_t statusBar = FULL;
+  uint8_t statusBarEnabled = 1;
+  uint8_t statusBarShowBattery = 1;
+  uint8_t statusBarShowPageCounter = 0;
+  uint8_t statusBarShowBookPercentage = 0;
+  uint8_t statusBarShowChapterPercentage = 0;
+  uint8_t statusBarShowBookBar = 0;
+  uint8_t statusBarShowChapterBar = 0;
+  uint8_t statusBarShowChapterTitle = 1;
+  uint8_t statusBarTextAlignment = STATUS_TEXT_RIGHT;
+  uint8_t statusBarProgressStyle = STATUS_BAR_THIN;
   // Text rendering settings
   uint8_t extraParagraphSpacing = 1;
   uint8_t textAntiAliasing = 1;
@@ -190,6 +202,7 @@ class CrossPointSettings {
     return (shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP) ? 10 : 400;
   }
   int getReaderFontId() const;
+  int getStatusBarProgressBarHeight() const;
 
   // If count_only is true, returns the number of settings items that would be written.
   uint8_t writeSettings(FsFile& file, bool count_only = false) const;

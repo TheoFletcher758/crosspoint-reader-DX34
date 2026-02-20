@@ -47,7 +47,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
 
   void renderContents(std::unique_ptr<Page> page, int orientedMarginTop, int orientedMarginRight,
                       int orientedMarginBottom, int orientedMarginLeft);
-  void renderStatusBar(int orientedMarginRight, int orientedMarginBottom, int orientedMarginLeft) const;
+  void renderStatusBar(int orientedMarginRight, int orientedMarginBottom, int orientedMarginLeft);
   void loadRecentSwitcherBooks();
   void renderRecentSwitcher();
   void saveProgress(int spineIndex, int currentPage, int pageCount);

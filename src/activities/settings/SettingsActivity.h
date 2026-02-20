@@ -137,23 +137,33 @@ struct SettingInfo {
 class SettingsActivity final : public ActivityWithSubactivity {
   ButtonNavigator buttonNavigator;
 
-  int selectedCategoryIndex = 0;  // Currently selected category
-  int selectedSettingIndex = 0;
-  int settingsCount = 0;
+  struct FlatSettingRow {
+    bool isHeader = false;
+    int categoryIndex = 0;
+    int settingIndex = -1;
+  };
+
+  int selectedRowIndex = 0;
+  unsigned long lastNextTapMs = 0;
+  unsigned long lastPreviousTapMs = 0;
 
   // Per-category settings derived from shared list + device-only actions
   std::vector<SettingInfo> displaySettings;
   std::vector<SettingInfo> readerSettings;
+  std::vector<SettingInfo> statusBarSettings;
   std::vector<SettingInfo> controlsSettings;
   std::vector<SettingInfo> systemSettings;
-  const std::vector<SettingInfo>* currentSettings = nullptr;
+  std::vector<FlatSettingRow> flatRows;
+  std::vector<int> categoryHeaderRowIndices;
 
   const std::function<void()> onGoHome;
 
-  static constexpr int categoryCount = 4;
+  static constexpr int categoryCount = 5;
   static const StrId categoryNames[categoryCount];
 
-  void enterCategory(int categoryIndex);
+  const std::vector<SettingInfo>* settingsForCategory(int categoryIndex) const;
+  int findNextEditableRow(int startIndex, int direction) const;
+  void jumpCategory(int direction);
   void toggleCurrentSetting();
 
  public:

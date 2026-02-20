@@ -75,6 +75,48 @@ void applyLegacyFrontButtonLayout(CrossPointSettings& settings) {
       break;
   }
 }
+
+void migrateLegacyStatusBarMode(CrossPointSettings& settings) {
+  settings.statusBarEnabled = 1;
+  settings.statusBarShowBattery = 1;
+  settings.statusBarShowPageCounter = 0;
+  settings.statusBarShowBookPercentage = 0;
+  settings.statusBarShowChapterPercentage = 0;
+  settings.statusBarShowBookBar = 0;
+  settings.statusBarShowChapterBar = 0;
+  settings.statusBarShowChapterTitle = 1;
+  settings.statusBarTextAlignment = CrossPointSettings::STATUS_TEXT_RIGHT;
+  settings.statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THIN;
+
+  switch (static_cast<CrossPointSettings::STATUS_BAR_MODE>(settings.statusBar)) {
+    case CrossPointSettings::STATUS_BAR_MODE::NONE:
+      settings.statusBarEnabled = 0;
+      settings.statusBarShowBattery = 0;
+      settings.statusBarShowChapterTitle = 0;
+      break;
+    case CrossPointSettings::STATUS_BAR_MODE::NO_PROGRESS:
+      break;
+    case CrossPointSettings::STATUS_BAR_MODE::FULL:
+      settings.statusBarShowPageCounter = 1;
+      settings.statusBarShowBookPercentage = 1;
+      break;
+    case CrossPointSettings::STATUS_BAR_MODE::BOOK_PROGRESS_BAR:
+      settings.statusBarShowPageCounter = 1;
+      settings.statusBarShowBookBar = 1;
+      break;
+    case CrossPointSettings::STATUS_BAR_MODE::ONLY_BOOK_PROGRESS_BAR:
+      settings.statusBarShowBattery = 0;
+      settings.statusBarShowChapterTitle = 0;
+      settings.statusBarShowBookBar = 1;
+      break;
+    case CrossPointSettings::STATUS_BAR_MODE::CHAPTER_PROGRESS_BAR:
+      settings.statusBarShowBookPercentage = 1;
+      settings.statusBarShowChapterBar = 1;
+      break;
+    default:
+      break;
+  }
+}
 }  // namespace
 
 class SettingsWriter {
@@ -138,6 +180,16 @@ uint8_t CrossPointSettings::writeSettings(FsFile& file, bool count_only) const {
   writer.writeItem(file, screenMarginTop);
   writer.writeItem(file, screenMarginBottom);
   writer.writeItem(file, showSleepImageFilename);
+  writer.writeItem(file, statusBarEnabled);
+  writer.writeItem(file, statusBarShowBattery);
+  writer.writeItem(file, statusBarShowPageCounter);
+  writer.writeItem(file, statusBarShowBookPercentage);
+  writer.writeItem(file, statusBarShowChapterPercentage);
+  writer.writeItem(file, statusBarShowBookBar);
+  writer.writeItem(file, statusBarShowChapterBar);
+  writer.writeItem(file, statusBarShowChapterTitle);
+  writer.writeItem(file, statusBarTextAlignment);
+  writer.writeItem(file, statusBarProgressStyle);
   // New fields need to be added at end for backward compatibility
 
   return writer.item_count;
@@ -189,6 +241,7 @@ bool CrossPointSettings::loadFromFile() {
   // Track whether remap fields were present in the settings file.
   bool frontButtonMappingRead = false;
   bool splitReaderMarginsRead = false;
+  bool statusBarGranularRead = false;
   do {
     readAndValidate(inputFile, sleepScreen, SLEEP_SCREEN_MODE_COUNT);
     if (++settingsRead >= fileSettingsCount) break;
@@ -284,6 +337,27 @@ bool CrossPointSettings::loadFromFile() {
     if (++settingsRead >= fileSettingsCount) break;
     serialization::readPod(inputFile, showSleepImageFilename);
     if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, statusBarEnabled);
+    if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, statusBarShowBattery);
+    if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, statusBarShowPageCounter);
+    if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, statusBarShowBookPercentage);
+    if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, statusBarShowChapterPercentage);
+    if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, statusBarShowBookBar);
+    if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, statusBarShowChapterBar);
+    if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, statusBarShowChapterTitle);
+    if (++settingsRead >= fileSettingsCount) break;
+    readAndValidate(inputFile, statusBarTextAlignment, STATUS_TEXT_ALIGNMENT_COUNT);
+    if (++settingsRead >= fileSettingsCount) break;
+    readAndValidate(inputFile, statusBarProgressStyle, STATUS_BAR_PROGRESS_STYLE_COUNT);
+    statusBarGranularRead = true;
+    if (++settingsRead >= fileSettingsCount) break;
     // New fields added at end for backward compatibility
   } while (false);
 
@@ -298,6 +372,10 @@ bool CrossPointSettings::loadFromFile() {
     screenMarginHorizontal = screenMargin;
     screenMarginTop = screenMargin;
     screenMarginBottom = screenMargin;
+  }
+
+  if (!statusBarGranularRead) {
+    migrateLegacyStatusBarMode(*this);
   }
 
   inputFile.close();
@@ -386,5 +464,17 @@ int CrossPointSettings::getReaderFontId() const {
         default:
           return UNIFONT_20_FONT_ID;
       }
+  }
+}
+
+int CrossPointSettings::getStatusBarProgressBarHeight() const {
+  switch (statusBarProgressStyle) {
+    case STATUS_BAR_THIN:
+    default:
+      return 2;
+    case STATUS_BAR_THICK:
+      return 6;
+    case STATUS_BAR_DOTTED:
+      return 3;
   }
 }
