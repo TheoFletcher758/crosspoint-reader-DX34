@@ -383,8 +383,8 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
     int padding = rect.width - batteryX + BaseMetrics::values.batteryWidth;
     auto truncatedTitle = renderer.truncatedText(UI_12_FONT_ID, title,
                                                  rect.width - padding * 2 - BaseMetrics::values.contentSidePadding * 2,
-                                                 EpdFontFamily::BOLD);
-    renderer.drawCenteredText(UI_12_FONT_ID, rect.y + 5, truncatedTitle.c_str(), true, EpdFontFamily::BOLD);
+                                                 EpdFontFamily::REGULAR);
+    renderer.drawCenteredText(UI_12_FONT_ID, rect.y + 5, truncatedTitle.c_str(), true, EpdFontFamily::REGULAR);
   }
 }
 
@@ -399,7 +399,7 @@ void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const s
 
   for (const auto& tab : tabs) {
     const int textWidth =
-        renderer.getTextWidth(UI_12_FONT_ID, tab.label, tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+        renderer.getTextWidth(UI_12_FONT_ID, tab.label, tab.selected ? EpdFontFamily::REGULAR : EpdFontFamily::REGULAR);
 
     // Draw underline for selected tab
     if (tab.selected) {
@@ -412,7 +412,7 @@ void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const s
 
     // Draw tab label
     renderer.drawText(UI_12_FONT_ID, currentX, rect.y, tab.label, !(tab.selected && selected),
-                      tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+                      tab.selected ? EpdFontFamily::REGULAR : EpdFontFamily::REGULAR);
 
     currentX += textWidth + BaseMetrics::values.tabSpacing;
   }
@@ -499,10 +499,10 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     const int textX = tipX + 8;
     auto drawStatLine = [&](const int y, const char* labelBold, const std::string& valueRegular) {
       const std::string label =
-          renderer.truncatedText(UI_12_FONT_ID, labelBold, tipTextMaxWidth, EpdFontFamily::BOLD);
-      const int labelWidth = renderer.getTextWidth(UI_12_FONT_ID, label.c_str(), EpdFontFamily::BOLD);
+          renderer.truncatedText(UI_12_FONT_ID, labelBold, tipTextMaxWidth, EpdFontFamily::REGULAR);
+      const int labelWidth = renderer.getTextWidth(UI_12_FONT_ID, label.c_str(), EpdFontFamily::REGULAR);
 
-      renderer.drawText(UI_12_FONT_ID, textX, y, label.c_str(), true, EpdFontFamily::BOLD);
+      renderer.drawText(UI_12_FONT_ID, textX, y, label.c_str(), true, EpdFontFamily::REGULAR);
 
       const int remaining = tipTextMaxWidth - labelWidth;
       if (remaining <= 0) return;
@@ -519,17 +519,12 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
       const int rowY = rowsTopY + i * (rowHeight + rowGap);
       const bool isCurrent = hasBook && (i == 0);  // Most recent/currently open entry
       const bool selected = (selectorIndex == i);
-      const bool filledRow = isCurrent || selected;
-      const bool textBlack = !filledRow;
-
-      if (filledRow) {
-        renderer.fillRect(rowX, rowY, rowW, rowHeight, true);
-      } else {
-        renderer.drawRect(rowX, rowY, rowW, rowHeight, true);
-      }
+      const bool textBlack = !selected;
 
       if (selected) {
-        renderer.drawRect(rowX + 2, rowY + 2, rowW - 4, rowHeight - 4, !filledRow);
+        renderer.fillRect(rowX, rowY, rowW, rowHeight, true);
+      } else if (isCurrent) {
+        drawDashedRect(renderer, rowX, rowY, rowW, rowHeight);
       }
 
       const int baselineY = rowY + textYInset;
@@ -584,7 +579,7 @@ void BaseTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount
 Rect BaseTheme::drawPopup(const GfxRenderer& renderer, const char* message) const {
   constexpr int margin = 15;
   constexpr int y = 60;
-  const int textWidth = renderer.getTextWidth(UI_12_FONT_ID, message, EpdFontFamily::BOLD);
+  const int textWidth = renderer.getTextWidth(UI_12_FONT_ID, message, EpdFontFamily::REGULAR);
   const int textHeight = renderer.getLineHeight(UI_12_FONT_ID);
   const int w = textWidth + margin * 2;
   const int h = textHeight + margin * 2;
@@ -595,7 +590,7 @@ Rect BaseTheme::drawPopup(const GfxRenderer& renderer, const char* message) cons
 
   const int textX = x + (w - textWidth) / 2;
   const int textY = y + margin - 2;
-  renderer.drawText(UI_12_FONT_ID, textX, textY, message, true, EpdFontFamily::BOLD);
+  renderer.drawText(UI_12_FONT_ID, textX, textY, message, true, EpdFontFamily::REGULAR);
   renderer.displayBuffer();
   return Rect{x, y, w, h};
 }

@@ -23,6 +23,19 @@ const StrId SettingsActivity::categoryNames[categoryCount] = {StrId::STR_CAT_DIS
 
 namespace {
 constexpr unsigned long doubleTapMs = 350;
+
+uint8_t nextReaderMarginValue(const uint8_t current) {
+  static constexpr uint8_t kMargins[] = {2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50};
+  for (size_t i = 0; i < sizeof(kMargins) / sizeof(kMargins[0]); i++) {
+    if (current < kMargins[i]) {
+      return kMargins[i];
+    }
+    if (current == kMargins[i]) {
+      return kMargins[(i + 1) % (sizeof(kMargins) / sizeof(kMargins[0]))];
+    }
+  }
+  return kMargins[0];
+}
 }
 
 const std::vector<SettingInfo>* SettingsActivity::settingsForCategory(const int categoryIndex) const {
@@ -212,28 +225,20 @@ void SettingsActivity::toggleCurrentSetting() {
     const bool currentValue = SETTINGS.*(setting.valuePtr);
     SETTINGS.*(setting.valuePtr) = !currentValue;
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
-    if (setting.valuePtr == &CrossPointSettings::fontSize &&
-        SETTINGS.fontFamily == CrossPointSettings::OPENDYSLEXIC) {
-      // Unifont exposes two reader sizes only: Small (18) and Medium/Large (20).
-      SETTINGS.fontSize =
-          (SETTINGS.fontSize == CrossPointSettings::SMALL) ? CrossPointSettings::MEDIUM : CrossPointSettings::SMALL;
-    } else {
-      const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
-      SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
-
-      if (setting.valuePtr == &CrossPointSettings::fontFamily &&
-          SETTINGS.fontFamily == CrossPointSettings::OPENDYSLEXIC) {
-        if (SETTINGS.fontSize == CrossPointSettings::LARGE) {
-          SETTINGS.fontSize = CrossPointSettings::MEDIUM;
-        }
-      }
-    }
+    const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
+    SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
   } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
-    const int8_t currentValue = SETTINGS.*(setting.valuePtr);
-    if (currentValue + setting.valueRange.step > setting.valueRange.max) {
-      SETTINGS.*(setting.valuePtr) = setting.valueRange.min;
+    if (setting.valuePtr == &CrossPointSettings::screenMarginHorizontal ||
+        setting.valuePtr == &CrossPointSettings::screenMarginTop ||
+        setting.valuePtr == &CrossPointSettings::screenMarginBottom) {
+      SETTINGS.*(setting.valuePtr) = nextReaderMarginValue(SETTINGS.*(setting.valuePtr));
     } else {
-      SETTINGS.*(setting.valuePtr) = currentValue + setting.valueRange.step;
+      const int8_t currentValue = SETTINGS.*(setting.valuePtr);
+      if (currentValue + setting.valueRange.step > setting.valueRange.max) {
+        SETTINGS.*(setting.valuePtr) = setting.valueRange.min;
+      } else {
+        SETTINGS.*(setting.valuePtr) = currentValue + setting.valueRange.step;
+      }
     }
   } else if (setting.type == SettingType::ACTION) {
     auto enterSubActivity = [this](Activity* activity) {
@@ -316,9 +321,9 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     if (row.isHeader) {
       renderer.fillRect(0, rowY, pageWidth, rowHeight, true);
       const char* label = I18N.get(categoryNames[row.categoryIndex]);
-      const int textW = renderer.getTextWidth(UI_10_FONT_ID, label, EpdFontFamily::BOLD);
+      const int textW = renderer.getTextWidth(UI_10_FONT_ID, label, EpdFontFamily::REGULAR);
       const int textX = (pageWidth - textW) / 2;
-      renderer.drawText(UI_10_FONT_ID, textX, rowY, label, false, EpdFontFamily::BOLD);
+      renderer.drawText(UI_10_FONT_ID, textX, rowY, label, false, EpdFontFamily::REGULAR);
       continue;
     }
 
@@ -336,13 +341,12 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
       valueText = (SETTINGS.*(setting.valuePtr)) ? tr(STR_STATE_ON) : tr(STR_STATE_OFF);
     } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
-      if (setting.valuePtr == &CrossPointSettings::fontSize && SETTINGS.fontFamily == CrossPointSettings::OPENDYSLEXIC) {
-        valueText = (SETTINGS.fontSize == CrossPointSettings::SMALL) ? tr(STR_SMALL) : tr(STR_MEDIUM);
-      } else {
-        valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
-      }
+      valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
     } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
       valueText = std::to_string(SETTINGS.*(setting.valuePtr));
+      if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
+        valueText += "%";
+      }
     }
 
     if (!valueText.empty()) {

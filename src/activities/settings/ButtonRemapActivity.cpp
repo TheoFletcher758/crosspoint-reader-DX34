@@ -107,7 +107,7 @@ void ButtonRemapActivity::render(Activity::RenderLock&&) {
     return "-";
   };
 
-  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_REMAP_FRONT_BUTTONS), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_REMAP_FRONT_BUTTONS), true, EpdFontFamily::REGULAR);
   renderer.drawCenteredText(UI_10_FONT_ID, 40, tr(STR_REMAP_PROMPT));
 
   for (uint8_t i = 0; i < kRoleCount; i++) {

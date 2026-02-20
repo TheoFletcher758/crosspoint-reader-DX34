@@ -452,7 +452,7 @@ void TxtReaderActivity::render(Activity::RenderLock&&) {
 
   if (pageOffsets.empty()) {
     renderer.clearScreen();
-    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_EMPTY_FILE), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_EMPTY_FILE), true, EpdFontFamily::REGULAR);
     renderer.displayBuffer();
     return;
   }
@@ -510,7 +510,7 @@ void TxtReaderActivity::renderRecentSwitcher() {
 
   renderer.clearScreen();
   renderer.drawRect(popupX, popupY, popupW, popupH, true);
-  renderer.drawCenteredText(UI_12_FONT_ID, titleY, tr(STR_MENU_RECENT_BOOKS), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, titleY, tr(STR_MENU_RECENT_BOOKS), true, EpdFontFamily::REGULAR);
 
   for (int i = 0; i < recentSwitcherRows; i++) {
     const int rowY = rowsY + i * rowH;
@@ -612,8 +612,8 @@ void TxtReaderActivity::renderPage() {
     pagesUntilFullRefresh--;
   }
 
-  // Grayscale rendering pass (for anti-aliased fonts)
-  if (SETTINGS.textAntiAliasing) {
+  // Reader text AA is intentionally disabled (BW only in reader).
+  if (false) {
     // Save BW buffer for restoration after grayscale pass
     renderer.storeBwBuffer();
 

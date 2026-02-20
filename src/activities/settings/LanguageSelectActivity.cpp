@@ -58,7 +58,7 @@ void LanguageSelectActivity::render(Activity::RenderLock&&) {
   constexpr int rowHeight = 30;
 
   // Title
-  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_LANGUAGE), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_LANGUAGE), true, EpdFontFamily::REGULAR);
 
   // Current language marker
   const int currentLang = static_cast<int>(I18N.getLanguage());

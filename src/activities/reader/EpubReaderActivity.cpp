@@ -643,7 +643,7 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
   // Show end of book screen
   if (currentSpineIndex == epub->getSpineItemsCount()) {
     renderer.clearScreen();
-    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_END_OF_BOOK), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_END_OF_BOOK), true, EpdFontFamily::REGULAR);
     renderer.displayBuffer();
     return;
   }
@@ -730,7 +730,7 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
 
   if (section->pageCount == 0) {
     LOG_DBG("ERS", "No pages to render");
-    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_EMPTY_CHAPTER), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_EMPTY_CHAPTER), true, EpdFontFamily::REGULAR);
     renderStatusBar(orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
     renderer.displayBuffer();
     return;
@@ -738,7 +738,7 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
 
   if (section->currentPage < 0 || section->currentPage >= section->pageCount) {
     LOG_DBG("ERS", "Page out of bounds: %d (max %d)", section->currentPage, section->pageCount);
-    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_OUT_OF_BOUNDS), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_OUT_OF_BOUNDS), true, EpdFontFamily::REGULAR);
     renderStatusBar(orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
     renderer.displayBuffer();
     return;
@@ -802,7 +802,7 @@ void EpubReaderActivity::renderRecentSwitcher() {
 
   renderer.clearScreen();
   renderer.drawRect(popupX, popupY, popupW, popupH, true);
-  renderer.drawCenteredText(UI_12_FONT_ID, titleY, tr(STR_MENU_RECENT_BOOKS), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, titleY, tr(STR_MENU_RECENT_BOOKS), true, EpdFontFamily::REGULAR);
 
   for (int i = 0; i < recentSwitcherRows; i++) {
     const int rowY = rowsY + i * rowH;
@@ -836,8 +836,8 @@ void EpubReaderActivity::saveProgress(int spineIndex, int currentPage, int pageC
   FsFile f;
   if (Storage.openFileForWrite("ERS", epub->getCachePath() + "/progress.bin", f)) {
     uint8_t data[6];
-    data[0] = currentSpineIndex & 0xFF;
-    data[1] = (currentSpineIndex >> 8) & 0xFF;
+    data[0] = spineIndex & 0xFF;
+    data[1] = (spineIndex >> 8) & 0xFF;
     data[2] = currentPage & 0xFF;
     data[3] = (currentPage >> 8) & 0xFF;
     data[4] = pageCount & 0xFF;
@@ -872,9 +872,8 @@ void EpubReaderActivity::flushProgressIfNeeded(const bool force) {
 void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int orientedMarginTop,
                                         const int orientedMarginRight, const int orientedMarginBottom,
                                         const int orientedMarginLeft) {
-  // Force full refresh for pages with images when anti-aliasing is on,
-  // as grayscale tones require half refresh to display correctly
-  bool forceFullRefresh = page->hasImages() && SETTINGS.textAntiAliasing;
+  // Reader text AA is intentionally disabled: render EPUB pages in BW only.
+  bool forceFullRefresh = false;
 
   page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
   renderStatusBar(orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
@@ -889,9 +888,8 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   // Save bw buffer to reset buffer state after grayscale data sync
   renderer.storeBwBuffer();
 
-  // grayscale rendering
-  // TODO: Only do this if font supports it
-  if (SETTINGS.textAntiAliasing) {
+  // Reader text AA is intentionally disabled (BW only in reader).
+  if (false) {
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
     page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);

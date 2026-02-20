@@ -117,7 +117,7 @@ void CalibreSettingsActivity::render(Activity::RenderLock&&) {
   const auto pageWidth = renderer.getScreenWidth();
 
   // Draw header
-  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_OPDS_BROWSER), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_OPDS_BROWSER), true, EpdFontFamily::REGULAR);
 
   // Draw info text about Calibre
   renderer.drawCenteredText(UI_10_FONT_ID, 40, tr(STR_CALIBRE_URL_HINT));

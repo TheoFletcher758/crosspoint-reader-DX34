@@ -511,7 +511,7 @@ void WifiSelectionActivity::renderNetworkList() const {
   const auto pageHeight = renderer.getScreenHeight();
 
   // Draw header
-  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_WIFI_NETWORKS), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_WIFI_NETWORKS), true, EpdFontFamily::REGULAR);
 
   if (networks.empty()) {
     // No networks found or scan failed
@@ -599,7 +599,7 @@ void WifiSelectionActivity::renderConnecting() const {
   if (state == WifiSelectionState::SCANNING) {
     renderer.drawCenteredText(UI_10_FONT_ID, top, tr(STR_SCANNING));
   } else {
-    renderer.drawCenteredText(UI_12_FONT_ID, top - 40, tr(STR_CONNECTING), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_12_FONT_ID, top - 40, tr(STR_CONNECTING), true, EpdFontFamily::REGULAR);
 
     std::string ssidInfo = std::string(tr(STR_TO_PREFIX)) + selectedSSID;
     if (ssidInfo.length() > 25) {
@@ -614,7 +614,7 @@ void WifiSelectionActivity::renderConnected() const {
   const auto height = renderer.getLineHeight(UI_10_FONT_ID);
   const auto top = (pageHeight - height * 4) / 2;
 
-  renderer.drawCenteredText(UI_12_FONT_ID, top - 30, tr(STR_CONNECTED), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, top - 30, tr(STR_CONNECTED), true, EpdFontFamily::REGULAR);
 
   std::string ssidInfo = std::string(tr(STR_NETWORK_PREFIX)) + selectedSSID;
   if (ssidInfo.length() > 28) {
@@ -636,7 +636,7 @@ void WifiSelectionActivity::renderSavePrompt() const {
   const auto height = renderer.getLineHeight(UI_10_FONT_ID);
   const auto top = (pageHeight - height * 3) / 2;
 
-  renderer.drawCenteredText(UI_12_FONT_ID, top - 40, tr(STR_CONNECTED), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, top - 40, tr(STR_CONNECTED), true, EpdFontFamily::REGULAR);
 
   std::string ssidInfo = std::string(tr(STR_NETWORK_PREFIX)) + selectedSSID;
   if (ssidInfo.length() > 28) {
@@ -679,7 +679,7 @@ void WifiSelectionActivity::renderConnectionFailed() const {
   const auto height = renderer.getLineHeight(UI_10_FONT_ID);
   const auto top = (pageHeight - height * 2) / 2;
 
-  renderer.drawCenteredText(UI_12_FONT_ID, top - 20, tr(STR_CONNECTION_FAILED), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, top - 20, tr(STR_CONNECTION_FAILED), true, EpdFontFamily::REGULAR);
   renderer.drawCenteredText(UI_10_FONT_ID, top + 20, connectionError.c_str());
 
   // Use centralized button hints
@@ -693,7 +693,7 @@ void WifiSelectionActivity::renderForgetPrompt() const {
   const auto height = renderer.getLineHeight(UI_10_FONT_ID);
   const auto top = (pageHeight - height * 3) / 2;
 
-  renderer.drawCenteredText(UI_12_FONT_ID, top - 40, tr(STR_FORGET_NETWORK), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, top - 40, tr(STR_FORGET_NETWORK), true, EpdFontFamily::REGULAR);
 
   std::string ssidInfo = std::string(tr(STR_NETWORK_PREFIX)) + selectedSSID;
   if (ssidInfo.length() > 28) {

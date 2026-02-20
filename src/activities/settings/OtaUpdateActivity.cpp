@@ -98,16 +98,16 @@ void OtaUpdateActivity::render(Activity::RenderLock&&) {
   const auto pageWidth = renderer.getScreenWidth();
 
   renderer.clearScreen();
-  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_UPDATE), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_UPDATE), true, EpdFontFamily::REGULAR);
 
   if (state == CHECKING_FOR_UPDATE) {
-    renderer.drawCenteredText(UI_10_FONT_ID, 300, tr(STR_CHECKING_UPDATE), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, 300, tr(STR_CHECKING_UPDATE), true, EpdFontFamily::REGULAR);
     renderer.displayBuffer();
     return;
   }
 
   if (state == WAITING_CONFIRMATION) {
-    renderer.drawCenteredText(UI_10_FONT_ID, 200, tr(STR_NEW_UPDATE), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, 200, tr(STR_NEW_UPDATE), true, EpdFontFamily::REGULAR);
     renderer.drawText(UI_10_FONT_ID, 20, 250, (std::string(tr(STR_CURRENT_VERSION)) + CROSSPOINT_VERSION).c_str());
     renderer.drawText(UI_10_FONT_ID, 20, 270, (std::string(tr(STR_NEW_VERSION)) + updater.getLatestVersion()).c_str());
 
@@ -118,7 +118,7 @@ void OtaUpdateActivity::render(Activity::RenderLock&&) {
   }
 
   if (state == UPDATE_IN_PROGRESS) {
-    renderer.drawCenteredText(UI_10_FONT_ID, 310, tr(STR_UPDATING), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, 310, tr(STR_UPDATING), true, EpdFontFamily::REGULAR);
     renderer.drawRect(20, 350, pageWidth - 40, 50);
     renderer.fillRect(24, 354, static_cast<int>(updaterProgress * static_cast<float>(pageWidth - 44)), 42);
     renderer.drawCenteredText(UI_10_FONT_ID, 420,
@@ -131,19 +131,19 @@ void OtaUpdateActivity::render(Activity::RenderLock&&) {
   }
 
   if (state == NO_UPDATE) {
-    renderer.drawCenteredText(UI_10_FONT_ID, 300, tr(STR_NO_UPDATE), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, 300, tr(STR_NO_UPDATE), true, EpdFontFamily::REGULAR);
     renderer.displayBuffer();
     return;
   }
 
   if (state == FAILED) {
-    renderer.drawCenteredText(UI_10_FONT_ID, 300, tr(STR_UPDATE_FAILED), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, 300, tr(STR_UPDATE_FAILED), true, EpdFontFamily::REGULAR);
     renderer.displayBuffer();
     return;
   }
 
   if (state == FINISHED) {
-    renderer.drawCenteredText(UI_10_FONT_ID, 300, tr(STR_UPDATE_COMPLETE), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, 300, tr(STR_UPDATE_COMPLETE), true, EpdFontFamily::REGULAR);
     renderer.drawCenteredText(UI_10_FONT_ID, 350, tr(STR_POWER_ON_HINT));
     renderer.displayBuffer();
     state = SHUTTING_DOWN;

@@ -682,7 +682,7 @@ void MyLibraryActivity::renderFileActions() {
   const int popupH = screenH - popupY * 2;
 
   renderer.drawRect(popupX, popupY, popupW, popupH, true);
-  renderer.drawCenteredText(UI_12_FONT_ID, popupY + 10, "File Actions", true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, popupY + 10, "File Actions", true, EpdFontFamily::REGULAR);
 
   const int rowStartY = popupY + 34;
   const int rowH = 26;
@@ -716,7 +716,7 @@ void MyLibraryActivity::renderFileMoveBrowser() {
   renderer.drawRect(popupX, popupY, popupW, popupH, true);
   std::string title = "Move To: " + ((moveBrowserPath == "/") ? std::string("/") : getBasename(moveBrowserPath));
   title = renderer.truncatedText(UI_12_FONT_ID, title.c_str(), popupW - 24);
-  renderer.drawCenteredText(UI_12_FONT_ID, popupY + 10, title.c_str(), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, popupY + 10, title.c_str(), true, EpdFontFamily::REGULAR);
 
   const int maxRows = 8;
   const int rowStartY = popupY + 34;

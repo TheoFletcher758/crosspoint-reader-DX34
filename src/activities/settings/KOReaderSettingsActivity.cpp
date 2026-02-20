@@ -139,7 +139,7 @@ void KOReaderSettingsActivity::render(Activity::RenderLock&&) {
   const auto pageWidth = renderer.getScreenWidth();
 
   // Draw header
-  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_KOREADER_SYNC), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_KOREADER_SYNC), true, EpdFontFamily::REGULAR);
 
   // Draw selection highlight
   renderer.fillRect(0, 60 + selectedIndex * 30 - 2, pageWidth - 1, 30);

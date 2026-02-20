@@ -90,16 +90,16 @@ void KOReaderAuthActivity::onExit() {
 
 void KOReaderAuthActivity::render(Activity::RenderLock&&) {
   renderer.clearScreen();
-  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_KOREADER_AUTH), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_KOREADER_AUTH), true, EpdFontFamily::REGULAR);
 
   if (state == AUTHENTICATING) {
-    renderer.drawCenteredText(UI_10_FONT_ID, 300, statusMessage.c_str(), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, 300, statusMessage.c_str(), true, EpdFontFamily::REGULAR);
     renderer.displayBuffer();
     return;
   }
 
   if (state == SUCCESS) {
-    renderer.drawCenteredText(UI_10_FONT_ID, 280, tr(STR_AUTH_SUCCESS), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, 280, tr(STR_AUTH_SUCCESS), true, EpdFontFamily::REGULAR);
     renderer.drawCenteredText(UI_10_FONT_ID, 320, tr(STR_SYNC_READY));
 
     const auto labels = mappedInput.mapLabels(tr(STR_DONE), "", "", "");
@@ -109,7 +109,7 @@ void KOReaderAuthActivity::render(Activity::RenderLock&&) {
   }
 
   if (state == FAILED) {
-    renderer.drawCenteredText(UI_10_FONT_ID, 280, tr(STR_AUTH_FAILED), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, 280, tr(STR_AUTH_FAILED), true, EpdFontFamily::REGULAR);
     renderer.drawCenteredText(UI_10_FONT_ID, 320, errorMessage.c_str());
 
     const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");

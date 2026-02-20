@@ -260,7 +260,7 @@ bool CrossPointSettings::loadFromFile() {
     {
       uint8_t storedFontFamily = BOOKERLY;
       serialization::readPod(inputFile, storedFontFamily);
-      // Current format: 0 = ChareInk, 1 = Unifont, 2 = Georgia.
+      // Current format: 0 = Charter, 1 = EB Garamond.
       if (storedFontFamily < FONT_FAMILY_COUNT) {
         fontFamily = storedFontFamily;
       } else {
@@ -384,29 +384,8 @@ bool CrossPointSettings::loadFromFile() {
 }
 
 float CrossPointSettings::getReaderLineCompression() const {
-  switch (fontFamily) {
-    case BOOKERLY:
-    default:
-      switch (lineSpacing) {
-        case TIGHT:
-          return 0.85f;
-        case NORMAL:
-        default:
-          return 0.95f;
-        case WIDE:
-          return 1.0f;
-      }
-    case OPENDYSLEXIC:
-      switch (lineSpacing) {
-        case TIGHT:
-          return 0.80f;
-        case NORMAL:
-        default:
-          return 0.85f;
-        case WIDE:
-          return 0.90f;
-      }
-  }
+  const uint8_t clamped = (lineSpacingPercent < 80 || lineSpacingPercent > 200) ? 110 : lineSpacingPercent;
+  return static_cast<float>(clamped) / 100.0f;
 }
 
 unsigned long CrossPointSettings::getSleepTimeoutMs() const {
@@ -443,6 +422,16 @@ int CrossPointSettings::getRefreshFrequency() const {
 
 int CrossPointSettings::getReaderFontId() const {
   switch (fontFamily) {
+    case EBGARAMOND:
+      switch (fontSize) {
+        case SMALL:
+          return EBGARAMOND_16_FONT_ID;
+        case MEDIUM:
+        case LARGE:
+        case X_LARGE:
+        default:
+          return EBGARAMOND_20_FONT_ID;
+      }
     case BOOKERLY:
     default:
       switch (fontSize) {
@@ -451,18 +440,10 @@ int CrossPointSettings::getReaderFontId() const {
         case MEDIUM:
           return BOOKERLY_21_FONT_ID;
         case LARGE:
-        default:
           return BOOKERLY_23_FONT_ID;
-      }
-    case OPENDYSLEXIC:
-      switch (fontSize) {
-        case SMALL:
-          return UNIFONT_18_FONT_ID;
-        case MEDIUM:
-          return UNIFONT_20_FONT_ID;
-        case LARGE:
+        case X_LARGE:
         default:
-          return UNIFONT_20_FONT_ID;
+          return BOOKERLY_25_FONT_ID;
       }
   }
 }

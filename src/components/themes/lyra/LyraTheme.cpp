@@ -19,6 +19,25 @@ constexpr int batteryPercentSpacing = 4;
 constexpr int hPaddingInSelection = 8;
 constexpr int cornerRadius = 6;
 constexpr int topHintButtonY = 345;
+
+void drawDashedRect(const GfxRenderer& renderer, int x, int y, int w, int h) {
+  constexpr int dash = 5;
+  constexpr int gap = 3;
+  constexpr int step = dash + gap;
+  const int x2 = x + w - 1;
+  const int y2 = y + h - 1;
+
+  for (int px = x; px <= x2; px += step) {
+    const int end = std::min(px + dash - 1, x2);
+    renderer.drawLine(px, y, end, y);
+    renderer.drawLine(px, y2, end, y2);
+  }
+  for (int py = y; py <= y2; py += step) {
+    const int end = std::min(py + dash - 1, y2);
+    renderer.drawLine(x, py, x, end);
+    renderer.drawLine(x2, py, x2, end);
+  }
+}
 }  // namespace
 
 void LyraTheme::drawBatteryLeft(const GfxRenderer& renderer, Rect rect, const bool showPercentage) const {
@@ -113,10 +132,10 @@ void LyraTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
 
   if (title) {
     auto truncatedTitle = renderer.truncatedText(
-        UI_12_FONT_ID, title, rect.width - LyraMetrics::values.contentSidePadding * 2, EpdFontFamily::BOLD);
+        UI_12_FONT_ID, title, rect.width - LyraMetrics::values.contentSidePadding * 2, EpdFontFamily::REGULAR);
     renderer.drawText(UI_12_FONT_ID, rect.x + LyraMetrics::values.contentSidePadding,
                       rect.y + LyraMetrics::values.batteryBarHeight + 3, truncatedTitle.c_str(), true,
-                      EpdFontFamily::BOLD);
+                      EpdFontFamily::REGULAR);
     renderer.drawLine(rect.x, rect.y + rect.height - 3, rect.x + rect.width, rect.y + rect.height - 3, 3, true);
   }
 }
@@ -350,17 +369,12 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     const int rowY = rect.y + topOffset + i * (rowHeight + rowGap);
     const bool isCurrent = hasBook && (i == 0);
     const bool selected = (selectorIndex == i);
-    const bool filledRow = isCurrent || selected;
-    const bool textBlack = !filledRow;
-
-    if (filledRow) {
-      renderer.fillRect(rowX, rowY, rowW, rowHeight, true);
-    } else {
-      renderer.drawRect(rowX, rowY, rowW, rowHeight, true);
-    }
+    const bool textBlack = !selected;
 
     if (selected) {
-      renderer.drawRect(rowX + 2, rowY + 2, rowW - 4, rowHeight - 4, !filledRow);
+      renderer.fillRect(rowX, rowY, rowW, rowHeight, true);
+    } else if (isCurrent) {
+      drawDashedRect(renderer, rowX, rowY, rowW, rowHeight);
     }
 
     const int baselineY = rowY + textYInset;

@@ -61,7 +61,7 @@ void NetworkModeSelectionActivity::render(Activity::RenderLock&&) {
   const auto pageHeight = renderer.getScreenHeight();
 
   // Draw header
-  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_FILE_TRANSFER), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_FILE_TRANSFER), true, EpdFontFamily::REGULAR);
 
   // Draw subtitle
   renderer.drawCenteredText(UI_10_FONT_ID, 50, tr(STR_HOW_CONNECT));

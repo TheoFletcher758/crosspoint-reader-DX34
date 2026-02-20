@@ -346,7 +346,7 @@ void CrossPointWebServerActivity::render(Activity::RenderLock&&) {
   } else if (state == WebServerActivityState::AP_STARTING) {
     renderer.clearScreen();
     const auto pageHeight = renderer.getScreenHeight();
-    renderer.drawCenteredText(UI_12_FONT_ID, pageHeight / 2 - 20, tr(STR_STARTING_HOTSPOT), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_12_FONT_ID, pageHeight / 2 - 20, tr(STR_STARTING_HOTSPOT), true, EpdFontFamily::REGULAR);
     renderer.displayBuffer();
   }
 }
@@ -377,13 +377,13 @@ void CrossPointWebServerActivity::renderServerRunning() const {
   // Use consistent line spacing
   constexpr int LINE_SPACING = 28;  // Space between lines
 
-  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_FILE_TRANSFER), true, EpdFontFamily::BOLD);
+  renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_FILE_TRANSFER), true, EpdFontFamily::REGULAR);
 
   if (isApMode) {
     // AP mode display - center the content block
     int startY = 55;
 
-    renderer.drawCenteredText(UI_10_FONT_ID, startY, tr(STR_HOTSPOT_MODE), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, startY, tr(STR_HOTSPOT_MODE), true, EpdFontFamily::REGULAR);
 
     std::string ssidInfo = std::string(tr(STR_NETWORK_PREFIX)) + connectedSSID;
     renderer.drawCenteredText(UI_10_FONT_ID, startY + LINE_SPACING, ssidInfo.c_str());
@@ -398,7 +398,7 @@ void CrossPointWebServerActivity::renderServerRunning() const {
     startY += 6 * 29 + 3 * LINE_SPACING;
     // Show primary URL (hostname)
     std::string hostnameUrl = std::string("http://") + AP_HOSTNAME + ".local/";
-    renderer.drawCenteredText(UI_10_FONT_ID, startY + LINE_SPACING * 3, hostnameUrl.c_str(), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, startY + LINE_SPACING * 3, hostnameUrl.c_str(), true, EpdFontFamily::REGULAR);
 
     // Show IP address as fallback
     std::string ipUrl = std::string(tr(STR_OR_HTTP_PREFIX)) + connectedIP + "/";
@@ -423,7 +423,7 @@ void CrossPointWebServerActivity::renderServerRunning() const {
 
     // Show web server URL prominently
     std::string webInfo = "http://" + connectedIP + "/";
-    renderer.drawCenteredText(UI_10_FONT_ID, startY + LINE_SPACING * 2, webInfo.c_str(), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_10_FONT_ID, startY + LINE_SPACING * 2, webInfo.c_str(), true, EpdFontFamily::REGULAR);
 
     // Also show hostname URL
     std::string hostnameUrl = std::string(tr(STR_OR_HTTP_PREFIX)) + AP_HOSTNAME + ".local/";
