@@ -1,10 +1,10 @@
 // The contents of this file are generated for the current built-in font set
 #pragma once
 
-#define BOOKERLY_12_FONT_ID (1581255063)
 #define BOOKERLY_14_FONT_ID (-181614675)
 #define BOOKERLY_16_FONT_ID (-23916305)
 #define BOOKERLY_18_FONT_ID (588258007)
+#define BOOKERLY_20_FONT_ID (-2091495217)
 
 #define CHAREINK_14_FONT_ID (212248139)
 #define CHAREINK_16_FONT_ID (-871323928)

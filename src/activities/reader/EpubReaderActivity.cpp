@@ -6,6 +6,7 @@
 #include <HalStorage.h>
 #include <I18n.h>
 #include <Logging.h>
+#include <climits>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
@@ -85,6 +86,45 @@ int computeStatusBarReservedHeight(const GfxRenderer& renderer, const bool showB
   const int barsHeight = computeStatusBarsHeight(showBookProgressBar, showChapterProgressBar,
                                                  SETTINGS.getStatusBarProgressBarHeight());
   return statusTextTopPadding + statusTextHeight + statusTextToBarsGap + barsHeight;
+}
+
+int computeEpubPageVerticalOffset(const Page& page, const GfxRenderer& renderer, const int fontId,
+                                  const int viewportHeight) {
+  if (page.elements.empty() || viewportHeight <= 0) {
+    return 0;
+  }
+
+  const int lineHeight = renderer.getLineHeight(fontId);
+  int minY = INT_MAX;
+  int maxY = INT_MIN;
+
+  for (const auto& element : page.elements) {
+    if (!element) {
+      continue;
+    }
+
+    const int yTop = element->yPos;
+    int yBottom = yTop + lineHeight;
+    if (element->getTag() == TAG_PageImage) {
+      const auto* image = static_cast<PageImage*>(element.get());
+      yBottom = yTop + image->getHeight();
+    }
+
+    minY = std::min(minY, yTop);
+    maxY = std::max(maxY, yBottom);
+  }
+
+  if (minY == INT_MAX || maxY <= minY) {
+    return 0;
+  }
+
+  const int contentHeight = maxY - minY;
+  if (contentHeight >= viewportHeight) {
+    return 0;
+  }
+
+  const int desiredTop = (viewportHeight - contentHeight) / 2;
+  return desiredTop - minY;
 }
 
 // Apply the logical reader orientation to the renderer.
@@ -875,8 +915,15 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
                                         const int orientedMarginLeft) {
   // Reader text AA is intentionally disabled: render EPUB pages in BW only.
   bool forceFullRefresh = false;
+  const int statusBarReserved = SETTINGS.statusBarEnabled
+                                    ? computeStatusBarReservedHeight(renderer, SETTINGS.statusBarShowBookBar,
+                                                                     SETTINGS.statusBarShowChapterBar)
+                                    : 0;
+  const int viewportHeight = renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom - statusBarReserved;
+  const int verticalOffset = computeEpubPageVerticalOffset(*page, renderer, SETTINGS.getReaderFontId(), viewportHeight);
+  const int contentY = orientedMarginTop + verticalOffset;
 
-  page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
+  page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
   renderStatusBar(orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
   if (forceFullRefresh || pagesUntilFullRefresh <= 1) {
     renderer.displayBuffer(HalDisplay::HALF_REFRESH);
@@ -893,13 +940,13 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   if (false) {
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
+    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
     renderer.copyGrayscaleLsbBuffers();
 
     // Render and copy to MSB buffer
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
+    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
     renderer.copyGrayscaleMsbBuffers();
 
     // display grayscale part

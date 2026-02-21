@@ -39,12 +39,6 @@ GfxRenderer renderer(display);
 Activity* currentActivity;
 
 // Fonts
-EpdFont bookerly12RegularFont(&bookerly_12_regular);
-EpdFont bookerly12BoldFont(&bookerly_12_bold);
-EpdFont bookerly12ItalicFont(&bookerly_12_italic);
-EpdFont bookerly12BoldItalicFont(&bookerly_12_bolditalic);
-EpdFontFamily bookerly12FontFamily(&bookerly12RegularFont, &bookerly12BoldFont, &bookerly12ItalicFont,
-                                   &bookerly12BoldItalicFont);
 EpdFont bookerly14RegularFont(&bookerly_14_regular);
 EpdFont bookerly14BoldFont(&bookerly_14_bold);
 EpdFont bookerly14ItalicFont(&bookerly_14_italic);
@@ -63,6 +57,12 @@ EpdFont bookerly18ItalicFont(&bookerly_18_italic);
 EpdFont bookerly18BoldItalicFont(&bookerly_18_bolditalic);
 EpdFontFamily bookerly18FontFamily(&bookerly18RegularFont, &bookerly18BoldFont, &bookerly18ItalicFont,
                                    &bookerly18BoldItalicFont);
+EpdFont bookerly20RegularFont(&bookerly_20_regular);
+EpdFont bookerly20BoldFont(&bookerly_20_bold);
+EpdFont bookerly20ItalicFont(&bookerly_20_italic);
+EpdFont bookerly20BoldItalicFont(&bookerly_20_bolditalic);
+EpdFontFamily bookerly20FontFamily(&bookerly20RegularFont, &bookerly20BoldFont, &bookerly20ItalicFont,
+                                   &bookerly20BoldItalicFont);
 
 EpdFont chareink14RegularFont(&chareink_14_regular);
 EpdFont chareink14BoldFont(&chareink_14_bold);
@@ -234,10 +234,10 @@ void setupDisplayAndFonts() {
   display.begin();
   renderer.begin();
   LOG_DBG("MAIN", "Display initialized");
-  renderer.insertFont(BOOKERLY_12_FONT_ID, bookerly12FontFamily);
   renderer.insertFont(BOOKERLY_14_FONT_ID, bookerly14FontFamily);
   renderer.insertFont(BOOKERLY_16_FONT_ID, bookerly16FontFamily);
   renderer.insertFont(BOOKERLY_18_FONT_ID, bookerly18FontFamily);
+  renderer.insertFont(BOOKERLY_20_FONT_ID, bookerly20FontFamily);
   renderer.insertFont(CHAREINK_14_FONT_ID, chareink14FontFamily);
   renderer.insertFont(CHAREINK_16_FONT_ID, chareink16FontFamily);
   renderer.insertFont(CHAREINK_18_FONT_ID, chareink18FontFamily);

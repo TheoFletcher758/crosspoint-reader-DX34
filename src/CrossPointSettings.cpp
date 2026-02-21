@@ -433,16 +433,6 @@ int CrossPointSettings::getRefreshFrequency() const {
 
 int CrossPointSettings::getReaderFontId() const {
   switch (fontFamily) {
-    case UNIFONT:
-      switch (fontSize) {
-        case SMALL:
-        case MEDIUM:
-          return UNIFONT_14_FONT_ID;
-        case LARGE:
-        case X_LARGE:
-        default:
-          return UNIFONT_18_FONT_ID;
-      }
     case CHAREINK:
       switch (fontSize) {
         case SMALL:
@@ -459,14 +449,14 @@ int CrossPointSettings::getReaderFontId() const {
     default:
       switch (fontSize) {
         case SMALL:
-          return BOOKERLY_12_FONT_ID;
-        case MEDIUM:
           return BOOKERLY_14_FONT_ID;
-        case LARGE:
+        case MEDIUM:
           return BOOKERLY_16_FONT_ID;
+        case LARGE:
+          return BOOKERLY_18_FONT_ID;
         case X_LARGE:
         default:
-          return BOOKERLY_18_FONT_ID;
+          return BOOKERLY_20_FONT_ID;
       }
   }
 }
