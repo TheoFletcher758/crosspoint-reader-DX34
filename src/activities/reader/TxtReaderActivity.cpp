@@ -244,6 +244,7 @@ void TxtReaderActivity::loop() {
 }
 
 void TxtReaderActivity::toggleReaderBoldSwap() {
+  flushProgressIfNeeded(true);
   const bool enableSwap = SETTINGS.readerBoldSwap == 0;
   SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
   SETTINGS.saveToFile();
@@ -780,10 +781,11 @@ void TxtReaderActivity::saveProgress() const {
   FsFile f;
   if (Storage.openFileForWrite("TRS", txt->getCachePath() + "/progress.bin", f)) {
     uint8_t data[4];
-    data[0] = currentPage & 0xFF;
-    data[1] = (currentPage >> 8) & 0xFF;
-    data[2] = 0;
-    data[3] = 0;
+    const uint32_t page = currentPage < 0 ? 0u : static_cast<uint32_t>(currentPage);
+    data[0] = page & 0xFF;
+    data[1] = (page >> 8) & 0xFF;
+    data[2] = (page >> 16) & 0xFF;
+    data[3] = (page >> 24) & 0xFF;
     f.write(data, 4);
     f.close();
   }
@@ -808,8 +810,16 @@ void TxtReaderActivity::loadProgress() {
   FsFile f;
   if (Storage.openFileForRead("TRS", txt->getCachePath() + "/progress.bin", f)) {
     uint8_t data[4];
-    if (f.read(data, 4) == 4) {
-      currentPage = data[0] + (data[1] << 8);
+    const int bytesRead = f.read(data, sizeof(data));
+    if (bytesRead >= 2) {
+      if (bytesRead >= 4) {
+        currentPage = static_cast<int>(static_cast<uint32_t>(data[0]) | (static_cast<uint32_t>(data[1]) << 8) |
+                                       (static_cast<uint32_t>(data[2]) << 16) |
+                                       (static_cast<uint32_t>(data[3]) << 24));
+      } else {
+        // Backward compatibility with older 2-byte progress files.
+        currentPage = data[0] + (data[1] << 8);
+      }
       if (currentPage >= totalPages) {
         currentPage = totalPages - 1;
       }

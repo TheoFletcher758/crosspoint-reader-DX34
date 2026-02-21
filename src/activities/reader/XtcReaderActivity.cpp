@@ -225,6 +225,7 @@ void XtcReaderActivity::openChapterMenu() {
 }
 
 void XtcReaderActivity::toggleReaderBoldSwap() {
+  flushProgressIfNeeded(true);
   const bool enableSwap = SETTINGS.readerBoldSwap == 0;
   SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
   SETTINGS.saveToFile();

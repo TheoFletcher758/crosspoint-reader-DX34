@@ -147,6 +147,7 @@ class SettingsActivity final : public ActivityWithSubactivity {
   int selectedRowIndex = 0;
   unsigned long lastNextTapMs = 0;
   unsigned long lastPreviousTapMs = 0;
+  bool homeStatsPopupOpen = false;
 
   // Per-category settings derived from shared list + device-only actions
   std::vector<SettingInfo> displaySettings;

@@ -39,12 +39,22 @@ std::optional<int> getEpubPercent(const std::string& path) {
   const int currentSpineIndex = data[0] | (data[1] << 8);
   const int currentPage = data[2] | (data[3] << 8);
   const int pageCount = data[4] | (data[5] << 8);
-  if (pageCount <= 0) {
+  const int spineCount = epub.getSpineItemsCount();
+  if (pageCount <= 0 || spineCount <= 0) {
     return std::nullopt;
   }
 
-  const float chapterProgress = static_cast<float>(clampValue(currentPage, 0, pageCount)) / static_cast<float>(pageCount);
-  const int percent = static_cast<int>(epub.calculateProgress(currentSpineIndex, chapterProgress) * 100.0f + 0.5f);
+  int safeSpineIndex = currentSpineIndex;
+  float chapterProgress = 0.0f;
+  if (safeSpineIndex >= spineCount) {
+    safeSpineIndex = spineCount - 1;
+    chapterProgress = 1.0f;
+  } else {
+    const int safeCurrentPage = clampValue(currentPage, 0, pageCount - 1);
+    chapterProgress = static_cast<float>(safeCurrentPage) / static_cast<float>(pageCount);
+  }
+
+  const int percent = static_cast<int>(epub.calculateProgress(safeSpineIndex, chapterProgress) * 100.0f + 0.5f);
   return clampValue(percent, 0, 100);
 }
 
@@ -67,7 +77,12 @@ std::optional<int> getXtcPercent(const std::string& path) {
   f.close();
 
   const uint32_t currentPage = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
-  return clampValue(static_cast<int>(xtc.calculateProgress(currentPage)), 0, 100);
+  const uint32_t pageCount = xtc.getPageCount();
+  if (pageCount == 0) {
+    return std::nullopt;
+  }
+  const uint32_t safePage = (currentPage >= pageCount) ? (pageCount - 1) : currentPage;
+  return clampValue(static_cast<int>(xtc.calculateProgress(safePage)), 0, 100);
 }
 
 std::optional<int> getTxtPercent(const std::string& path) {
@@ -86,7 +101,10 @@ std::optional<int> getTxtPercent(const std::string& path) {
   }
   progressFile.close();
 
-  const int currentPage = progressData[0] | (progressData[1] << 8);
+  const int currentPage = static_cast<int>(static_cast<uint32_t>(progressData[0]) |
+                                           (static_cast<uint32_t>(progressData[1]) << 8) |
+                                           (static_cast<uint32_t>(progressData[2]) << 16) |
+                                           (static_cast<uint32_t>(progressData[3]) << 24));
 
   FsFile indexFile;
   if (!Storage.openFileForRead("BPR", cachePath + "/index.bin", indexFile)) {
@@ -122,7 +140,7 @@ std::optional<int> getTxtPercent(const std::string& path) {
     return std::nullopt;
   }
 
-  const int clampedPage = clampValue(currentPage, 0, static_cast<int>(totalPages));
+  const int clampedPage = clampValue(currentPage, 0, static_cast<int>(totalPages - 1));
   const int percent = static_cast<int>((static_cast<float>(clampedPage + 1) * 100.0f) / static_cast<float>(totalPages) + 0.5f);
   return clampValue(percent, 0, 100);
 }

@@ -159,6 +159,21 @@ void SettingsActivity::loop() {
     return;
   }
 
+  if (homeStatsPopupOpen) {
+    const bool anyPress = mappedInput.wasPressed(MappedInputManager::Button::Confirm) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Back) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::PageForward) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Left) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Right) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Power);
+    if (anyPress) {
+      homeStatsPopupOpen = false;
+      requestUpdate();
+    }
+    return;
+  }
+
   // Handle actions with early return
   if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
     toggleCurrentSetting();
@@ -288,11 +303,7 @@ void SettingsActivity::toggleCurrentSetting() {
         SleepActivity::randomizeSleepImagePlaylist();
         break;
       case SettingAction::RefreshHomeStats: {
-        const uint64_t previousSignature = BaseTheme::homeInfoStatsSignature();
-        BaseTheme::refreshHomeInfoStats();
-        const uint64_t newSignature = BaseTheme::homeInfoStatsSignature();
-        GUI.drawPopup(renderer, previousSignature != newSignature ? "Stats changed" : "No stats changes");
-        delay(350);
+        homeStatsPopupOpen = true;
         requestUpdate();
         break;
       }
@@ -380,6 +391,10 @@ void SettingsActivity::render(Activity::RenderLock&&) {
   // Draw help text
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_TOGGLE), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+
+  if (homeStatsPopupOpen) {
+    GUI.drawHomeInfoStatsPopup(renderer);
+  }
 
   // Always use standard refresh for settings screen
   renderer.displayBuffer();

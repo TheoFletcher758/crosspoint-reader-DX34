@@ -15,6 +15,29 @@
 
 namespace {
 constexpr unsigned long GO_HOME_MS = 1000;
+
+std::string buildAuthorInitials(const std::string& author) {
+  std::string initials;
+  bool newWord = true;
+  for (const char ch : author) {
+    if (ch == ' ' || ch == '\t') {
+      newWord = true;
+      continue;
+    }
+    if (newWord) {
+      if (ch >= 'a' && ch <= 'z') {
+        initials.push_back(static_cast<char>(ch - ('a' - 'A')));
+      } else {
+        initials.push_back(ch);
+      }
+      if (initials.size() >= 4) {
+        break;
+      }
+      newWord = false;
+    }
+  }
+  return initials;
+}
 }  // namespace
 
 void RecentBooksActivity::loadRecentBooks() {
@@ -32,7 +55,10 @@ void RecentBooksActivity::loadRecentBooks() {
       continue;
     }
     RecentBook decorated = book;
-    decorated.title = BookProgress::withPrefix(book.path, book.title);
+    const std::string initials = buildAuthorInitials(book.author);
+    const std::string titleWithAuthor =
+        initials.empty() ? book.title : (book.title + " by " + initials);
+    decorated.title = std::to_string(percent.value()) + "%> " + titleWithAuthor;
     recentBooks.push_back(std::move(decorated));
   }
 }
@@ -107,7 +133,8 @@ void RecentBooksActivity::render(Activity::RenderLock&&) {
     renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, contentTop + 20, tr(STR_NO_RECENT_BOOKS));
   } else {
     GUI.drawList(renderer, Rect{0, contentTop, pageWidth, contentHeight}, recentBooks.size(), selectorIndex,
-                 [this](int index) { return recentBooks[index].title; }, nullptr, nullptr, nullptr);
+                 [this](int index) { return recentBooks[index].title; }, [](int) { return std::string(); }, nullptr,
+                 nullptr);
   }
 
   // Help text

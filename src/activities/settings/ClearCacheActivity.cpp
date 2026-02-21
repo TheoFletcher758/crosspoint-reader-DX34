@@ -5,6 +5,8 @@
 #include <I18n.h>
 #include <Logging.h>
 
+#include <vector>
+
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -25,11 +27,11 @@ void ClearCacheActivity::render(Activity::RenderLock&&) {
   renderer.drawCenteredText(UI_12_FONT_ID, 15, tr(STR_CLEAR_READING_CACHE), true, EpdFontFamily::REGULAR);
 
   if (state == WARNING) {
-    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 - 60, tr(STR_CLEAR_CACHE_WARNING_1), true);
-    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 - 30, tr(STR_CLEAR_CACHE_WARNING_2), true,
+    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 - 60, "Clears generated cache files", true);
+    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 - 30, "for EPUB/XTC/TXT books.", true);
+    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 10, "Reading progress is preserved.", true,
                               EpdFontFamily::REGULAR);
-    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 10, tr(STR_CLEAR_CACHE_WARNING_3), true);
-    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 30, tr(STR_CLEAR_CACHE_WARNING_4), true);
+    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 30, "Books may re-index when opened.", true);
 
     const auto labels = mappedInput.mapLabels(tr(STR_CANCEL), tr(STR_CLEAR_BUTTON), "", "");
     GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
@@ -91,14 +93,54 @@ void ClearCacheActivity::clearCache() {
     file.getName(name, sizeof(name));
     String itemName(name);
 
-    // Only delete directories starting with epub_ or xtc_
-    if (file.isDirectory() && (itemName.startsWith("epub_") || itemName.startsWith("xtc_"))) {
+    // Only delete reader cache directories.
+    if (file.isDirectory() && (itemName.startsWith("epub_") || itemName.startsWith("xtc_") || itemName.startsWith("txt_"))) {
       String fullPath = "/.crosspoint/" + itemName;
       LOG_DBG("CLEAR_CACHE", "Removing cache: %s", fullPath.c_str());
 
       file.close();  // Close before attempting to delete
 
+      // Preserve progress.bin before deleting cache directory.
+      std::vector<uint8_t> progressData;
+      bool hasProgress = false;
+      {
+        FsFile progressFile;
+        const String progressPath = fullPath + "/progress.bin";
+        if (Storage.openFileForRead("CLEAR_CACHE", progressPath.c_str(), progressFile)) {
+          const auto progressSize = static_cast<size_t>(progressFile.size());
+          if (progressSize > 0 && progressSize <= 16) {
+            progressData.resize(progressSize);
+            const int read = progressFile.read(progressData.data(), progressSize);
+            if (read == static_cast<int>(progressSize)) {
+              hasProgress = true;
+            } else {
+              progressData.clear();
+            }
+          }
+          progressFile.close();
+        }
+      }
+
       if (Storage.removeDir(fullPath.c_str())) {
+        if (hasProgress) {
+          const String progressPath = fullPath + "/progress.bin";
+          if (!Storage.mkdir(fullPath.c_str())) {
+            LOG_ERR("CLEAR_CACHE", "Failed to recreate cache dir for progress restore: %s", fullPath.c_str());
+            failedCount++;
+            continue;
+          }
+          FsFile progressOut;
+          if (!Storage.openFileForWrite("CLEAR_CACHE", progressPath.c_str(), progressOut) ||
+              progressOut.write(progressData.data(), progressData.size()) != progressData.size()) {
+            LOG_ERR("CLEAR_CACHE", "Failed to restore progress: %s", progressPath.c_str());
+            failedCount++;
+            if (progressOut) {
+              progressOut.close();
+            }
+            continue;
+          }
+          progressOut.close();
+        }
         clearedCount++;
       } else {
         LOG_ERR("CLEAR_CACHE", "Failed to remove: %s", fullPath.c_str());

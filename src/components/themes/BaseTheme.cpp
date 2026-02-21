@@ -463,143 +463,166 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   constexpr const char* placeholderLabel = "Open another book...";
   const int count = std::min(static_cast<int>(recentBooks.size()), maxRowsCap);
   const int visibleRows = std::max(1, count);
-  constexpr int rowGap = 3;
-  const int statsLineHeight = renderer.getLineHeight(SMALL_FONT_ID);
-  const int rowLineHeight = renderer.getLineHeight(UI_10_FONT_ID);
-  constexpr int statsTopInset = 18;  // Keep away from battery area.
-  constexpr int statsTextInsetY = 4;
-  constexpr int statsLineGap = 2;
-  constexpr int statsToRowsGap = 14;  // Bigger visual gap between stats and recents.
+  constexpr int rowGap = 4;
+  const int rowLineHeight = renderer.getLineHeight(UI_12_FONT_ID);
+  constexpr int rowsTopInset = 18;
   constexpr int rowsBottomInset = 6;
-  const int statsTextBlockHeight = statsLineHeight * 3 + statsLineGap * 2;
-  const int statsBoxHeight = statsTextBlockHeight + statsTextInsetY * 2;
-  const int statsTopY = rect.y + statsTopInset;
-  const int rowsTopMinY = statsTopY + statsBoxHeight + statsToRowsGap;
+  const int rowsTopMinY = rect.y + rowsTopInset;
   const int rowsBottomY = rect.y + rect.height - rowsBottomInset;
   const int rowsAvailableHeight = rowsBottomY - rowsTopMinY;
-  const int oneLineRowHeight = rowLineHeight + 4;
-  const int twoLineRowHeight = rowLineHeight * 2 + 4;
   const int rowX = rect.x + BaseMetrics::values.contentSidePadding;
   const int rowW = rect.width - BaseMetrics::values.contentSidePadding * 2;
   const int contentX = rowX + 12;
   const int contentW = rowW - 24;
 
-  std::vector<std::string> line1(visibleRows);
-  std::vector<std::string> line2(visibleRows);
-  std::vector<int> rowHeights(visibleRows, oneLineRowHeight);
+  std::vector<std::vector<std::string>> rowLines(visibleRows);
+  std::vector<int> rowHeights(visibleRows, rowLineHeight + 6);
+
+  auto wrapText = [&](const std::string& input, const int maxWidth) {
+    std::vector<std::string> lines;
+    if (input.empty()) {
+      lines.push_back("");
+      return lines;
+    }
+
+    size_t i = 0;
+    while (i < input.size()) {
+      while (i < input.size() && input[i] == ' ') {
+        i++;
+      }
+      if (i >= input.size()) {
+        break;
+      }
+
+      std::string line;
+      size_t lineEndPos = i;
+      while (lineEndPos < input.size()) {
+        size_t wordEnd = lineEndPos;
+        while (wordEnd < input.size() && input[wordEnd] != ' ') {
+          wordEnd++;
+        }
+        const std::string word = input.substr(lineEndPos, wordEnd - lineEndPos);
+        const std::string candidate = line.empty() ? word : (line + " " + word);
+
+        if (renderer.getTextWidth(UI_12_FONT_ID, candidate.c_str()) <= maxWidth) {
+          line = candidate;
+          lineEndPos = wordEnd;
+          while (lineEndPos < input.size() && input[lineEndPos] == ' ') {
+            lineEndPos++;
+          }
+          continue;
+        }
+
+        if (line.empty()) {
+          size_t fit = 1;
+          while (fit < word.size() && renderer.getTextWidth(UI_12_FONT_ID, word.substr(0, fit + 1).c_str()) <= maxWidth) {
+            fit++;
+          }
+          line = word.substr(0, fit);
+          lineEndPos += fit;
+        }
+        break;
+      }
+
+      if (line.empty()) {
+        line = renderer.truncatedText(UI_12_FONT_ID, input.substr(i).c_str(), maxWidth);
+        lines.push_back(line);
+        break;
+      }
+
+      lines.push_back(line);
+      i = lineEndPos;
+    }
+
+    if (lines.empty()) {
+      lines.push_back(renderer.truncatedText(UI_12_FONT_ID, input.c_str(), maxWidth));
+    }
+    return lines;
+  };
 
   for (int i = 0; i < visibleRows; i++) {
     const bool hasBook = i < count;
     if (!hasBook) {
-      line1[i] = renderer.truncatedText(UI_10_FONT_ID, placeholderLabel, contentW);
+      rowLines[i].push_back(renderer.truncatedText(UI_12_FONT_ID, placeholderLabel, contentW));
       continue;
     }
 
     const std::string initials = buildAuthorInitials(recentBooks[i].author);
-    const std::string fullTitle =
-        initials.empty() ? recentBooks[i].title : (recentBooks[i].title + " by " + initials);
-
-    if (renderer.getTextWidth(UI_10_FONT_ID, fullTitle.c_str()) <= contentW) {
-      line1[i] = fullTitle;
-      continue;
-    }
-
-    size_t splitPos = fullTitle.size();
-    while (splitPos > 0 && renderer.getTextWidth(UI_10_FONT_ID, fullTitle.substr(0, splitPos).c_str()) > contentW) {
-      splitPos--;
-    }
-
-    if (splitPos == 0) {
-      line1[i] = renderer.truncatedText(UI_10_FONT_ID, fullTitle.c_str(), contentW);
-      continue;
-    }
-
-    line1[i] = fullTitle.substr(0, splitPos);
-    size_t secondStart = splitPos;
-    while (secondStart < fullTitle.size() && fullTitle[secondStart] == ' ') {
-      secondStart++;
-    }
-    if (secondStart < fullTitle.size()) {
-      line2[i] = renderer.truncatedText(UI_10_FONT_ID, fullTitle.substr(secondStart).c_str(), contentW);
-      if (!line2[i].empty()) {
-        rowHeights[i] = twoLineRowHeight;
-      }
-    }
+    const std::string rowText = initials.empty() ? recentBooks[i].title : (recentBooks[i].title + " by " + initials);
+    rowLines[i] = wrapText(rowText, contentW);
+    rowHeights[i] = static_cast<int>(rowLines[i].size()) * rowLineHeight + 6;
   }
 
-  // Use the area above recents to show home stats.
   if (rowsAvailableHeight > 0) {
-    const auto& stats = getHomeInfoStats();
-    const int tipX = rowX;
-    const int tipY = statsTopY;
-    const int tipW = rowW;
-    const int tipH = statsBoxHeight;
-    drawDashedRect(renderer, tipX, tipY, tipW, tipH);
-
-    const uint64_t gbScale = 1024ull * 1024ull * 1024ull;
-    const uint64_t freeTenthsGb = (stats.freeBytes * 10ull) / gbScale;
-    const std::string line1Value = std::to_string(stats.bookCount);
-    const std::string line2Value = std::to_string(stats.sleepBmpCount);
-    const std::string line3Value =
-        std::to_string(freeTenthsGb / 10ull) + "." + std::to_string(freeTenthsGb % 10ull) + " GB";
-
-    const int tipTextMaxWidth = tipW - 16;
-    const int lineStep = statsLineHeight + statsLineGap;
-    const int textY = tipY + statsTextInsetY;
-    const int textX = tipX + 8;
-    auto drawStatLine = [&](const int y, const char* labelText, const std::string& valueRegular) {
-      const std::string labelWithSeparator = std::string(labelText) + "   ";
-      const std::string label =
-          renderer.truncatedText(SMALL_FONT_ID, labelWithSeparator.c_str(), tipTextMaxWidth, EpdFontFamily::REGULAR);
-      const int labelWidth = renderer.getTextWidth(SMALL_FONT_ID, label.c_str(), EpdFontFamily::REGULAR);
-
-      renderer.drawText(SMALL_FONT_ID, textX, y, label.c_str(), true, EpdFontFamily::REGULAR);
-
-      const int remaining = tipTextMaxWidth - labelWidth;
-      if (remaining <= 0) return;
-
-      const std::string valueBracketed = "[" + valueRegular + "]";
-      const std::string value = renderer.truncatedText(SMALL_FONT_ID, valueBracketed.c_str(), remaining);
-      renderer.drawText(SMALL_FONT_ID, textX + labelWidth, y, value.c_str(), true, EpdFontFamily::REGULAR);
-    };
-
-    drawStatLine(textY, "NUMBER OF BOOKS", line1Value);
-    drawStatLine(textY + lineStep, "NUMBER OF WALLPAPERS", line2Value);
-    drawStatLine(textY + lineStep * 2, "FREE SPACE IN SD CARD", line3Value);
-    int rowsBlockHeight = 0;
+    int rowY = rowsTopMinY;
     for (int i = 0; i < visibleRows; i++) {
-      rowsBlockHeight += rowHeights[i];
-    }
-    rowsBlockHeight += std::max(0, visibleRows - 1) * rowGap;
-    const int centeredRowStartY = rowsTopMinY + std::max(0, (rowsAvailableHeight - rowsBlockHeight) / 2);
-
-    int rowY = centeredRowStartY;
-    for (int i = 0; i < visibleRows; i++) {
-      const bool hasBook = i < count;
       const int rowHeight = rowHeights[i];
-      const bool isCurrent = hasBook && (i == 0);  // Most recent/currently open entry
+      if (rowY + rowHeight > rowsBottomY) {
+        break;
+      }
       const bool selected = (selectorIndex == i);
       const bool textBlack = !selected;
 
       if (selected) {
         renderer.fillRect(rowX, rowY, rowW, rowHeight, true);
-      } else if (isCurrent) {
-        drawDashedRect(renderer, rowX, rowY, rowW, rowHeight);
       }
 
-      const bool hasSecondLine = !line2[i].empty();
-      const int textBlockHeight = hasSecondLine ? rowLineHeight * 2 : rowLineHeight;
-      const int textYInset = std::max(2, (rowHeight - textBlockHeight) / 2);
-      const int baselineY = rowY + textYInset;
-
-      renderer.drawText(UI_10_FONT_ID, contentX, baselineY, line1[i].c_str(), textBlack);
-      if (hasSecondLine) {
-        renderer.drawText(UI_10_FONT_ID, contentX, baselineY + rowLineHeight, line2[i].c_str(), textBlack);
+      int baselineY = rowY + 3;
+      for (const auto& line : rowLines[i]) {
+        renderer.drawText(UI_12_FONT_ID, contentX, baselineY, line.c_str(), textBlack);
+        baselineY += rowLineHeight;
       }
 
       rowY += rowHeight + rowGap;
     }
   }
+}
+
+void BaseTheme::drawHomeInfoStatsPopup(const GfxRenderer& renderer) const {
+  refreshHomeInfoStats();
+  const auto& stats = getHomeInfoStats();
+
+  const int popupW = std::min(renderer.getScreenWidth() - 20, 460);
+  const int popupH = 165;
+  const int popupX = (renderer.getScreenWidth() - popupW) / 2;
+  const int popupY = (renderer.getScreenHeight() - popupH) / 2;
+  const int textX = popupX + 12;
+  constexpr int textPadY = 10;
+  constexpr int lineGap = 6;
+  const int lineHeight = renderer.getLineHeight(UI_12_FONT_ID);
+  const int lineStep = lineHeight + lineGap;
+  const int textMaxWidth = popupW - 24;
+
+  renderer.fillRect(popupX - 2, popupY - 2, popupW + 4, popupH + 4, true);
+  renderer.fillRect(popupX, popupY, popupW, popupH, false);
+  drawDashedRect(renderer, popupX, popupY, popupW, popupH);
+
+  const uint64_t gbScale = 1024ull * 1024ull * 1024ull;
+  const uint64_t freeTenthsGb = (stats.freeBytes * 10ull) / gbScale;
+  const std::string line1Value = std::to_string(stats.bookCount);
+  const std::string line2Value = std::to_string(stats.sleepBmpCount);
+  const std::string line3Value = std::to_string(freeTenthsGb / 10ull) + "." + std::to_string(freeTenthsGb % 10ull) + " GB";
+
+  auto drawStatLine = [&](const int y, const char* labelText, const std::string& valueRegular) {
+    const std::string labelWithSeparator = std::string(labelText) + "   ";
+    const std::string label =
+        renderer.truncatedText(UI_12_FONT_ID, labelWithSeparator.c_str(), textMaxWidth, EpdFontFamily::REGULAR);
+    const int labelWidth = renderer.getTextWidth(UI_12_FONT_ID, label.c_str(), EpdFontFamily::REGULAR);
+
+    renderer.drawText(UI_12_FONT_ID, textX, y, label.c_str(), true, EpdFontFamily::REGULAR);
+
+    const int remaining = textMaxWidth - labelWidth;
+    if (remaining <= 0) return;
+
+    const std::string valueBracketed = "[" + valueRegular + "]";
+    const std::string value = renderer.truncatedText(UI_12_FONT_ID, valueBracketed.c_str(), remaining);
+    renderer.drawText(UI_12_FONT_ID, textX + labelWidth, y, value.c_str(), true, EpdFontFamily::REGULAR);
+  };
+
+  const int textY = popupY + textPadY;
+  drawStatLine(textY, "NUMBER OF BOOKS", line1Value);
+  drawStatLine(textY + lineStep, "NUMBER OF WALLPAPERS", line2Value);
+  drawStatLine(textY + lineStep * 2, "FREE SPACE IN SD CARD", line3Value);
 }
 
 void BaseTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,

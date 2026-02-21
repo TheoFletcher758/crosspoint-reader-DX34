@@ -187,6 +187,12 @@ void EpubReaderActivity::onEnter() {
     }
     f.close();
   }
+  const int spineCount = epub->getSpineItemsCount();
+  if (spineCount > 0 && currentSpineIndex >= spineCount) {
+    currentSpineIndex = spineCount - 1;
+    nextPageNumber = UINT16_MAX;
+  }
+
   // We may want a better condition to detect if we are opening for the first time.
   // This will trigger if the book is re-opened at Chapter 0.
   if (currentSpineIndex == 0) {
@@ -390,6 +396,11 @@ void EpubReaderActivity::loop() {
       RenderLock lock(*this);
       nextPageNumber = 0;
       currentSpineIndex = nextTriggered ? currentSpineIndex + 1 : currentSpineIndex - 1;
+      saveProgress(currentSpineIndex, nextPageNumber, 1);
+      lastSavedSpineIndex = currentSpineIndex;
+      lastSavedPage = nextPageNumber;
+      lastSavedPageCount = 1;
+      progressDirty = false;
       section.reset();
     }
     requestUpdate();
@@ -414,6 +425,11 @@ void EpubReaderActivity::loop() {
         RenderLock lock(*this);
         nextPageNumber = UINT16_MAX;
         currentSpineIndex--;
+        saveProgress(currentSpineIndex, nextPageNumber, 1);
+        lastSavedSpineIndex = currentSpineIndex;
+        lastSavedPage = nextPageNumber;
+        lastSavedPageCount = 1;
+        progressDirty = false;
         section.reset();
       }
     }
@@ -430,6 +446,11 @@ void EpubReaderActivity::loop() {
         RenderLock lock(*this);
         nextPageNumber = 0;
         currentSpineIndex++;
+        saveProgress(currentSpineIndex, nextPageNumber, 1);
+        lastSavedSpineIndex = currentSpineIndex;
+        lastSavedPage = nextPageNumber;
+        lastSavedPageCount = 1;
+        progressDirty = false;
         section.reset();
       }
     }
@@ -454,27 +475,35 @@ void EpubReaderActivity::openReaderMenu() {
 }
 
 void EpubReaderActivity::toggleReaderBoldSwap() {
+  flushProgressIfNeeded(true);
   const bool enableSwap = SETTINGS.readerBoldSwap == 0;
   SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
   SETTINGS.saveToFile();
   EpdFontFamily::setReaderBoldSwapEnabled(enableSwap);
 
-  uint16_t backupSpine = currentSpineIndex;
+  uint16_t backupSpine = 0;
   uint16_t backupPage = 0;
   uint16_t backupPageCount = 1;
-  if (section) {
-    backupPage = section->currentPage;
-    backupPageCount = (section->pageCount > 0) ? section->pageCount : 1;
+  if (epub) {
+    const uint16_t spineCount = epub->getSpineItemsCount();
+    if (section && section->pageCount > 0) {
+      backupSpine = currentSpineIndex;
+      backupPage = section->currentPage;
+      backupPageCount = (section->pageCount > 0) ? section->pageCount : 1;
+    } else if (spineCount > 0) {
+      if (currentSpineIndex >= spineCount) {
+        backupSpine = spineCount - 1;
+        backupPage = UINT16_MAX;
+      } else {
+        backupSpine = currentSpineIndex;
+      }
+    }
   }
 
   {
     RenderLock lock(*this);
     section.reset();
-    if (epub) {
-      epub->clearCache();
-      epub->setupCacheDir();
-      saveProgress(backupSpine, backupPage, backupPageCount);
-    }
+    saveProgress(backupSpine, backupPage, backupPageCount);
     lastSavedSpineIndex = backupSpine;
     lastSavedPage = backupPage;
     lastSavedPageCount = backupPageCount;
@@ -633,26 +662,26 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       {
         RenderLock lock(*this);
         if (epub) {
-          // 2. BACKUP: Read current progress
-          // We use the current variables that track our position
-          uint16_t backupSpine = currentSpineIndex;
-          uint16_t backupPage = section->currentPage;
-          uint16_t backupPageCount = section->pageCount;
+          // Clean cache and reset this book's reading progress to page 1.
+          const uint16_t resetSpine = 0;
+          const uint16_t resetPage = 0;
+          const uint16_t resetPageCount = 1;
 
           section.reset();
-          // 3. WIPE: Clear the cache directory
           epub->clearCache();
-
-          // 4. RESTORE: Re-setup the directory and rewrite the progress file
           epub->setupCacheDir();
+          saveProgress(resetSpine, resetPage, resetPageCount);
 
-          saveProgress(backupSpine, backupPage, backupPageCount);
-          lastSavedSpineIndex = backupSpine;
-          lastSavedPage = backupPage;
-          lastSavedPageCount = backupPageCount;
-          lastObservedSpineIndex = backupSpine;
-          lastObservedPage = backupPage;
-          lastObservedPageCount = backupPageCount;
+          currentSpineIndex = resetSpine;
+          nextPageNumber = resetPage;
+          cachedSpineIndex = resetSpine;
+          cachedChapterTotalPageCount = resetPageCount;
+          lastSavedSpineIndex = resetSpine;
+          lastSavedPage = resetPage;
+          lastSavedPageCount = resetPageCount;
+          lastObservedSpineIndex = resetSpine;
+          lastObservedPage = resetPage;
+          lastObservedPageCount = resetPageCount;
           progressDirty = false;
         }
       }
@@ -790,14 +819,16 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
 
     if (!section->loadSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
                                   SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment, viewportWidth,
-                                  viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle)) {
+                                  viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
+                                  SETTINGS.readerBoldSwap != 0)) {
       LOG_DBG("ERS", "Cache not found, building...");
 
       const auto popupFn = [this]() { GUI.drawPopup(renderer, tr(STR_INDEXING)); };
 
       if (!section->createSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
                                       SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment, viewportWidth,
-                                      viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle, popupFn)) {
+                                      viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
+                                      SETTINGS.readerBoldSwap != 0, popupFn)) {
         LOG_ERR("ERS", "Failed to persist page data to SD");
         section.reset();
         return;
@@ -942,6 +973,22 @@ void EpubReaderActivity::renderRecentSwitcher() {
 }
 
 void EpubReaderActivity::saveProgress(int spineIndex, int currentPage, int pageCount) {
+  if (!epub) {
+    return;
+  }
+  const int spineCount = epub->getSpineItemsCount();
+  if (spineCount <= 0) {
+    return;
+  }
+  if (spineIndex < 0) {
+    spineIndex = 0;
+  } else if (spineIndex >= spineCount) {
+    spineIndex = spineCount - 1;
+    currentPage = UINT16_MAX;
+  }
+  if (pageCount <= 0) {
+    pageCount = 1;
+  }
   FsFile f;
   if (Storage.openFileForWrite("ERS", epub->getCachePath() + "/progress.bin", f)) {
     uint8_t data[6];
