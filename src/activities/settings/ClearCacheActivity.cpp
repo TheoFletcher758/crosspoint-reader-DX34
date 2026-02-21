@@ -5,6 +5,7 @@
 #include <I18n.h>
 #include <Logging.h>
 
+#include <string>
 #include <vector>
 
 #include "MappedInputManager.h"
@@ -87,70 +88,75 @@ void ClearCacheActivity::clearCache() {
   clearedCount = 0;
   failedCount = 0;
   char name[128];
+  std::vector<std::string> cacheDirs;
 
-  // Iterate through all entries in the directory
+  // Pass 1: collect cache directories first, then close root before mutating FS.
   for (auto file = root.openNextFile(); file; file = root.openNextFile()) {
     file.getName(name, sizeof(name));
-    String itemName(name);
-
-    // Only delete reader cache directories.
-    if (file.isDirectory() && (itemName.startsWith("epub_") || itemName.startsWith("xtc_") || itemName.startsWith("txt_"))) {
-      String fullPath = "/.crosspoint/" + itemName;
-      LOG_DBG("CLEAR_CACHE", "Removing cache: %s", fullPath.c_str());
-
-      file.close();  // Close before attempting to delete
-
-      // Preserve progress.bin before deleting cache directory.
-      std::vector<uint8_t> progressData;
-      bool hasProgress = false;
-      {
-        FsFile progressFile;
-        const String progressPath = fullPath + "/progress.bin";
-        if (Storage.openFileForRead("CLEAR_CACHE", progressPath.c_str(), progressFile)) {
-          const auto progressSize = static_cast<size_t>(progressFile.size());
-          if (progressSize > 0 && progressSize <= 16) {
-            progressData.resize(progressSize);
-            const int read = progressFile.read(progressData.data(), progressSize);
-            if (read == static_cast<int>(progressSize)) {
-              hasProgress = true;
-            } else {
-              progressData.clear();
-            }
-          }
-          progressFile.close();
-        }
-      }
-
-      if (Storage.removeDir(fullPath.c_str())) {
-        if (hasProgress) {
-          const String progressPath = fullPath + "/progress.bin";
-          if (!Storage.mkdir(fullPath.c_str())) {
-            LOG_ERR("CLEAR_CACHE", "Failed to recreate cache dir for progress restore: %s", fullPath.c_str());
-            failedCount++;
-            continue;
-          }
-          FsFile progressOut;
-          if (!Storage.openFileForWrite("CLEAR_CACHE", progressPath.c_str(), progressOut) ||
-              progressOut.write(progressData.data(), progressData.size()) != progressData.size()) {
-            LOG_ERR("CLEAR_CACHE", "Failed to restore progress: %s", progressPath.c_str());
-            failedCount++;
-            if (progressOut) {
-              progressOut.close();
-            }
-            continue;
-          }
-          progressOut.close();
-        }
-        clearedCount++;
-      } else {
-        LOG_ERR("CLEAR_CACHE", "Failed to remove: %s", fullPath.c_str());
-        failedCount++;
-      }
-    } else {
-      file.close();
+    const std::string itemName(name);
+    const bool isCacheDir = file.isDirectory() &&
+                            (itemName.rfind("epub_", 0) == 0 || itemName.rfind("xtc_", 0) == 0 ||
+                             itemName.rfind("txt_", 0) == 0);
+    file.close();
+    if (isCacheDir) {
+      cacheDirs.push_back("/.crosspoint/" + itemName);
     }
   }
   root.close();
+
+  // Pass 2: process each cache directory independently.
+  for (const auto& fullPath : cacheDirs) {
+    LOG_DBG("CLEAR_CACHE", "Removing cache: %s", fullPath.c_str());
+
+    std::vector<uint8_t> progressData;
+    bool hasProgress = false;
+    {
+      FsFile progressFile;
+      const std::string progressPath = fullPath + "/progress.bin";
+      if (Storage.openFileForRead("CLEAR_CACHE", progressPath, progressFile)) {
+        const auto progressSize = static_cast<size_t>(progressFile.size());
+        if (progressSize > 0 && progressSize <= 16) {
+          progressData.resize(progressSize);
+          const int read = progressFile.read(progressData.data(), progressSize);
+          if (read == static_cast<int>(progressSize)) {
+            hasProgress = true;
+          } else {
+            progressData.clear();
+          }
+        }
+        progressFile.close();
+      }
+    }
+
+    if (!Storage.removeDir(fullPath.c_str())) {
+      LOG_ERR("CLEAR_CACHE", "Failed to remove: %s", fullPath.c_str());
+      failedCount++;
+      continue;
+    }
+
+    if (!Storage.mkdir(fullPath.c_str())) {
+      LOG_ERR("CLEAR_CACHE", "Failed to recreate cache dir: %s", fullPath.c_str());
+      failedCount++;
+      continue;
+    }
+
+    if (hasProgress) {
+      FsFile progressOut;
+      const std::string progressPath = fullPath + "/progress.bin";
+      if (!Storage.openFileForWrite("CLEAR_CACHE", progressPath, progressOut) ||
+          progressOut.write(progressData.data(), progressData.size()) != progressData.size()) {
+        LOG_ERR("CLEAR_CACHE", "Failed to restore progress: %s", progressPath.c_str());
+        failedCount++;
+        if (progressOut) {
+          progressOut.close();
+        }
+        continue;
+      }
+      progressOut.close();
+    }
+
+    clearedCount++;
+  }
 
   LOG_DBG("CLEAR_CACHE", "Cache cleared: %d removed, %d failed", clearedCount, failedCount);
 

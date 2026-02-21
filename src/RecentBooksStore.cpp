@@ -1,12 +1,15 @@
 #include "RecentBooksStore.h"
 
 #include <Epub.h>
+#include <FsHelpers.h>
 #include <HalStorage.h>
 #include <Logging.h>
 #include <Serialization.h>
 #include <Xtc.h>
 
 #include <algorithm>
+#include <cctype>
+#include <unordered_set>
 
 #include "util/StringUtils.h"
 
@@ -14,48 +17,124 @@ namespace {
 constexpr uint8_t RECENT_BOOKS_FILE_VERSION = 3;
 constexpr char RECENT_BOOKS_FILE[] = "/.crosspoint/recent.bin";
 constexpr int MAX_RECENT_BOOKS = 100;
+
+std::string normalizeRecentPath(std::string path) {
+  if (path.empty()) {
+    return path;
+  }
+
+  for (char& c : path) {
+    if (c == '\\') {
+      c = '/';
+    }
+  }
+
+  std::string normalized = FsHelpers::normalisePath(path);
+  if (normalized.empty()) {
+    return "/";
+  }
+  if (normalized.front() != '/') {
+    normalized.insert(normalized.begin(), '/');
+  }
+  while (normalized.size() > 1 && normalized.back() == '/') {
+    normalized.pop_back();
+  }
+  return normalized;
+}
+
+std::string makeRecentPathKey(const std::string& rawPath) {
+  std::string key = normalizeRecentPath(rawPath);
+  for (char& c : key) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+  return key;
+}
+
+void dedupeRecentBooks(std::vector<RecentBook>& books) {
+  std::vector<RecentBook> unique;
+  unique.reserve(books.size());
+  std::unordered_set<std::string> seen;
+  seen.reserve(books.size());
+
+  for (const auto& book : books) {
+    const std::string normalizedPath = normalizeRecentPath(book.path);
+    if (normalizedPath.empty()) {
+      continue;
+    }
+
+    const std::string key = makeRecentPathKey(normalizedPath);
+    if (seen.insert(key).second) {
+      RecentBook copy = book;
+      copy.path = normalizedPath;
+      unique.push_back(std::move(copy));
+    }
+  }
+
+  books.swap(unique);
+  if (books.size() > MAX_RECENT_BOOKS) {
+    books.resize(MAX_RECENT_BOOKS);
+  }
+}
 }  // namespace
 
 RecentBooksStore RecentBooksStore::instance;
 
 void RecentBooksStore::addBook(const std::string& path, const std::string& title, const std::string& author,
                                const std::string& coverBmpPath) {
+  const std::string normalizedPath = normalizeRecentPath(path);
+  const std::string normalizedKey = makeRecentPathKey(normalizedPath);
+  if (normalizedPath.empty()) {
+    return;
+  }
+
   // Remove existing entry if present
-  auto it =
-      std::find_if(recentBooks.begin(), recentBooks.end(), [&](const RecentBook& book) { return book.path == path; });
-  if (it != recentBooks.end()) {
-    recentBooks.erase(it);
+  for (auto it = recentBooks.begin(); it != recentBooks.end();) {
+    if (makeRecentPathKey(it->path) == normalizedKey) {
+      it = recentBooks.erase(it);
+    } else {
+      ++it;
+    }
   }
 
   // Add to front
-  recentBooks.insert(recentBooks.begin(), {path, title, author, coverBmpPath});
+  recentBooks.insert(recentBooks.begin(), {normalizedPath, title, author, coverBmpPath});
 
-  // Trim to max size
-  if (recentBooks.size() > MAX_RECENT_BOOKS) {
-    recentBooks.resize(MAX_RECENT_BOOKS);
-  }
+  dedupeRecentBooks(recentBooks);
 
   saveToFile();
 }
 
 void RecentBooksStore::updateBook(const std::string& path, const std::string& title, const std::string& author,
                                   const std::string& coverBmpPath) {
-  auto it =
-      std::find_if(recentBooks.begin(), recentBooks.end(), [&](const RecentBook& book) { return book.path == path; });
+  const std::string normalizedPath = normalizeRecentPath(path);
+  const std::string normalizedKey = makeRecentPathKey(normalizedPath);
+  auto it = std::find_if(recentBooks.begin(), recentBooks.end(),
+                         [&](const RecentBook& book) { return makeRecentPathKey(book.path) == normalizedKey; });
   if (it != recentBooks.end()) {
     RecentBook& book = *it;
+    book.path = normalizedPath;
     book.title = title;
     book.author = author;
     book.coverBmpPath = coverBmpPath;
+    dedupeRecentBooks(recentBooks);
     saveToFile();
   }
 }
 
 void RecentBooksStore::removeBook(const std::string& path) {
-  auto it =
-      std::find_if(recentBooks.begin(), recentBooks.end(), [&](const RecentBook& book) { return book.path == path; });
-  if (it != recentBooks.end()) {
-    recentBooks.erase(it);
+  const std::string normalizedPath = normalizeRecentPath(path);
+  const std::string normalizedKey = makeRecentPathKey(normalizedPath);
+  bool removed = false;
+  for (auto it = recentBooks.begin(); it != recentBooks.end();) {
+    if (makeRecentPathKey(it->path) == normalizedKey) {
+      it = recentBooks.erase(it);
+      removed = true;
+    } else {
+      ++it;
+    }
+  }
+  if (removed) {
+    dedupeRecentBooks(recentBooks);
     saveToFile();
   }
 }
@@ -162,10 +241,11 @@ bool RecentBooksStore::loadFromFile() {
       serialization::readString(inputFile, title);
       serialization::readString(inputFile, author);
       serialization::readString(inputFile, coverBmpPath);
-      recentBooks.push_back({path, title, author, coverBmpPath});
+      recentBooks.push_back({normalizeRecentPath(path), title, author, coverBmpPath});
     }
   }
 
+  dedupeRecentBooks(recentBooks);
   inputFile.close();
   LOG_DBG("RBS", "Recent books loaded from file (%d entries)", recentBooks.size());
   return true;

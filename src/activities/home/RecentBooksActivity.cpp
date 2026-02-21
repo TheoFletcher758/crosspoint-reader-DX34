@@ -5,6 +5,8 @@
 #include <I18n.h>
 
 #include <algorithm>
+#include <cctype>
+#include <unordered_set>
 
 #include "MappedInputManager.h"
 #include "RecentBooksStore.h"
@@ -38,12 +40,29 @@ std::string buildAuthorInitials(const std::string& author) {
   }
   return initials;
 }
+
+std::string normalizeDisplayKey(const std::string& title, const std::string& author) {
+  std::string key;
+  key.reserve(title.size() + author.size() + 1);
+  for (char c : title) {
+    key.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+  }
+  key.push_back('|');
+  for (char c : author) {
+    key.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+  }
+  return key;
+}
 }  // namespace
 
 void RecentBooksActivity::loadRecentBooks() {
   recentBooks.clear();
   const auto& books = RECENT_BOOKS.getBooks();
   recentBooks.reserve(books.size());
+  std::unordered_set<std::string> seenPaths;
+  std::unordered_set<std::string> seenDisplayKeys;
+  seenPaths.reserve(books.size());
+  seenDisplayKeys.reserve(books.size());
 
   for (const auto& book : books) {
     // Skip if file no longer exists
@@ -54,6 +73,15 @@ void RecentBooksActivity::loadRecentBooks() {
     if (!percent.has_value() || percent.value() <= 2) {
       continue;
     }
+
+    if (!seenPaths.insert(book.path).second) {
+      continue;
+    }
+    const std::string displayKey = normalizeDisplayKey(book.title, book.author);
+    if (!seenDisplayKeys.insert(displayKey).second) {
+      continue;
+    }
+
     RecentBook decorated = book;
     const std::string initials = buildAuthorInitials(book.author);
     const std::string titleWithAuthor =

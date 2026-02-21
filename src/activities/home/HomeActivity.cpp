@@ -9,7 +9,9 @@
 #include <Xtc.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
+#include <unordered_set>
 #include <vector>
 
 #include "Battery.h"
@@ -25,7 +27,20 @@
 
 namespace {
 constexpr const char* seeMoreLabel = "See all...";
+
+std::string normalizeDisplayKey(const std::string& title, const std::string& author) {
+  std::string key;
+  key.reserve(title.size() + author.size() + 1);
+  for (char c : title) {
+    key.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+  }
+  key.push_back('|');
+  for (char c : author) {
+    key.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+  }
+  return key;
 }
+}  // namespace
 
 int HomeActivity::getMenuItemCount() const {
   const int recentSlots = getRecentSlotCount();
@@ -51,6 +66,10 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
   recentBooks.reserve(maxBooks);
   size_t eligibleCount = 0;
   const size_t maxVisibleBooks = static_cast<size_t>(maxBooks);
+  std::unordered_set<std::string> seenPaths;
+  std::unordered_set<std::string> seenDisplayKeys;
+  seenPaths.reserve(books.size());
+  seenDisplayKeys.reserve(books.size());
 
   for (const RecentBook& book : books) {
     // Skip if file no longer exists
@@ -58,9 +77,18 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
       continue;
     }
     const auto percent = BookProgress::getPercent(book.path);
-    if (!percent.has_value() || percent.value() <= 2) {
+    if (!percent.has_value() || percent.value() <= 1) {
       continue;
     }
+
+    if (!seenPaths.insert(book.path).second) {
+      continue;
+    }
+    const std::string displayKey = normalizeDisplayKey(book.title, book.author);
+    if (!seenDisplayKeys.insert(displayKey).second) {
+      continue;
+    }
+
     eligibleCount++;
 
     if (recentBooks.size() < maxVisibleBooks) {
