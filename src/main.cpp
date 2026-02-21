@@ -94,6 +94,19 @@ EpdFontFamily unifont14FontFamily(&unifont14RegularFont, nullptr, nullptr, nullp
 EpdFont unifont18RegularFont(&unifont_18_regular);
 EpdFontFamily unifont18FontFamily(&unifont18RegularFont, nullptr, nullptr, nullptr, 1, 0, false);
 
+EpdFont merriweather14RegularFont(&merriweather_14_regular);
+EpdFont merriweather14BoldFont(&merriweather_14_bold);
+EpdFont merriweather14ItalicFont(&merriweather_14_italic);
+EpdFont merriweather14BoldItalicFont(&merriweather_14_bolditalic);
+EpdFontFamily merriweather14FontFamily(&merriweather14RegularFont, &merriweather14BoldFont, &merriweather14ItalicFont,
+                                       &merriweather14BoldItalicFont);
+EpdFont merriweather16RegularFont(&merriweather_16_regular);
+EpdFont merriweather16BoldFont(&merriweather_16_bold);
+EpdFont merriweather16ItalicFont(&merriweather_16_italic);
+EpdFont merriweather16BoldItalicFont(&merriweather_16_bolditalic);
+EpdFontFamily merriweather16FontFamily(&merriweather16RegularFont, &merriweather16BoldFont, &merriweather16ItalicFont,
+                                       &merriweather16BoldItalicFont);
+
 EpdFont smallFont(&ui_8_regular);
 EpdFontFamily smallFontFamily(&smallFont, nullptr, nullptr, nullptr, 1, 0, false);
 EpdFont ui10RegularFont(&ui_10_regular);
@@ -244,6 +257,8 @@ void setupDisplayAndFonts() {
   renderer.insertFont(CHAREINK_20_FONT_ID, chareink20FontFamily);
   renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
   renderer.insertFont(UNIFONT_18_FONT_ID, unifont18FontFamily);
+  renderer.insertFont(MERRIWEATHER_14_FONT_ID, merriweather14FontFamily);
+  renderer.insertFont(MERRIWEATHER_16_FONT_ID, merriweather16FontFamily);
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);
   renderer.insertFont(UI_12_FONT_ID, ui12FontFamily);
   renderer.insertFont(SMALL_FONT_ID, smallFontFamily);

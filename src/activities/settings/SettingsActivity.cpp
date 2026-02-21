@@ -40,9 +40,14 @@ uint8_t nextReaderMarginValue(const uint8_t current) {
 bool isFontSizeSetting(const SettingInfo& setting) { return setting.valuePtr == &CrossPointSettings::fontSize; }
 bool isFontFamilySetting(const SettingInfo& setting) { return setting.valuePtr == &CrossPointSettings::fontFamily; }
 bool isUnifontSelected() { return SETTINGS.fontFamily == CrossPointSettings::UNIFONT; }
+bool isMerriweatherSelected() { return SETTINGS.fontFamily == CrossPointSettings::MERRIWEATHER; }
 
 uint8_t normalizedUnifontSize(const uint8_t size) {
   return (size <= CrossPointSettings::MEDIUM) ? CrossPointSettings::SMALL : CrossPointSettings::LARGE;
+}
+
+uint8_t normalizedMerriweatherSize(const uint8_t size) {
+  return (size <= CrossPointSettings::MEDIUM) ? CrossPointSettings::SMALL : CrossPointSettings::MEDIUM;
 }
 }
 
@@ -238,10 +243,17 @@ void SettingsActivity::toggleCurrentSetting() {
       const uint8_t currentNormalized = normalizedUnifontSize(currentValue);
       SETTINGS.fontSize =
           (currentNormalized == CrossPointSettings::SMALL) ? CrossPointSettings::LARGE : CrossPointSettings::SMALL;
+    } else if (isFontSizeSetting(setting) && isMerriweatherSelected()) {
+      const uint8_t currentNormalized = normalizedMerriweatherSize(currentValue);
+      SETTINGS.fontSize =
+          (currentNormalized == CrossPointSettings::SMALL) ? CrossPointSettings::MEDIUM : CrossPointSettings::SMALL;
     } else {
       SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
       if (isFontFamilySetting(setting) && SETTINGS.fontFamily == CrossPointSettings::UNIFONT) {
         SETTINGS.fontSize = normalizedUnifontSize(SETTINGS.fontSize);
+      }
+      if (isFontFamilySetting(setting) && SETTINGS.fontFamily == CrossPointSettings::MERRIWEATHER) {
+        SETTINGS.fontSize = normalizedMerriweatherSize(SETTINGS.fontSize);
       }
     }
   } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
@@ -360,6 +372,9 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
       if (isFontSizeSetting(setting) && isUnifontSelected()) {
         const uint8_t displaySize = normalizedUnifontSize(SETTINGS.fontSize);
+        valueText = I18N.get(setting.enumValues[displaySize]);
+      } else if (isFontSizeSetting(setting) && isMerriweatherSelected()) {
+        const uint8_t displaySize = normalizedMerriweatherSize(SETTINGS.fontSize);
         valueText = I18N.get(setting.enumValues[displaySize]);
       } else {
         valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
