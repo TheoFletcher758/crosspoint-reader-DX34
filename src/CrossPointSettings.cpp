@@ -429,16 +429,6 @@ int CrossPointSettings::getRefreshFrequency() const {
 
 int CrossPointSettings::getReaderFontId() const {
   switch (fontFamily) {
-    case MERRIWEATHER:
-      switch (fontSize) {
-        case SMALL:
-          return MERRIWEATHER_14_FONT_ID;
-        case MEDIUM:
-        case LARGE:
-        case X_LARGE:
-        default:
-          return MERRIWEATHER_16_FONT_ID;
-      }
     case UNIFONT:
       switch (fontSize) {
         case SMALL:

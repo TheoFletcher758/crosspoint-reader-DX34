@@ -37,15 +37,6 @@
 #include <builtinFonts/unifont_14_regular.h>
 #include <builtinFonts/unifont_18_regular.h>
 
-#include <builtinFonts/merriweather_14_regular.h>
-#include <builtinFonts/merriweather_14_bold.h>
-#include <builtinFonts/merriweather_14_italic.h>
-#include <builtinFonts/merriweather_14_bolditalic.h>
-#include <builtinFonts/merriweather_16_regular.h>
-#include <builtinFonts/merriweather_16_bold.h>
-#include <builtinFonts/merriweather_16_italic.h>
-#include <builtinFonts/merriweather_16_bolditalic.h>
-
 #include <builtinFonts/ui_8_regular.h>
 #include <builtinFonts/ui_10_regular.h>
 #include <builtinFonts/ui_12_regular.h>
