@@ -702,6 +702,17 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       pendingGoLibrary = true;
       break;
     }
+    case EpubReaderMenuActivity::MenuAction::REMOVE_FROM_RECENT: {
+      if (epub) {
+        RECENT_BOOKS.removeBook(epub->getPath());
+        if (APP_STATE.openEpubPath == epub->getPath()) {
+          APP_STATE.openEpubPath = "";
+          APP_STATE.saveToFile();
+        }
+      }
+      pendingGoHome = true;
+      break;
+    }
   }
 }
 
@@ -951,29 +962,6 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
     pagesUntilFullRefresh--;
   }
 
-  // Save bw buffer to reset buffer state after grayscale data sync
-  renderer.storeBwBuffer();
-
-  // Reader text AA is intentionally disabled (BW only in reader).
-  if (false) {
-    renderer.clearScreen(0x00);
-    renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
-    renderer.copyGrayscaleLsbBuffers();
-
-    // Render and copy to MSB buffer
-    renderer.clearScreen(0x00);
-    renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
-    renderer.copyGrayscaleMsbBuffers();
-
-    // display grayscale part
-    renderer.displayGrayBuffer();
-    renderer.setRenderMode(GfxRenderer::BW);
-  }
-
-  // restore the bw data
-  renderer.restoreBwBuffer();
 }
 
 void EpubReaderActivity::renderStatusBar(const int orientedMarginRight, const int orientedMarginBottom,
