@@ -143,8 +143,9 @@ class CrossPointSettings {
   uint8_t statusBarShowBookBar = 0;
   uint8_t statusBarShowChapterBar = 0;
   uint8_t statusBarShowChapterTitle = 1;
+  uint8_t statusBarTopLine = 0;
   uint8_t statusBarTextAlignment = STATUS_TEXT_RIGHT;
-  uint8_t statusBarProgressStyle = STATUS_BAR_THIN;
+  uint8_t statusBarProgressStyle = STATUS_BAR_THICK;
   // Text rendering settings
   uint8_t extraParagraphSpacing = 1;
   uint8_t textAntiAliasing = 1;

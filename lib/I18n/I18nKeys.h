@@ -354,6 +354,7 @@ enum class StrId : uint16_t {
   STR_STATUS_BAR_THICK,
   STR_STATUS_BAR_DOTTED,
   STR_STATUS_CHAPTER_TITLE,
+  STR_STATUS_TOP_LINE,
   // Sentinel - must be last
   _COUNT
 };

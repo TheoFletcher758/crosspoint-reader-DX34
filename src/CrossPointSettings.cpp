@@ -85,8 +85,9 @@ void migrateLegacyStatusBarMode(CrossPointSettings& settings) {
   settings.statusBarShowBookBar = 0;
   settings.statusBarShowChapterBar = 0;
   settings.statusBarShowChapterTitle = 1;
+  settings.statusBarTopLine = 0;
   settings.statusBarTextAlignment = CrossPointSettings::STATUS_TEXT_RIGHT;
-  settings.statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THIN;
+  settings.statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THICK;
 
   switch (static_cast<CrossPointSettings::STATUS_BAR_MODE>(settings.statusBar)) {
     case CrossPointSettings::STATUS_BAR_MODE::NONE:
@@ -188,6 +189,7 @@ uint8_t CrossPointSettings::writeSettings(FsFile& file, bool count_only) const {
   writer.writeItem(file, statusBarShowBookBar);
   writer.writeItem(file, statusBarShowChapterBar);
   writer.writeItem(file, statusBarShowChapterTitle);
+  writer.writeItem(file, statusBarTopLine);
   writer.writeItem(file, statusBarTextAlignment);
   writer.writeItem(file, statusBarProgressStyle);
   // New fields need to be added at end for backward compatibility
@@ -353,6 +355,8 @@ bool CrossPointSettings::loadFromFile() {
     if (++settingsRead >= fileSettingsCount) break;
     serialization::readPod(inputFile, statusBarShowChapterTitle);
     if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, statusBarTopLine);
+    if (++settingsRead >= fileSettingsCount) break;
     readAndValidate(inputFile, statusBarTextAlignment, STATUS_TEXT_ALIGNMENT_COUNT);
     if (++settingsRead >= fileSettingsCount) break;
     readAndValidate(inputFile, statusBarProgressStyle, STATUS_BAR_PROGRESS_STYLE_COUNT);
@@ -468,13 +472,5 @@ int CrossPointSettings::getReaderFontId() const {
 }
 
 int CrossPointSettings::getStatusBarProgressBarHeight() const {
-  switch (statusBarProgressStyle) {
-    case STATUS_BAR_THIN:
-    default:
-      return 2;
-    case STATUS_BAR_THICK:
-      return 6;
-    case STATUS_BAR_DOTTED:
-      return 3;
-  }
+  return 6;
 }

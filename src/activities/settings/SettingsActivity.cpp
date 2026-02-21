@@ -350,9 +350,17 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     const auto* settings = settingsForCategory(row.categoryIndex);
     const auto& setting = (*settings)[row.settingIndex];
     const bool black = true;
-    const int rowFont = (i == selectedRowIndex) ? UI_12_FONT_ID : UI_10_FONT_ID;
+    const int rowFont = UI_10_FONT_ID;
+    const bool isSelected = (i == selectedRowIndex);
+    const char* settingName = I18N.get(setting.nameId);
 
-    renderer.drawText(rowFont, metrics.contentSidePadding, rowY, I18N.get(setting.nameId), black);
+    renderer.drawText(rowFont, metrics.contentSidePadding, rowY, settingName, black);
+    if (isSelected) {
+      const int nameWidth = renderer.getTextWidth(rowFont, settingName);
+      const int underlineY = rowY + renderer.getTextHeight(rowFont) + 1;
+      renderer.drawLine(metrics.contentSidePadding, underlineY, metrics.contentSidePadding + nameWidth, underlineY, 3,
+                        black);
+    }
 
     std::string valueText;
     if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
@@ -370,7 +378,12 @@ void SettingsActivity::render(Activity::RenderLock&&) {
 
     if (!valueText.empty()) {
       const int valueW = renderer.getTextWidth(rowFont, valueText.c_str());
-      renderer.drawText(rowFont, pageWidth - metrics.contentSidePadding - valueW, rowY, valueText.c_str(), black);
+      const int valueX = pageWidth - metrics.contentSidePadding - valueW;
+      renderer.drawText(rowFont, valueX, rowY, valueText.c_str(), black);
+      if (isSelected) {
+        const int underlineY = rowY + renderer.getTextHeight(rowFont) + 1;
+        renderer.drawLine(valueX, underlineY, valueX + valueW, underlineY, 3, black);
+      }
     }
   }
 

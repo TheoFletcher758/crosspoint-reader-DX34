@@ -82,14 +82,10 @@ inline std::vector<SettingInfo> getSettingsList() {
                           StrId::STR_STATUS_BAR),
       SettingInfo::Toggle(StrId::STR_STATUS_CHAPTER_BAR, &CrossPointSettings::statusBarShowChapterBar,
                           "statusBarShowChapterBar", StrId::STR_STATUS_BAR),
-      SettingInfo::Enum(StrId::STR_STATUS_TEXT_ALIGN, &CrossPointSettings::statusBarTextAlignment,
-                        {StrId::STR_ALIGN_RIGHT, StrId::STR_CENTER, StrId::STR_ALIGN_LEFT}, "statusBarTextAlignment",
-                        StrId::STR_STATUS_BAR),
-      SettingInfo::Enum(StrId::STR_STATUS_BAR_STYLE, &CrossPointSettings::statusBarProgressStyle,
-                        {StrId::STR_STATUS_BAR_THIN, StrId::STR_STATUS_BAR_THICK, StrId::STR_STATUS_BAR_DOTTED},
-                        "statusBarProgressStyle", StrId::STR_STATUS_BAR),
       SettingInfo::Toggle(StrId::STR_STATUS_CHAPTER_TITLE, &CrossPointSettings::statusBarShowChapterTitle,
                           "statusBarShowChapterTitle", StrId::STR_STATUS_BAR),
+      SettingInfo::Toggle(StrId::STR_STATUS_TOP_LINE, &CrossPointSettings::statusBarTopLine, "statusBarTopLine",
+                          StrId::STR_STATUS_BAR),
 
       // --- Controls ---
       SettingInfo::Enum(StrId::STR_SIDE_BTN_LAYOUT, &CrossPointSettings::sideButtonLayout,

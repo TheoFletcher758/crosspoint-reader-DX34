@@ -17,30 +17,15 @@
 namespace {
 constexpr unsigned long goHomeMs = 1000;
 constexpr unsigned long progressSaveDebounceMs = 800;
-constexpr int statusBarMargin = 25;
 constexpr int progressBarMarginTop = 1;
 constexpr int recentSwitcherRows = 8;
 constexpr size_t CHUNK_SIZE = 8 * 1024;  // 8KB chunk for reading
+constexpr int statusTextTopPadding = 1;
+constexpr int statusTextToBarsGap = 1;
 
 // Cache file magic and version
 constexpr uint32_t CACHE_MAGIC = 0x54585449;  // "TXTI"
 constexpr uint8_t CACHE_VERSION = 3;          // Increment when cache format changes
-
-int computeProgressTextX(const GfxRenderer& renderer, const int textWidth, const int orientedMarginLeft,
-                         const int orientedMarginRight, const uint8_t alignment) {
-  const int leftX = orientedMarginLeft;
-  const int rightX = renderer.getScreenWidth() - orientedMarginRight - textWidth;
-  const int centerX = (renderer.getScreenWidth() - textWidth) / 2;
-  switch (alignment) {
-    case CrossPointSettings::STATUS_TEXT_LEFT:
-      return leftX;
-    case CrossPointSettings::STATUS_TEXT_CENTER:
-      return centerX;
-    case CrossPointSettings::STATUS_TEXT_RIGHT:
-    default:
-      return rightX;
-  }
-}
 
 void drawStyledProgressBar(const GfxRenderer& renderer, const size_t progressPercent, const int levelFromBottom) {
   int vieweableMarginTop, vieweableMarginRight, vieweableMarginBottom, vieweableMarginLeft;
@@ -54,16 +39,40 @@ void drawStyledProgressBar(const GfxRenderer& renderer, const size_t progressPer
   const int progressBarHeight = (levelFromBottom == 0) ? (barHeight + vieweableMarginBottom) : barHeight;
   const int barWidth = progressBarMaxWidth * static_cast<int>(progressPercent) / 100;
 
-  if (SETTINGS.statusBarProgressStyle == CrossPointSettings::STATUS_BAR_DOTTED) {
-    constexpr int dotWidth = 2;
-    constexpr int gap = 2;
-    for (int x = vieweableMarginLeft; x < vieweableMarginLeft + barWidth; x += dotWidth + gap) {
-      renderer.fillRect(x, progressBarY, dotWidth, progressBarHeight, true);
-    }
-    return;
-  }
-
   renderer.fillRect(vieweableMarginLeft, progressBarY, barWidth, progressBarHeight, true);
+}
+
+void normalizeReaderMargins(int* top, int* right, int* bottom, int* left) {
+  const int vertical = std::max(*top, *bottom);
+  const int horizontal = std::max(*left, *right);
+  *top = vertical;
+  *bottom = vertical;
+  *left = horizontal;
+  *right = horizontal;
+}
+
+int getStatusBottomInset(const GfxRenderer& renderer) {
+  int baseTop, baseRight, baseBottom, baseLeft;
+  renderer.getOrientedViewableTRBL(&baseTop, &baseRight, &baseBottom, &baseLeft);
+  return baseBottom;
+}
+
+int computeStatusBarsHeight(const bool showBookProgressBar, const bool showChapterProgressBar,
+                            const int statusBarProgressHeight) {
+  const int activeBars = (showBookProgressBar ? 1 : 0) + (showChapterProgressBar ? 1 : 0);
+  if (activeBars == 0) {
+    return 0;
+  }
+  constexpr int barGap = 0;
+  return activeBars * statusBarProgressHeight + (activeBars - 1) * barGap + progressBarMarginTop;
+}
+
+int computeStatusBarReservedHeight(const GfxRenderer& renderer, const bool showBookProgressBar,
+                                   const bool showChapterProgressBar) {
+  const int statusTextHeight = renderer.getTextHeight(SMALL_FONT_ID);
+  const int barsHeight = computeStatusBarsHeight(showBookProgressBar, showChapterProgressBar,
+                                                 SETTINGS.getStatusBarProgressBarHeight());
+  return statusTextTopPadding + statusTextHeight + statusTextToBarsGap + barsHeight;
 }
 }  // namespace
 
@@ -227,6 +236,7 @@ void TxtReaderActivity::initializeReader() {
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
                                    &orientedMarginLeft);
+  normalizeReaderMargins(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom, &orientedMarginLeft);
   orientedMarginTop += cachedScreenMarginTop;
   orientedMarginLeft += cachedScreenMarginHorizontal;
   orientedMarginRight += cachedScreenMarginHorizontal;
@@ -234,14 +244,8 @@ void TxtReaderActivity::initializeReader() {
 
   int statusBarReserved = 0;
   if (SETTINGS.statusBarEnabled) {
-    const int activeBars =
-        (SETTINGS.statusBarShowBookBar ? 1 : 0) + (SETTINGS.statusBarShowChapterBar ? 1 : 0);
-    const int statusBarProgressHeight = SETTINGS.getStatusBarProgressBarHeight();
-    constexpr int barGap = 0;
-    statusBarReserved = statusBarMargin +
-                        (activeBars > 0
-                             ? (activeBars * statusBarProgressHeight + (activeBars - 1) * barGap + progressBarMarginTop)
-                             : 0);
+    statusBarReserved = computeStatusBarReservedHeight(renderer, SETTINGS.statusBarShowBookBar,
+                                                       SETTINGS.statusBarShowChapterBar);
   }
 
   viewportWidth = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
@@ -541,6 +545,7 @@ void TxtReaderActivity::renderPage() {
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
                                    &orientedMarginLeft);
+  normalizeReaderMargins(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom, &orientedMarginLeft);
   orientedMarginTop += cachedScreenMarginTop;
   orientedMarginLeft += cachedScreenMarginHorizontal;
   orientedMarginRight += cachedScreenMarginHorizontal;
@@ -621,11 +626,13 @@ void TxtReaderActivity::renderPage() {
 
 void TxtReaderActivity::renderStatusBar(const int orientedMarginRight, const int orientedMarginBottom,
                                         const int orientedMarginLeft) {
+  (void)orientedMarginBottom;
   if (!SETTINGS.statusBarEnabled) {
     return;
   }
   const bool showProgressBar = SETTINGS.statusBarShowBookBar;
   const bool showChapterProgressBar = SETTINGS.statusBarShowChapterBar;
+  const bool showStatusTopLine = SETTINGS.statusBarTopLine;
   const bool showPageCounter = SETTINGS.statusBarShowPageCounter;
   const bool showBookPercentage = SETTINGS.statusBarShowBookPercentage;
   const bool showChapterPercentage = SETTINGS.statusBarShowChapterPercentage;
@@ -633,17 +640,27 @@ void TxtReaderActivity::renderStatusBar(const int orientedMarginRight, const int
   const bool showTitle = SETTINGS.statusBarShowChapterTitle;
   const bool showBatteryPercentage =
       SETTINGS.hideBatteryPercentage == CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_NEVER;
+  constexpr int statusItemGap = 12;
 
   auto metrics = UITheme::getInstance().getMetrics();
   const auto screenHeight = renderer.getScreenHeight();
-  // Adjust text position upward when progress bar is shown to avoid overlap
-  const auto textY = screenHeight - orientedMarginBottom - 4;
+  const int statusBarProgressHeight = SETTINGS.getStatusBarProgressBarHeight();
+  const int barsHeight = computeStatusBarsHeight(showProgressBar, showChapterProgressBar, statusBarProgressHeight);
+  const int statusBarReserved = computeStatusBarReservedHeight(renderer, showProgressBar, showChapterProgressBar);
+  const int statusBottomInset = getStatusBottomInset(renderer);
+  const int statusTopY = screenHeight - statusBottomInset - statusBarReserved;
+  if (showStatusTopLine) {
+    renderer.drawLine(orientedMarginLeft, statusTopY, renderer.getScreenWidth() - orientedMarginRight - 1, statusTopY,
+                      true);
+  }
+  const auto textY = statusTopY + statusTextTopPadding;
+  std::string progressText;
   int progressTextWidth = 0;
 
   const float progress = totalPages > 0 ? (currentPage + 1) * 100.0f / totalPages : 0;
 
   if (showPageCounter || showBookPercentage || showChapterPercentage) {
-    char progressStr[64];
+    char progressStr[64] = {0};
     int offset = 0;
     if (showPageCounter) {
       offset += snprintf(progressStr + offset, sizeof(progressStr) - offset, "%d/%d", currentPage + 1, totalPages);
@@ -654,11 +671,53 @@ void TxtReaderActivity::renderStatusBar(const int orientedMarginRight, const int
     if (showChapterPercentage) {
       snprintf(progressStr + offset, sizeof(progressStr) - offset, "%sC:%.0f%%", (offset > 0) ? "  " : "", progress);
     }
+    progressText = progressStr;
+    progressTextWidth = renderer.getTextWidth(SMALL_FONT_ID, progressText.c_str());
+  }
 
-    progressTextWidth = renderer.getTextWidth(SMALL_FONT_ID, progressStr);
-    const int progressTextX = computeProgressTextX(renderer, progressTextWidth, orientedMarginLeft, orientedMarginRight,
-                                                   SETTINGS.statusBarTextAlignment);
-    renderer.drawText(SMALL_FONT_ID, progressTextX, textY, progressStr);
+  std::string titleText;
+  int titleWidth = 0;
+  if (showTitle) {
+    titleText = txt->getTitle();
+    titleWidth = renderer.getTextWidth(SMALL_FONT_ID, titleText.c_str());
+  }
+
+  const int batteryWidth = showBattery
+                               ? (metrics.batteryWidth + (showBatteryPercentage
+                                                              ? (4 + renderer.getTextWidth(SMALL_FONT_ID, "100%"))
+                                                              : 0))
+                               : 0;
+  const int progressWidth = progressText.empty() ? 0 : progressTextWidth;
+  int visibleItems = 0;
+  visibleItems += showBattery ? 1 : 0;
+  visibleItems += showTitle ? 1 : 0;
+  visibleItems += progressText.empty() ? 0 : 1;
+  const int groupGaps = std::max(0, visibleItems - 1) * statusItemGap;
+  const int usableWidth = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
+  if (showTitle) {
+    const int fixedWidth = batteryWidth + progressWidth + groupGaps;
+    const int maxTitleWidth = std::max(0, usableWidth - fixedWidth);
+    if (titleWidth > maxTitleWidth) {
+      titleText = renderer.truncatedText(SMALL_FONT_ID, titleText.c_str(), maxTitleWidth);
+      titleWidth = renderer.getTextWidth(SMALL_FONT_ID, titleText.c_str());
+    }
+  }
+
+  const int totalGroupWidth = batteryWidth + titleWidth + progressWidth + groupGaps;
+  int currentX = orientedMarginLeft + std::max(0, (usableWidth - totalGroupWidth) / 2);
+
+  if (showBattery) {
+    GUI.drawBatteryLeft(renderer, Rect{currentX, textY, metrics.batteryWidth, metrics.batteryHeight}, showBatteryPercentage);
+    currentX += batteryWidth + statusItemGap;
+  }
+
+  if (showTitle && !titleText.empty()) {
+    renderer.drawText(SMALL_FONT_ID, currentX, textY, titleText.c_str());
+    currentX += titleWidth + statusItemGap;
+  }
+
+  if (!progressText.empty()) {
+    renderer.drawText(SMALL_FONT_ID, currentX, textY, progressText.c_str());
   }
 
   if (showProgressBar) {
@@ -670,25 +729,6 @@ void TxtReaderActivity::renderStatusBar(const int orientedMarginRight, const int
     drawStyledProgressBar(renderer, static_cast<size_t>(progress), chapterLevel);
   }
 
-  if (showBattery) {
-    GUI.drawBatteryLeft(renderer, Rect{orientedMarginLeft, textY, metrics.batteryWidth, metrics.batteryHeight},
-                        showBatteryPercentage);
-  }
-
-  if (showTitle) {
-    const int titleMarginLeft = 50 + 30 + orientedMarginLeft;
-    const int titleMarginRight = progressTextWidth + 30 + orientedMarginRight;
-    const int availableTextWidth = renderer.getScreenWidth() - titleMarginLeft - titleMarginRight;
-
-    std::string title = txt->getTitle();
-    int titleWidth = renderer.getTextWidth(SMALL_FONT_ID, title.c_str());
-    if (titleWidth > availableTextWidth) {
-      title = renderer.truncatedText(SMALL_FONT_ID, title.c_str(), availableTextWidth);
-      titleWidth = renderer.getTextWidth(SMALL_FONT_ID, title.c_str());
-    }
-
-    renderer.drawText(SMALL_FONT_ID, titleMarginLeft + (availableTextWidth - titleWidth) / 2, textY, title.c_str());
-  }
 }
 
 void TxtReaderActivity::saveProgress() const {
