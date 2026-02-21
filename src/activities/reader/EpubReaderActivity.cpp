@@ -396,6 +396,9 @@ void EpubReaderActivity::loop() {
   if (prevTriggered) {
     if (section->currentPage > 0) {
       section->currentPage--;
+      progressDirty = true;
+      lastProgressChangeMs = millis();
+      flushProgressIfNeeded(true);
     } else {
       // We don't want to delete the section mid-render, so grab the semaphore
       {
@@ -409,6 +412,9 @@ void EpubReaderActivity::loop() {
   } else {
     if (section->currentPage < section->pageCount - 1) {
       section->currentPage++;
+      progressDirty = true;
+      lastProgressChangeMs = millis();
+      flushProgressIfNeeded(true);
     } else {
       // We don't want to delete the section mid-render, so grab the semaphore
       {
@@ -778,11 +784,12 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
   }
 
   if (section->currentPage < 0 || section->currentPage >= section->pageCount) {
-    LOG_DBG("ERS", "Page out of bounds: %d (max %d)", section->currentPage, section->pageCount);
-    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_OUT_OF_BOUNDS), true, EpdFontFamily::REGULAR);
-    renderStatusBar(orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
-    renderer.displayBuffer();
-    return;
+    LOG_DBG("ERS", "Page out of bounds: %d (max %d), clamping", section->currentPage, section->pageCount);
+    if (section->currentPage < 0) {
+      section->currentPage = 0;
+    } else {
+      section->currentPage = section->pageCount - 1;
+    }
   }
 
   {

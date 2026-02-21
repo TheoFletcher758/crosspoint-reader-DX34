@@ -22,6 +22,7 @@ enum class SettingAction {
   CheckForUpdates,
   Language,
   RandomizeSleepImages,
+  RefreshHomeStats,
 };
 
 struct SettingInfo {

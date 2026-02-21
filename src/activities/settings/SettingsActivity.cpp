@@ -15,6 +15,7 @@
 #include "activities/boot_sleep/SleepActivity.h"
 #include "activities/network/WifiSelectionActivity.h"
 #include "components/UITheme.h"
+#include "components/themes/BaseTheme.h"
 #include "fontIds.h"
 
 const StrId SettingsActivity::categoryNames[categoryCount] = {StrId::STR_CAT_DISPLAY, StrId::STR_CAT_READER,
@@ -127,6 +128,7 @@ void SettingsActivity::onEnter() {
   systemSettings.push_back(SettingInfo::Action(StrId::STR_CLEAR_READING_CACHE, SettingAction::ClearCache));
   systemSettings.push_back(SettingInfo::Action(StrId::STR_CHECK_UPDATES, SettingAction::CheckForUpdates));
   systemSettings.push_back(SettingInfo::Action(StrId::STR_LANGUAGE, SettingAction::Language));
+  systemSettings.push_back(SettingInfo::Action(StrId::STR_REFRESH_HOME_STATS, SettingAction::RefreshHomeStats));
 
   categoryHeaderRowIndices.resize(categoryCount, 0);
   for (int c = 0; c < categoryCount; c++) {
@@ -285,6 +287,15 @@ void SettingsActivity::toggleCurrentSetting() {
       case SettingAction::RandomizeSleepImages:
         SleepActivity::randomizeSleepImagePlaylist();
         break;
+      case SettingAction::RefreshHomeStats: {
+        const uint64_t previousSignature = BaseTheme::homeInfoStatsSignature();
+        BaseTheme::refreshHomeInfoStats();
+        const uint64_t newSignature = BaseTheme::homeInfoStatsSignature();
+        GUI.drawPopup(renderer, previousSignature != newSignature ? "Stats changed" : "No stats changes");
+        delay(350);
+        requestUpdate();
+        break;
+      }
       case SettingAction::None:
         // Do nothing
         break;

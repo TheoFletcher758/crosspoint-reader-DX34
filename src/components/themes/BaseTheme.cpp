@@ -474,8 +474,9 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   const int statsTextBlockHeight = statsLineHeight * 3 + statsLineGap * 2;
   const int statsBoxHeight = statsTextBlockHeight + statsTextInsetY * 2;
   const int statsTopY = rect.y + statsTopInset;
-  const int rowsTopY = statsTopY + statsBoxHeight + statsToRowsGap;
-  const int rowsAvailableHeight = rect.y + rect.height - rowsBottomInset - rowsTopY;
+  const int rowsTopMinY = statsTopY + statsBoxHeight + statsToRowsGap;
+  const int rowsBottomY = rect.y + rect.height - rowsBottomInset;
+  const int rowsAvailableHeight = rowsBottomY - rowsTopMinY;
   const int oneLineRowHeight = rowLineHeight + 4;
   const int twoLineRowHeight = rowLineHeight * 2 + 4;
   const int rowX = rect.x + BaseMetrics::values.contentSidePadding;
@@ -565,7 +566,14 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     drawStatLine(textY, "NUMBER OF BOOKS", line1Value);
     drawStatLine(textY + lineStep, "NUMBER OF WALLPAPERS", line2Value);
     drawStatLine(textY + lineStep * 2, "FREE SPACE IN SD CARD", line3Value);
-    int rowY = rowsTopY;
+    int rowsBlockHeight = 0;
+    for (int i = 0; i < visibleRows; i++) {
+      rowsBlockHeight += rowHeights[i];
+    }
+    rowsBlockHeight += std::max(0, visibleRows - 1) * rowGap;
+    const int centeredRowStartY = rowsTopMinY + std::max(0, (rowsAvailableHeight - rowsBlockHeight) / 2);
+
+    int rowY = centeredRowStartY;
     for (int i = 0; i < visibleRows; i++) {
       const bool hasBook = i < count;
       const int rowHeight = rowHeights[i];

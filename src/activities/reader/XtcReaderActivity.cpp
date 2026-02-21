@@ -118,6 +118,9 @@ void XtcReaderActivity::loop() {
           },
           [this](const uint32_t newPage) {
             currentPage = newPage;
+            progressDirty = true;
+            lastProgressChangeMs = millis();
+            flushProgressIfNeeded(true);
             exitActivity();
             requestUpdate();
           }));
@@ -179,12 +182,18 @@ void XtcReaderActivity::loop() {
     } else {
       currentPage = 0;
     }
+    progressDirty = true;
+    lastProgressChangeMs = millis();
+    flushProgressIfNeeded(true);
     requestUpdate();
   } else if (nextTriggered) {
     currentPage += skipAmount;
     if (currentPage >= xtc->getPageCount()) {
       currentPage = xtc->getPageCount();  // Allow showing "End of book"
     }
+    progressDirty = true;
+    lastProgressChangeMs = millis();
+    flushProgressIfNeeded(true);
     requestUpdate();
   }
 }
@@ -489,7 +498,7 @@ void XtcReaderActivity::loadProgress() {
 
       // Validate page number
       if (currentPage >= xtc->getPageCount()) {
-        currentPage = 0;
+        currentPage = (xtc->getPageCount() > 0) ? (xtc->getPageCount() - 1) : 0;
       }
     }
     f.close();

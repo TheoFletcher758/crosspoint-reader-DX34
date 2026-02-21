@@ -29,7 +29,7 @@ constexpr const char* seeMoreLabel = "See all...";
 
 int HomeActivity::getMenuItemCount() const {
   const int recentSlots = getRecentSlotCount();
-  int count = 4;  // Browse files, file transfer, settings, refresh stats
+  int count = 3;  // Browse files, file transfer, settings
   count += recentSlots;
   if (hasOpdsUrl) {
     count++;
@@ -229,7 +229,6 @@ void HomeActivity::loop() {
     const int opdsLibraryIdx = hasOpdsUrl ? idx++ : -1;
     const int fileTransferIdx = idx++;
     const int settingsIdx = idx++;
-    const int refreshStatsIdx = idx;
 
     if (selectorIndex < recentBooks.size()) {
       const std::string& selectedPath = recentBooks[selectorIndex].path;
@@ -248,13 +247,6 @@ void HomeActivity::loop() {
       onFileTransferOpen();
     } else if (menuSelectedIndex == settingsIdx) {
       onSettingsOpen();
-    } else if (menuSelectedIndex == refreshStatsIdx) {
-      const uint64_t previousSignature = BaseTheme::homeInfoStatsSignature();
-      BaseTheme::refreshHomeInfoStats();
-      const uint64_t newSignature = BaseTheme::homeInfoStatsSignature();
-      GUI.drawPopup(renderer, previousSignature != newSignature ? "Stats changed" : "No stats changes");
-      delay(350);
-      requestUpdate();
     }
   }
 }
@@ -270,13 +262,8 @@ void HomeActivity::render(Activity::RenderLock&&) {
 
   GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding}, nullptr);
 
-  GUI.drawRecentBookCover(renderer, Rect{0, metrics.homeTopPadding, pageWidth, metrics.homeCoverTileHeight},
-                          recentBooks, selectorIndex, coverRendered, coverBufferStored, bufferRestored,
-                          std::bind(&HomeActivity::storeCoverBuffer, this));
-
   // Build menu items dynamically
-  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_FILE_TRANSFER), tr(STR_SETTINGS_TITLE),
-                                        "Refresh Stats"};
+  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_FILE_TRANSFER), tr(STR_SETTINGS_TITLE)};
   if (hasOpdsUrl) {
     // Insert OPDS Browser after Browse Files.
     menuItems.insert(menuItems.begin() + 1, tr(STR_OPDS_BROWSER));
@@ -287,6 +274,13 @@ void HomeActivity::render(Activity::RenderLock&&) {
                               (menuCount > 0 ? (menuCount - 1) * metrics.menuSpacing : 0);
   const int menuBottomGap = 8;  // Keep a small gap above bottom button hints.
   const int menuY = pageHeight - metrics.buttonHintsHeight - menuBottomGap - menuBlockHeight;
+
+  const int recentAreaBottomGap = 8;
+  const int recentAreaY = metrics.homeTopPadding;
+  const int recentAreaHeight = std::max(0, menuY - recentAreaBottomGap - recentAreaY);
+  GUI.drawRecentBookCover(renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks, selectorIndex,
+                          coverRendered, coverBufferStored, bufferRestored,
+                          std::bind(&HomeActivity::storeCoverBuffer, this));
 
   GUI.drawButtonMenu(
       renderer, Rect{0, menuY, pageWidth, menuBlockHeight}, menuCount, selectorIndex - recentSlots,

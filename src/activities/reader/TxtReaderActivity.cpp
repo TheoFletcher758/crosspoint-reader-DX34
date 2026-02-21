@@ -213,9 +213,15 @@ void TxtReaderActivity::loop() {
 
   if (prevTriggered && currentPage > 0) {
     currentPage--;
+    progressDirty = true;
+    lastProgressChangeMs = millis();
+    flushProgressIfNeeded(true);
     requestUpdate();
   } else if (nextTriggered && currentPage < totalPages - 1) {
     currentPage++;
+    progressDirty = true;
+    lastProgressChangeMs = millis();
+    flushProgressIfNeeded(true);
     requestUpdate();
   }
 }
