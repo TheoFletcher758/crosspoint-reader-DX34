@@ -171,6 +171,8 @@ class CrossPointSettings {
   // Reader line spacing percentage (80..180)
   uint8_t lineSpacingPercent = 110;
   uint8_t paragraphAlignment = JUSTIFIED;
+  // Reader-only style swap: Regular <-> Bold (italics unchanged)
+  uint8_t readerBoldSwap = 0;
   // Auto-sleep timeout setting (default 10 minutes)
   uint8_t sleepTimeout = SLEEP_10_MIN;
   // E-ink refresh frequency (default 15 pages)

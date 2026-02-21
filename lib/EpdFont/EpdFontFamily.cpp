@@ -1,9 +1,33 @@
 #include "EpdFontFamily.h"
 
-const EpdFont* EpdFontFamily::getFont(const Style style) const {
-  // Extract font style bits (ignore UNDERLINE bit for font selection)
+bool EpdFontFamily::readerBoldSwapEnabled = false;
+
+void EpdFontFamily::setReaderBoldSwapEnabled(const bool enabled) { readerBoldSwapEnabled = enabled; }
+
+bool EpdFontFamily::isReaderBoldSwapEnabled() { return readerBoldSwapEnabled; }
+
+EpdFontFamily::Style EpdFontFamily::remapStyleForReaderBoldSwap(const Style style) {
+  if (!readerBoldSwapEnabled) {
+    return style;
+  }
+
+  // Keep all italic styles unchanged.
+  if ((style & ITALIC) != 0) {
+    return style;
+  }
+
   const bool hasBold = (style & BOLD) != 0;
-  const bool hasItalic = (style & ITALIC) != 0;
+  if (hasBold) {
+    return static_cast<Style>(style & ~BOLD);
+  }
+  return static_cast<Style>(style | BOLD);
+}
+
+const EpdFont* EpdFontFamily::getFont(const Style style) const {
+  const Style remappedStyle = remapStyleForReaderBoldSwap(style);
+  // Extract font style bits (ignore UNDERLINE bit for font selection)
+  const bool hasBold = (remappedStyle & BOLD) != 0;
+  const bool hasItalic = (remappedStyle & ITALIC) != 0;
 
   if (hasBold && hasItalic) {
     if (boldItalic) return boldItalic;
@@ -33,10 +57,12 @@ const EpdGlyph* EpdFontFamily::getGlyph(const uint32_t cp, const Style style) co
 };
 
 uint8_t EpdFontFamily::getSyntheticBoldPasses(const Style style) const {
-  const uint8_t boldExtra = ((style & BOLD) != 0) ? syntheticBoldExtraPasses : 0;
+  const Style remappedStyle = remapStyleForReaderBoldSwap(style);
+  const uint8_t boldExtra = ((remappedStyle & BOLD) != 0) ? syntheticBoldExtraPasses : 0;
   return syntheticRegularBoldPasses + boldExtra;
 }
 
 bool EpdFontFamily::shouldSynthesizeItalic(const Style style) const {
-  return syntheticItalic && ((style & ITALIC) != 0);
+  const Style remappedStyle = remapStyleForReaderBoldSwap(style);
+  return syntheticItalic && ((remappedStyle & ITALIC) != 0);
 }

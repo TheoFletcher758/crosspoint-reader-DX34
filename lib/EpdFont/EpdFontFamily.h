@@ -4,6 +4,8 @@
 class EpdFontFamily {
  public:
   enum Style : uint8_t { REGULAR = 0, BOLD = 1, ITALIC = 2, BOLD_ITALIC = 3, UNDERLINE = 4 };
+  static void setReaderBoldSwapEnabled(bool enabled);
+  static bool isReaderBoldSwapEnabled();
 
   explicit EpdFontFamily(const EpdFont* regular, const EpdFont* bold = nullptr, const EpdFont* italic = nullptr,
                          const EpdFont* boldItalic = nullptr, uint8_t syntheticRegularBoldPasses = 0,
@@ -24,6 +26,7 @@ class EpdFontFamily {
   bool shouldSynthesizeItalic(Style style) const;
 
  private:
+  static bool readerBoldSwapEnabled;
   const EpdFont* regular;
   const EpdFont* bold;
   const EpdFont* italic;
@@ -33,4 +36,5 @@ class EpdFontFamily {
   bool syntheticItalic;
 
   const EpdFont* getFont(Style style) const;
+  static Style remapStyleForReaderBoldSwap(Style style);
 };

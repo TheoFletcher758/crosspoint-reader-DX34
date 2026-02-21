@@ -26,6 +26,8 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   bool pendingGoHome = false;           // Defer go home to avoid race condition with display task
   bool pendingGoLibrary = false;        // Defer go library after destructive actions
   bool skipNextButtonCheck = false;     // Skip button processing for one frame after subactivity exit
+  bool pendingMenuOpen = false;
+  unsigned long lastConfirmReleaseMs = 0;
   bool recentSwitcherOpen = false;
   bool pendingSingleBack = false;
   unsigned long lastBackReleaseMs = 0;
@@ -57,6 +59,8 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   void onReaderMenuBack(uint8_t orientation);
   void onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action);
   void applyOrientation(uint8_t orientation);
+  void openReaderMenu();
+  void toggleReaderBoldSwap();
 
  public:
   explicit EpubReaderActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::unique_ptr<Epub> epub,

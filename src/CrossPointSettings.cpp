@@ -192,6 +192,7 @@ uint8_t CrossPointSettings::writeSettings(FsFile& file, bool count_only) const {
   writer.writeItem(file, statusBarTopLine);
   writer.writeItem(file, statusBarTextAlignment);
   writer.writeItem(file, statusBarProgressStyle);
+  writer.writeItem(file, readerBoldSwap);
   // New fields need to be added at end for backward compatibility
 
   return writer.item_count;
@@ -361,6 +362,8 @@ bool CrossPointSettings::loadFromFile() {
     if (++settingsRead >= fileSettingsCount) break;
     readAndValidate(inputFile, statusBarProgressStyle, STATUS_BAR_PROGRESS_STYLE_COUNT);
     statusBarGranularRead = true;
+    if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, readerBoldSwap);
     if (++settingsRead >= fileSettingsCount) break;
     // New fields added at end for backward compatibility
   } while (false);

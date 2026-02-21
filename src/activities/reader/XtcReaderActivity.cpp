@@ -11,6 +11,7 @@
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <I18n.h>
+#include <EpdFontFamily.h>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
@@ -23,6 +24,7 @@
 namespace {
 constexpr unsigned long skipPageMs = 700;
 constexpr unsigned long goHomeMs = 1000;
+constexpr unsigned long confirmDoubleTapMs = 350;
 constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int recentSwitcherRows = 8;
 }  // namespace
@@ -34,6 +36,7 @@ void XtcReaderActivity::onEnter() {
     return;
   }
 
+  EpdFontFamily::setReaderBoldSwapEnabled(SETTINGS.readerBoldSwap != 0);
   xtc->setupCacheDir();
 
   // Load saved progress
@@ -50,6 +53,8 @@ void XtcReaderActivity::onEnter() {
 
 void XtcReaderActivity::onExit() {
   flushProgressIfNeeded(true);
+  pendingMenuOpen = false;
+  EpdFontFamily::setReaderBoldSwapEnabled(false);
   ActivityWithSubactivity::onExit();
 
   APP_STATE.readerActivityLoadCount = 0;
@@ -68,6 +73,13 @@ void XtcReaderActivity::loop() {
 
   if (!mappedInput.isPressed(MappedInputManager::Button::Confirm)) {
     confirmLongPressHandled = false;
+  }
+
+  if (pendingMenuOpen && !mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
+      millis() - lastConfirmReleaseMs > confirmDoubleTapMs) {
+    pendingMenuOpen = false;
+    openChapterMenu();
+    return;
   }
 
   if (recentSwitcherOpen) {
@@ -102,29 +114,22 @@ void XtcReaderActivity::loop() {
     return;
   }
 
-  // Enter chapter selection activity
+  // Single tap opens chapter menu; double tap toggles reader bold swap mode.
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     if (suppressNextConfirmRelease) {
       suppressNextConfirmRelease = false;
+      pendingMenuOpen = false;
       return;
     }
-    if (xtc && xtc->hasChapters() && !xtc->getChapters().empty()) {
-      exitActivity();
-      enterNewActivity(new XtcReaderChapterSelectionActivity(
-          this->renderer, this->mappedInput, xtc, currentPage,
-          [this] {
-            exitActivity();
-            requestUpdate();
-          },
-          [this](const uint32_t newPage) {
-            currentPage = newPage;
-            progressDirty = true;
-            lastProgressChangeMs = millis();
-            flushProgressIfNeeded(true);
-            exitActivity();
-            requestUpdate();
-          }));
+    const unsigned long now = millis();
+    if (pendingMenuOpen && now - lastConfirmReleaseMs <= confirmDoubleTapMs) {
+      pendingMenuOpen = false;
+      toggleReaderBoldSwap();
+      return;
     }
+    pendingMenuOpen = true;
+    lastConfirmReleaseMs = now;
+    return;
   }
 
   // Long press CONFIRM (1s+) toggles orientation: Portrait <-> Landscape CCW.
@@ -196,6 +201,35 @@ void XtcReaderActivity::loop() {
     flushProgressIfNeeded(true);
     requestUpdate();
   }
+}
+
+void XtcReaderActivity::openChapterMenu() {
+  if (!xtc || !xtc->hasChapters() || xtc->getChapters().empty()) {
+    return;
+  }
+  exitActivity();
+  enterNewActivity(new XtcReaderChapterSelectionActivity(
+      this->renderer, this->mappedInput, xtc, currentPage,
+      [this] {
+        exitActivity();
+        requestUpdate();
+      },
+      [this](const uint32_t newPage) {
+        currentPage = newPage;
+        progressDirty = true;
+        lastProgressChangeMs = millis();
+        flushProgressIfNeeded(true);
+        exitActivity();
+        requestUpdate();
+      }));
+}
+
+void XtcReaderActivity::toggleReaderBoldSwap() {
+  const bool enableSwap = SETTINGS.readerBoldSwap == 0;
+  SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
+  SETTINGS.saveToFile();
+  EpdFontFamily::setReaderBoldSwapEnabled(enableSwap);
+  requestUpdate();
 }
 
 void XtcReaderActivity::render(Activity::RenderLock&&) {

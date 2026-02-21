@@ -5,6 +5,7 @@
 #include <I18n.h>
 #include <Serialization.h>
 #include <Utf8.h>
+#include <EpdFontFamily.h>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
@@ -16,6 +17,7 @@
 
 namespace {
 constexpr unsigned long goHomeMs = 1000;
+constexpr unsigned long confirmDoubleTapMs = 350;
 constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int progressBarMarginTop = 1;
 constexpr int recentSwitcherRows = 8;
@@ -100,6 +102,7 @@ void TxtReaderActivity::onEnter() {
     default:
       break;
   }
+  EpdFontFamily::setReaderBoldSwapEnabled(SETTINGS.readerBoldSwap != 0);
 
   txt->setupCacheDir();
 
@@ -116,6 +119,7 @@ void TxtReaderActivity::onEnter() {
 
 void TxtReaderActivity::onExit() {
   flushProgressIfNeeded(true);
+  EpdFontFamily::setReaderBoldSwapEnabled(false);
   ActivityWithSubactivity::onExit();
 
   // Reset orientation back to portrait for the rest of the UI
@@ -172,6 +176,19 @@ void TxtReaderActivity::loop() {
     return;
   }
 
+  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+    if (mappedInput.getHeldTime() >= goHomeMs) {
+      return;
+    }
+    const unsigned long now = millis();
+    if (lastConfirmReleaseMs > 0 && now - lastConfirmReleaseMs <= confirmDoubleTapMs) {
+      lastConfirmReleaseMs = 0;
+      toggleReaderBoldSwap();
+      return;
+    }
+    lastConfirmReleaseMs = now;
+  }
+
   // Long press CONFIRM (1s+) toggles orientation: Portrait <-> Landscape CCW.
   if (!confirmLongPressHandled && mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
       mappedInput.getHeldTime() >= goHomeMs) {
@@ -224,6 +241,21 @@ void TxtReaderActivity::loop() {
     flushProgressIfNeeded(true);
     requestUpdate();
   }
+}
+
+void TxtReaderActivity::toggleReaderBoldSwap() {
+  const bool enableSwap = SETTINGS.readerBoldSwap == 0;
+  SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
+  SETTINGS.saveToFile();
+  EpdFontFamily::setReaderBoldSwapEnabled(enableSwap);
+
+  if (txt) {
+    Storage.remove((txt->getCachePath() + "/index.bin").c_str());
+  }
+  initialized = false;
+  pageOffsets.clear();
+  currentPageLines.clear();
+  requestUpdate();
 }
 
 void TxtReaderActivity::initializeReader() {

@@ -23,6 +23,7 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   bool pendingSingleBack = false;
   unsigned long lastBackReleaseMs = 0;
   bool confirmLongPressHandled = false;
+  unsigned long lastConfirmReleaseMs = 0;
   bool progressDirty = false;
   unsigned long lastProgressChangeMs = 0;
   int lastObservedPage = -1;
@@ -57,6 +58,7 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   void saveProgress() const;
   void flushProgressIfNeeded(bool force);
   void loadProgress();
+  void toggleReaderBoldSwap();
 
  public:
   explicit TxtReaderActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::unique_ptr<Txt> txt,

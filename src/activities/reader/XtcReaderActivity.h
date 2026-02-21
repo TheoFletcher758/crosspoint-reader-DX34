@@ -29,6 +29,8 @@ class XtcReaderActivity final : public ActivityWithSubactivity {
   unsigned long lastBackReleaseMs = 0;
   bool confirmLongPressHandled = false;
   bool suppressNextConfirmRelease = false;
+  bool pendingMenuOpen = false;
+  unsigned long lastConfirmReleaseMs = 0;
   bool progressDirty = false;
   unsigned long lastProgressChangeMs = 0;
   int32_t lastObservedPage = -1;
@@ -42,6 +44,8 @@ class XtcReaderActivity final : public ActivityWithSubactivity {
   void saveProgress() const;
   void flushProgressIfNeeded(bool force);
   void loadProgress();
+  void openChapterMenu();
+  void toggleReaderBoldSwap();
 
  public:
   explicit XtcReaderActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::unique_ptr<Xtc> xtc,

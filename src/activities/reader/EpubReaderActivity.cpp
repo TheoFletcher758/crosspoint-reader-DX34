@@ -1,6 +1,7 @@
 #include "EpubReaderActivity.h"
 
 #include <Epub/Page.h>
+#include <EpdFontFamily.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
 #include <HalStorage.h>
@@ -23,6 +24,7 @@ namespace {
 // pagesPerRefresh now comes from SETTINGS.getRefreshFrequency()
 constexpr unsigned long skipChapterMs = 700;
 constexpr unsigned long goHomeMs = 1000;
+constexpr unsigned long confirmDoubleTapMs = 350;
 constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int progressBarMarginTop = 1;
 constexpr int recentSwitcherRows = 8;
@@ -160,6 +162,7 @@ void EpubReaderActivity::onEnter() {
   // Configure screen orientation based on settings
   // NOTE: This affects layout math and must be applied before any render calls.
   applyReaderOrientation(renderer, SETTINGS.orientation);
+  EpdFontFamily::setReaderBoldSwapEnabled(SETTINGS.readerBoldSwap != 0);
 
   epub->setupCacheDir();
 
@@ -205,6 +208,8 @@ void EpubReaderActivity::onEnter() {
 
 void EpubReaderActivity::onExit() {
   flushProgressIfNeeded(true);
+  pendingMenuOpen = false;
+  EpdFontFamily::setReaderBoldSwapEnabled(false);
   ActivityWithSubactivity::onExit();
 
   // Reset orientation back to portrait for the rest of the UI
@@ -257,6 +262,13 @@ void EpubReaderActivity::loop() {
     return;  // Don't access 'this' after callback
   }
 
+  if (pendingMenuOpen && !mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
+      millis() - lastConfirmReleaseMs > confirmDoubleTapMs) {
+    pendingMenuOpen = false;
+    openReaderMenu();
+    return;
+  }
+
   if (!mappedInput.isPressed(MappedInputManager::Button::Confirm)) {
     confirmLongPressHandled = false;
   }
@@ -307,25 +319,22 @@ void EpubReaderActivity::loop() {
     return;
   }
 
-  // Enter reader menu activity.
+  // Single tap opens menu; double tap toggles reader bold swap mode.
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     if (suppressNextConfirmRelease) {
       suppressNextConfirmRelease = false;
+      pendingMenuOpen = false;
       return;
     }
-    const int currentPage = section ? section->currentPage + 1 : 0;
-    const int totalPages = section ? section->pageCount : 0;
-    float bookProgress = 0.0f;
-    if (epub && epub->getBookSize() > 0 && section && section->pageCount > 0) {
-      const float chapterProgress = static_cast<float>(section->currentPage) / static_cast<float>(section->pageCount);
-      bookProgress = epub->calculateProgress(currentSpineIndex, chapterProgress) * 100.0f;
+    const unsigned long now = millis();
+    if (pendingMenuOpen && now - lastConfirmReleaseMs <= confirmDoubleTapMs) {
+      pendingMenuOpen = false;
+      toggleReaderBoldSwap();
+      return;
     }
-    const int bookProgressPercent = clampPercent(static_cast<int>(bookProgress + 0.5f));
-    exitActivity();
-    enterNewActivity(new EpubReaderMenuActivity(
-        this->renderer, this->mappedInput, epub->getTitle(), currentPage, totalPages, bookProgressPercent,
-        SETTINGS.orientation, [this](const uint8_t orientation) { onReaderMenuBack(orientation); },
-        [this](EpubReaderMenuActivity::MenuAction action) { onReaderMenuConfirm(action); }));
+    pendingMenuOpen = true;
+    lastConfirmReleaseMs = now;
+    return;
   }
 
   // Long press CONFIRM (1s+) toggles orientation: Portrait <-> Landscape CCW.
@@ -426,6 +435,58 @@ void EpubReaderActivity::loop() {
     }
     requestUpdate();
   }
+}
+
+void EpubReaderActivity::openReaderMenu() {
+  const int currentPage = section ? section->currentPage + 1 : 0;
+  const int totalPages = section ? section->pageCount : 0;
+  float bookProgress = 0.0f;
+  if (epub && epub->getBookSize() > 0 && section && section->pageCount > 0) {
+    const float chapterProgress = static_cast<float>(section->currentPage) / static_cast<float>(section->pageCount);
+    bookProgress = epub->calculateProgress(currentSpineIndex, chapterProgress) * 100.0f;
+  }
+  const int bookProgressPercent = clampPercent(static_cast<int>(bookProgress + 0.5f));
+  exitActivity();
+  enterNewActivity(new EpubReaderMenuActivity(
+      this->renderer, this->mappedInput, epub->getTitle(), currentPage, totalPages, bookProgressPercent,
+      SETTINGS.orientation, [this](const uint8_t orientation) { onReaderMenuBack(orientation); },
+      [this](EpubReaderMenuActivity::MenuAction action) { onReaderMenuConfirm(action); }));
+}
+
+void EpubReaderActivity::toggleReaderBoldSwap() {
+  const bool enableSwap = SETTINGS.readerBoldSwap == 0;
+  SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
+  SETTINGS.saveToFile();
+  EpdFontFamily::setReaderBoldSwapEnabled(enableSwap);
+
+  uint16_t backupSpine = currentSpineIndex;
+  uint16_t backupPage = 0;
+  uint16_t backupPageCount = 1;
+  if (section) {
+    backupPage = section->currentPage;
+    backupPageCount = (section->pageCount > 0) ? section->pageCount : 1;
+  }
+
+  {
+    RenderLock lock(*this);
+    section.reset();
+    if (epub) {
+      epub->clearCache();
+      epub->setupCacheDir();
+      saveProgress(backupSpine, backupPage, backupPageCount);
+    }
+    lastSavedSpineIndex = backupSpine;
+    lastSavedPage = backupPage;
+    lastSavedPageCount = backupPageCount;
+    lastObservedSpineIndex = backupSpine;
+    lastObservedPage = backupPage;
+    lastObservedPageCount = backupPageCount;
+    progressDirty = false;
+    nextPageNumber = backupPage;
+    cachedSpineIndex = backupSpine;
+    cachedChapterTotalPageCount = backupPageCount;
+  }
+  requestUpdate();
 }
 
 void EpubReaderActivity::onReaderMenuBack(const uint8_t orientation) {
