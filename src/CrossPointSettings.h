@@ -82,7 +82,7 @@ class CrossPointSettings {
   enum SIDE_BUTTON_LAYOUT { PREV_NEXT = 0, NEXT_PREV = 1, SIDE_BUTTON_LAYOUT_COUNT };
 
   // Font family options
-  enum FONT_FAMILY { BOOKERLY = 0, CHAREINK = 1, FONT_FAMILY_COUNT };
+  enum FONT_FAMILY { BOOKERLY = 0, CHAREINK = 1, UNIFONT = 2, FONT_FAMILY_COUNT };
   // Font size options
   enum FONT_SIZE { SMALL = 0, MEDIUM = 1, LARGE = 2, X_LARGE = 3, FONT_SIZE_COUNT };
   // Legacy line spacing enum (kept for settings migration compatibility)

@@ -232,23 +232,20 @@ void TxtReaderActivity::initializeReader() {
   orientedMarginRight += cachedScreenMarginHorizontal;
   orientedMarginBottom += cachedScreenMarginBottom;
 
-  auto metrics = UITheme::getInstance().getMetrics();
-
-  // Add status bar margin
+  int statusBarReserved = 0;
   if (SETTINGS.statusBarEnabled) {
     const int activeBars =
         (SETTINGS.statusBarShowBookBar ? 1 : 0) + (SETTINGS.statusBarShowChapterBar ? 1 : 0);
     const int statusBarProgressHeight = SETTINGS.getStatusBarProgressBarHeight();
     constexpr int barGap = 0;
-    orientedMarginBottom += statusBarMargin - cachedScreenMarginBottom +
-                            (activeBars > 0
-                                 ? (activeBars * statusBarProgressHeight + (activeBars - 1) * barGap +
-                                    progressBarMarginTop)
-                                 : 0);
+    statusBarReserved = statusBarMargin +
+                        (activeBars > 0
+                             ? (activeBars * statusBarProgressHeight + (activeBars - 1) * barGap + progressBarMarginTop)
+                             : 0);
   }
 
   viewportWidth = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
-  const int viewportHeight = renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom;
+  const int viewportHeight = renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom - statusBarReserved;
   const int lineHeight = renderer.getLineHeight(cachedFontId);
 
   linesPerPage = viewportHeight / lineHeight;
@@ -548,19 +545,6 @@ void TxtReaderActivity::renderPage() {
   orientedMarginLeft += cachedScreenMarginHorizontal;
   orientedMarginRight += cachedScreenMarginHorizontal;
   orientedMarginBottom += cachedScreenMarginBottom;
-
-  auto metrics = UITheme::getInstance().getMetrics();
-  if (SETTINGS.statusBarEnabled) {
-    const int activeBars =
-        (SETTINGS.statusBarShowBookBar ? 1 : 0) + (SETTINGS.statusBarShowChapterBar ? 1 : 0);
-    const int statusBarProgressHeight = SETTINGS.getStatusBarProgressBarHeight();
-    constexpr int barGap = 0;
-    orientedMarginBottom += statusBarMargin - cachedScreenMarginBottom +
-                            (activeBars > 0
-                                 ? (activeBars * statusBarProgressHeight + (activeBars - 1) * barGap +
-                                    progressBarMarginTop)
-                                 : 0);
-  }
 
   const int lineHeight = renderer.getLineHeight(cachedFontId);
   const int contentWidth = viewportWidth;

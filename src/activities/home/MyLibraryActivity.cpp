@@ -710,6 +710,7 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
     startIndex = std::max(0, startIndex + 1);
 
     int y = listTop;
+    int lastVisibleIndex = startIndex - 1;
     for (int i = startIndex; i < static_cast<int>(files.size()); i++) {
       const int rowHeight = rowHeights[static_cast<size_t>(i)];
       if (y + rowHeight > listTop + listHeight) break;
@@ -724,7 +725,29 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
         renderer.drawText(UI_10_FONT_ID, textX, lineY, line.c_str(), !isSelected);
         lineY += lineHeight;
       }
+      lastVisibleIndex = i;
       y += rowHeight + rowGap;
+    }
+
+    const bool hasMoreAbove = startIndex > 0;
+    const bool hasMoreBelow = lastVisibleIndex + 1 < static_cast<int>(files.size());
+    const int markerFont = UI_12_FONT_ID;
+    const int markerLineHeight = renderer.getLineHeight(markerFont);
+    const int markerRightMargin = 6;
+
+    if (hasMoreAbove) {
+      const char* topMarker = "<";
+      const int markerW = renderer.getTextWidth(markerFont, topMarker);
+      const int markerX = pageWidth - markerRightMargin - markerW;
+      renderer.drawText(markerFont, markerX, listTop, topMarker);
+    }
+
+    if (hasMoreBelow) {
+      const char* bottomMarker = ">";
+      const int markerW = renderer.getTextWidth(markerFont, bottomMarker);
+      const int markerX = pageWidth - markerRightMargin - markerW;
+      const int markerY = std::max(listTop, std::min(listTop + listHeight - markerLineHeight, y - markerLineHeight));
+      renderer.drawText(markerFont, markerX, markerY, bottomMarker);
     }
   }
 

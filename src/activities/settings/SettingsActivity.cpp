@@ -36,6 +36,14 @@ uint8_t nextReaderMarginValue(const uint8_t current) {
   }
   return kMargins[0];
 }
+
+bool isFontSizeSetting(const SettingInfo& setting) { return setting.valuePtr == &CrossPointSettings::fontSize; }
+bool isFontFamilySetting(const SettingInfo& setting) { return setting.valuePtr == &CrossPointSettings::fontFamily; }
+bool isUnifontSelected() { return SETTINGS.fontFamily == CrossPointSettings::UNIFONT; }
+
+uint8_t normalizedUnifontSize(const uint8_t size) {
+  return (size <= CrossPointSettings::MEDIUM) ? CrossPointSettings::SMALL : CrossPointSettings::LARGE;
+}
 }
 
 const std::vector<SettingInfo>* SettingsActivity::settingsForCategory(const int categoryIndex) const {
@@ -226,12 +234,24 @@ void SettingsActivity::toggleCurrentSetting() {
     SETTINGS.*(setting.valuePtr) = !currentValue;
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
-    SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
+    if (isFontSizeSetting(setting) && isUnifontSelected()) {
+      const uint8_t currentNormalized = normalizedUnifontSize(currentValue);
+      SETTINGS.fontSize =
+          (currentNormalized == CrossPointSettings::SMALL) ? CrossPointSettings::LARGE : CrossPointSettings::SMALL;
+    } else {
+      SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
+      if (isFontFamilySetting(setting) && SETTINGS.fontFamily == CrossPointSettings::UNIFONT) {
+        SETTINGS.fontSize = normalizedUnifontSize(SETTINGS.fontSize);
+      }
+    }
   } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
-    if (setting.valuePtr == &CrossPointSettings::screenMarginHorizontal ||
-        setting.valuePtr == &CrossPointSettings::screenMarginTop ||
-        setting.valuePtr == &CrossPointSettings::screenMarginBottom) {
+    if (setting.valuePtr == &CrossPointSettings::screenMarginHorizontal) {
       SETTINGS.*(setting.valuePtr) = nextReaderMarginValue(SETTINGS.*(setting.valuePtr));
+    } else if (setting.valuePtr == &CrossPointSettings::screenMarginTop ||
+               setting.valuePtr == &CrossPointSettings::screenMarginBottom) {
+      const uint8_t next = nextReaderMarginValue(SETTINGS.*(setting.valuePtr));
+      SETTINGS.screenMarginTop = next;
+      SETTINGS.screenMarginBottom = next;
     } else {
       const int8_t currentValue = SETTINGS.*(setting.valuePtr);
       if (currentValue + setting.valueRange.step > setting.valueRange.max) {
@@ -321,34 +341,36 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     if (row.isHeader) {
       renderer.fillRect(0, rowY, pageWidth, rowHeight, true);
       const char* label = I18N.get(categoryNames[row.categoryIndex]);
-      const int textW = renderer.getTextWidth(UI_10_FONT_ID, label, EpdFontFamily::REGULAR);
+      const int textW = renderer.getTextWidth(UI_12_FONT_ID, label, EpdFontFamily::REGULAR);
       const int textX = (pageWidth - textW) / 2;
-      renderer.drawText(UI_10_FONT_ID, textX, rowY, label, false, EpdFontFamily::REGULAR);
+      renderer.drawText(UI_12_FONT_ID, textX, rowY, label, false, EpdFontFamily::REGULAR);
       continue;
-    }
-
-    if (i == selectedRowIndex) {
-      renderer.fillRect(0, rowY, pageWidth, rowHeight, true);
     }
 
     const auto* settings = settingsForCategory(row.categoryIndex);
     const auto& setting = (*settings)[row.settingIndex];
-    const bool black = (i != selectedRowIndex);
+    const bool black = true;
+    const int rowFont = (i == selectedRowIndex) ? UI_12_FONT_ID : UI_10_FONT_ID;
 
-    renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, rowY, I18N.get(setting.nameId), black);
+    renderer.drawText(rowFont, metrics.contentSidePadding, rowY, I18N.get(setting.nameId), black);
 
     std::string valueText;
     if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
       valueText = (SETTINGS.*(setting.valuePtr)) ? tr(STR_STATE_ON) : tr(STR_STATE_OFF);
     } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
-      valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
+      if (isFontSizeSetting(setting) && isUnifontSelected()) {
+        const uint8_t displaySize = normalizedUnifontSize(SETTINGS.fontSize);
+        valueText = I18N.get(setting.enumValues[displaySize]);
+      } else {
+        valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
+      }
     } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
       valueText = std::to_string(SETTINGS.*(setting.valuePtr));
     }
 
     if (!valueText.empty()) {
-      const int valueW = renderer.getTextWidth(UI_10_FONT_ID, valueText.c_str());
-      renderer.drawText(UI_10_FONT_ID, pageWidth - metrics.contentSidePadding - valueW, rowY, valueText.c_str(), black);
+      const int valueW = renderer.getTextWidth(rowFont, valueText.c_str());
+      renderer.drawText(rowFont, pageWidth - metrics.contentSidePadding - valueW, rowY, valueText.c_str(), black);
     }
   }
 

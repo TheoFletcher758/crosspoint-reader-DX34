@@ -657,19 +657,16 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
   orientedMarginRight += SETTINGS.screenMarginHorizontal;
   orientedMarginBottom += SETTINGS.screenMarginBottom;
 
-  auto metrics = UITheme::getInstance().getMetrics();
-
-  // Add status bar margin
+  int statusBarReserved = 0;
   if (SETTINGS.statusBarEnabled) {
     const int activeBars =
         (SETTINGS.statusBarShowBookBar ? 1 : 0) + (SETTINGS.statusBarShowChapterBar ? 1 : 0);
     const int statusBarProgressHeight = SETTINGS.getStatusBarProgressBarHeight();
     constexpr int barGap = 0;
-    orientedMarginBottom += statusBarMargin - SETTINGS.screenMarginBottom +
-                            (activeBars > 0
-                                 ? (activeBars * statusBarProgressHeight + (activeBars - 1) * barGap +
-                                    progressBarMarginTop)
-                                 : 0);
+    statusBarReserved = statusBarMargin +
+                        (activeBars > 0
+                             ? (activeBars * statusBarProgressHeight + (activeBars - 1) * barGap + progressBarMarginTop)
+                             : 0);
   }
 
   if (!section) {
@@ -678,7 +675,7 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
     section = std::unique_ptr<Section>(new Section(epub, currentSpineIndex, renderer));
 
     const uint16_t viewportWidth = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
-    const uint16_t viewportHeight = renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom;
+    const uint16_t viewportHeight = renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom - statusBarReserved;
 
     if (!section->loadSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
                                   SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment, viewportWidth,

@@ -89,6 +89,11 @@ EpdFont chareink20BoldItalicFont(&chareink_20_bolditalic);
 EpdFontFamily chareink20FontFamily(&chareink20RegularFont, &chareink20BoldFont, &chareink20ItalicFont,
                                    &chareink20BoldItalicFont);
 
+EpdFont unifont14RegularFont(&unifont_14_regular);
+EpdFontFamily unifont14FontFamily(&unifont14RegularFont, nullptr, nullptr, nullptr, 1, 0, false);
+EpdFont unifont18RegularFont(&unifont_18_regular);
+EpdFontFamily unifont18FontFamily(&unifont18RegularFont, nullptr, nullptr, nullptr, 1, 0, false);
+
 EpdFont smallFont(&ui_8_regular);
 EpdFontFamily smallFontFamily(&smallFont, nullptr, nullptr, nullptr, 1, 0, false);
 EpdFont ui10RegularFont(&ui_10_regular);
@@ -237,6 +242,8 @@ void setupDisplayAndFonts() {
   renderer.insertFont(CHAREINK_16_FONT_ID, chareink16FontFamily);
   renderer.insertFont(CHAREINK_18_FONT_ID, chareink18FontFamily);
   renderer.insertFont(CHAREINK_20_FONT_ID, chareink20FontFamily);
+  renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
+  renderer.insertFont(UNIFONT_18_FONT_ID, unifont18FontFamily);
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);
   renderer.insertFont(UI_12_FONT_ID, ui12FontFamily);
   renderer.insertFont(SMALL_FONT_ID, smallFontFamily);
