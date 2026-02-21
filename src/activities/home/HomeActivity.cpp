@@ -77,9 +77,6 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
       continue;
     }
     const auto percent = BookProgress::getPercent(book.path);
-    if (!percent.has_value() || percent.value() <= 1) {
-      continue;
-    }
 
     if (!seenPaths.insert(book.path).second) {
       continue;
@@ -93,7 +90,7 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
 
     if (recentBooks.size() < maxVisibleBooks) {
       RecentBook bookWithoutCover = book;
-      bookWithoutCover.title = std::to_string(percent.value()) + "%> " + book.title;
+      bookWithoutCover.title = (percent.has_value() ? std::to_string(percent.value()) : "0") + "%> " + book.title;
       // Home screen should never attempt to load/render cover images.
       bookWithoutCover.coverBmpPath.clear();
       recentBooks.push_back(bookWithoutCover);

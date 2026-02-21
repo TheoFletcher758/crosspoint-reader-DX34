@@ -27,7 +27,6 @@ constexpr unsigned long goHomeMs = 1000;
 constexpr unsigned long confirmDoubleTapMs = 350;
 constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int progressBarMarginTop = 1;
-constexpr int recentSwitcherRows = 8;
 constexpr int statusTextTopPadding = 1;
 constexpr int statusTextToBarsGap = 1;
 
@@ -279,38 +278,6 @@ void EpubReaderActivity::loop() {
     confirmLongPressHandled = false;
   }
 
-  if (recentSwitcherOpen) {
-    const bool prevTriggered = mappedInput.wasReleased(MappedInputManager::Button::PageBack) ||
-                               mappedInput.wasReleased(MappedInputManager::Button::Left);
-    const bool nextTriggered = mappedInput.wasReleased(MappedInputManager::Button::PageForward) ||
-                               mappedInput.wasReleased(MappedInputManager::Button::Right);
-    if (prevTriggered && !recentSwitcherBooks.empty()) {
-      recentSwitcherSelection =
-          (recentSwitcherSelection + static_cast<int>(recentSwitcherBooks.size()) - 1) % recentSwitcherBooks.size();
-      requestUpdate();
-      return;
-    }
-    if (nextTriggered && !recentSwitcherBooks.empty()) {
-      recentSwitcherSelection = (recentSwitcherSelection + 1) % recentSwitcherBooks.size();
-      requestUpdate();
-      return;
-    }
-    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) && !recentSwitcherBooks.empty()) {
-      const std::string selectedPath = recentSwitcherBooks[recentSwitcherSelection].path;
-      recentSwitcherOpen = false;
-      if (!selectedPath.empty()) {
-        onOpenBook(selectedPath);
-      }
-      return;
-    }
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back) && mappedInput.getHeldTime() < goHomeMs) {
-      recentSwitcherOpen = false;
-      requestUpdate();
-      return;
-    }
-    return;
-  }
-
   // Skip button processing after returning from subactivity
   // This prevents stale button release events from triggering actions
   // We wait until: (1) all relevant buttons are released, AND (2) wasReleased events have been cleared
@@ -419,7 +386,7 @@ void EpubReaderActivity::loop() {
       progressDirty = true;
       lastProgressChangeMs = millis();
       flushProgressIfNeeded(true);
-    } else {
+    } else if (currentSpineIndex > 0) {
       // We don't want to delete the section mid-render, so grab the semaphore
       {
         RenderLock lock(*this);
@@ -771,11 +738,6 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
     return;
   }
 
-  if (recentSwitcherOpen) {
-    renderRecentSwitcher();
-    return;
-  }
-
   // edge case handling for sub-zero spine index
   if (currentSpineIndex < 0) {
     currentSpineIndex = 0;
@@ -911,65 +873,6 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
   }
 
   flushProgressIfNeeded(false);
-}
-
-void EpubReaderActivity::loadRecentSwitcherBooks() {
-  recentSwitcherBooks.clear();
-  const auto& books = RECENT_BOOKS.getBooks();
-  for (const auto& book : books) {
-    if (recentSwitcherBooks.size() >= recentSwitcherRows) {
-      break;
-    }
-    if (!Storage.exists(book.path.c_str())) {
-      continue;
-    }
-    recentSwitcherBooks.push_back(book);
-  }
-  recentSwitcherSelection = 0;
-}
-
-void EpubReaderActivity::renderRecentSwitcher() {
-  const int screenW = renderer.getScreenWidth();
-  const int screenH = renderer.getScreenHeight();
-  const int popupX = 18;
-  const int popupY = 24;
-  const int popupW = screenW - popupX * 2;
-  const int popupH = screenH - popupY * 2;
-  const int titleY = popupY + 8;
-  const int rowsY = popupY + 30;
-  const int rowsH = popupH - 40;
-  const int rowH = rowsH / recentSwitcherRows;
-
-  renderer.clearScreen();
-  renderer.drawRect(popupX, popupY, popupW, popupH, true);
-  renderer.drawCenteredText(UI_12_FONT_ID, titleY, tr(STR_MENU_RECENT_BOOKS), true, EpdFontFamily::REGULAR);
-
-  for (int i = 0; i < recentSwitcherRows; i++) {
-    const int rowY = rowsY + i * rowH;
-    const bool hasBook = i < static_cast<int>(recentSwitcherBooks.size());
-    const bool selected = hasBook && i == recentSwitcherSelection;
-
-    if (selected) {
-      renderer.fillRect(popupX + 8, rowY, popupW - 16, rowH - 2, true);
-      renderer.drawRect(popupX + 10, rowY + 2, popupW - 20, rowH - 6, false);
-    } else {
-      renderer.drawRect(popupX + 8, rowY, popupW - 16, rowH - 2, true);
-    }
-
-    std::string title = " ";
-    if (hasBook) {
-      title = recentSwitcherBooks[i].title;
-      if (title.empty()) {
-        const size_t lastSlash = recentSwitcherBooks[i].path.find_last_of('/');
-        title = (lastSlash == std::string::npos) ? recentSwitcherBooks[i].path
-                                                 : recentSwitcherBooks[i].path.substr(lastSlash + 1);
-      }
-      title = renderer.truncatedText(UI_10_FONT_ID, title.c_str(), popupW - 28);
-    }
-    renderer.drawText(UI_10_FONT_ID, popupX + 14, rowY + 3, title.c_str(), !selected);
-  }
-
-  renderer.displayBuffer();
 }
 
 void EpubReaderActivity::saveProgress(int spineIndex, int currentPage, int pageCount) {

@@ -2,12 +2,8 @@
 #include <Epub.h>
 #include <Epub/Section.h>
 
-#include <vector>
-
 #include "EpubReaderMenuActivity.h"
 #include "activities/ActivityWithSubactivity.h"
-
-struct RecentBook;
 
 class EpubReaderActivity final : public ActivityWithSubactivity {
   std::shared_ptr<Epub> epub;
@@ -28,9 +24,6 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   bool skipNextButtonCheck = false;     // Skip button processing for one frame after subactivity exit
   bool pendingMenuOpen = false;
   unsigned long lastConfirmReleaseMs = 0;
-  bool recentSwitcherOpen = false;
-  bool pendingSingleBack = false;
-  unsigned long lastBackReleaseMs = 0;
   bool confirmLongPressHandled = false;
   bool suppressNextConfirmRelease = false;
   bool progressDirty = false;
@@ -41,8 +34,6 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   int lastSavedSpineIndex = -1;
   int lastSavedPage = -1;
   int lastSavedPageCount = -1;
-  int recentSwitcherSelection = 0;
-  std::vector<RecentBook> recentSwitcherBooks;
   const std::function<void()> onGoBack;
   const std::function<void()> onGoHome;
   const std::function<void(const std::string&)> onOpenBook;
@@ -50,8 +41,6 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   void renderContents(std::unique_ptr<Page> page, int orientedMarginTop, int orientedMarginRight,
                       int orientedMarginBottom, int orientedMarginLeft);
   void renderStatusBar(int orientedMarginRight, int orientedMarginBottom, int orientedMarginLeft);
-  void loadRecentSwitcherBooks();
-  void renderRecentSwitcher();
   void saveProgress(int spineIndex, int currentPage, int pageCount);
   void flushProgressIfNeeded(bool force);
   // Jump to a percentage of the book (0-100), mapping it to spine and page.
