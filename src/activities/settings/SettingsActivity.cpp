@@ -149,7 +149,7 @@ void SettingsActivity::onEnter() {
 
 void SettingsActivity::onExit() {
   ActivityWithSubactivity::onExit();
-
+  SETTINGS.saveToFile();
 }
 
 void SettingsActivity::loop() {
