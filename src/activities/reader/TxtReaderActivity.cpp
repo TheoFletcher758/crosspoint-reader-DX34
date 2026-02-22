@@ -22,7 +22,7 @@ constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int progressBarMarginTop = 1;
 constexpr int recentSwitcherRows = 8;
 constexpr size_t CHUNK_SIZE = 8 * 1024;  // 8KB chunk for reading
-constexpr int statusTextTopPadding = 1;
+constexpr int statusTextTopPadding = 4;
 constexpr int statusTextToBarsGap = 1;
 
 // Cache file magic and version
@@ -285,6 +285,7 @@ void TxtReaderActivity::initializeReader() {
   if (SETTINGS.statusBarEnabled) {
     statusBarReserved = computeStatusBarReservedHeight(renderer, SETTINGS.statusBarShowBookBar,
                                                        SETTINGS.statusBarShowChapterBar);
+    orientedMarginBottom = getStatusBottomInset(renderer) + cachedScreenMarginBottom;
   }
 
   viewportWidth = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
@@ -596,6 +597,9 @@ void TxtReaderActivity::renderPage() {
                                     ? computeStatusBarReservedHeight(renderer, SETTINGS.statusBarShowBookBar,
                                                                      SETTINGS.statusBarShowChapterBar)
                                     : 0;
+  if (SETTINGS.statusBarEnabled) {
+    orientedMarginBottom = getStatusBottomInset(renderer) + cachedScreenMarginBottom;
+  }
   const int viewportHeight = renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom - statusBarReserved;
   const int usedContentHeight = static_cast<int>(currentPageLines.size()) * lineHeight;
   const int verticalCenterOffset = std::max(0, (viewportHeight - usedContentHeight) / 2);

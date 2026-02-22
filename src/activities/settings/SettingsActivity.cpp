@@ -26,7 +26,7 @@ namespace {
 constexpr unsigned long doubleTapMs = 350;
 
 uint8_t nextReaderMarginValue(const uint8_t current) {
-  static constexpr uint8_t kMargins[] = {2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50};
+  static constexpr uint8_t kMargins[] = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55};
   for (size_t i = 0; i < sizeof(kMargins) / sizeof(kMargins[0]); i++) {
     if (current < kMargins[i]) {
       return kMargins[i];

@@ -27,7 +27,7 @@ constexpr unsigned long goHomeMs = 1000;
 constexpr unsigned long confirmDoubleTapMs = 350;
 constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int progressBarMarginTop = 1;
-constexpr int statusTextTopPadding = 1;
+constexpr int statusTextTopPadding = 4;
 constexpr int statusTextToBarsGap = 1;
 
 int clampPercent(int percent) {
@@ -795,6 +795,10 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
   if (SETTINGS.statusBarEnabled) {
     statusBarReserved = computeStatusBarReservedHeight(renderer, SETTINGS.statusBarShowBookBar,
                                                        SETTINGS.statusBarShowChapterBar);
+    // When the status bar is present it handles the display bottom inset itself.
+    // Use only the display inset + user margin so the gap equals exactly screenMarginBottom
+    // (0 = text flush against the status bar).
+    orientedMarginBottom = getStatusBottomInset(renderer) + SETTINGS.screenMarginBottom;
   }
 
   if (!section) {
@@ -1028,6 +1032,7 @@ void EpubReaderActivity::renderStatusBar(const int orientedMarginRight, const in
   int progressTextWidth = 0;
 
   // Calculate progress in book
+  if (!section) return;
   const float sectionChapterProg = (section->pageCount > 0) ? static_cast<float>(section->currentPage) / section->pageCount : 0.0f;
   const float bookProgress = epub->calculateProgress(currentSpineIndex, sectionChapterProg) * 100;
 
