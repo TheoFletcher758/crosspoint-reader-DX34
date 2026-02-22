@@ -286,7 +286,7 @@ void setup() {
   }
 
   // First serial output only here to avoid timing inconsistencies for power button press duration verification
-  LOG_DBG("MAIN", "Starting DX34 version " CROSSPOINT_VERSION);
+  LOG_DBG("MAIN", "Starting CrossPoint-Mod-DX34 version " CROSSPOINT_VERSION);
 
   setupDisplayAndFonts();
 
