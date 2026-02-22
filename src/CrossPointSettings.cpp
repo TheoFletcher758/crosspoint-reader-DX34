@@ -200,10 +200,7 @@ uint8_t CrossPointSettings::writeSettings(FsFile& file, bool count_only) const {
 
 bool CrossPointSettings::saveToFile() const {
   // Make sure the directory exists
-  if (!Storage.mkdir("/.crosspoint")) {
-    LOG_ERR("CPS", "Failed to create settings directory /.crosspoint");
-    logSerial.printf("[CPS] mkdir /.crosspoint failed\n");
-  }
+  Storage.ensureDirectoryExists("/.crosspoint");
 
   FsFile outputFile;
   if (!Storage.openFileForWrite("CPS", SETTINGS_FILE, outputFile)) {
