@@ -192,6 +192,7 @@ uint8_t CrossPointSettings::writeSettings(FsFile& file, bool count_only) const {
   writer.writeItem(file, statusBarTextAlignment);
   writer.writeItem(file, statusBarProgressStyle);
   writer.writeItem(file, readerBoldSwap);
+  writer.writeItem(file, debugBorders);
   // New fields need to be added at end for backward compatibility
 
   return writer.item_count;
@@ -199,15 +200,21 @@ uint8_t CrossPointSettings::writeSettings(FsFile& file, bool count_only) const {
 
 bool CrossPointSettings::saveToFile() const {
   // Make sure the directory exists
-  Storage.mkdir("/.crosspoint");
+  if (!Storage.mkdir("/.crosspoint")) {
+    LOG_ERR("CPS", "Failed to create settings directory /.crosspoint");
+    logSerial.printf("[CPS] mkdir /.crosspoint failed\n");
+  }
 
   FsFile outputFile;
   if (!Storage.openFileForWrite("CPS", SETTINGS_FILE, outputFile)) {
+    LOG_ERR("CPS", "Failed to open settings file for write: %s", SETTINGS_FILE);
+    logSerial.printf("[CPS] saveToFile: open failed\n");
     return false;
   }
 
   // First pass: count the items
   uint8_t item_count = writeSettings(outputFile, true);  // This will just count, not write
+  logSerial.printf("[CPS] saveToFile: writing %d items\n", (int)item_count);
 
   // Write header
   serialization::writePod(outputFile, SETTINGS_FILE_VERSION);
@@ -215,7 +222,9 @@ bool CrossPointSettings::saveToFile() const {
   // Second pass: actually write the settings
   writeSettings(outputFile);  // This will write the actual data
 
+  outputFile.sync();
   outputFile.close();
+  logSerial.printf("[CPS] saveToFile: done, debugBorders=%d\n", (int)debugBorders);
 
   LOG_DBG("CPS", "Settings saved to file");
   return true;
@@ -224,6 +233,8 @@ bool CrossPointSettings::saveToFile() const {
 bool CrossPointSettings::loadFromFile() {
   FsFile inputFile;
   if (!Storage.openFileForRead("CPS", SETTINGS_FILE, inputFile)) {
+    LOG_ERR("CPS", "Failed to open settings file for read: %s", SETTINGS_FILE);
+    logSerial.printf("[CPS] loadFromFile: open failed\n");
     return false;
   }
 
@@ -231,12 +242,14 @@ bool CrossPointSettings::loadFromFile() {
   serialization::readPod(inputFile, version);
   if (version != SETTINGS_FILE_VERSION) {
     LOG_ERR("CPS", "Deserialization failed: Unknown version %u", version);
+    logSerial.printf("[CPS] loadFromFile: bad version %d\n", (int)version);
     inputFile.close();
     return false;
   }
 
   uint8_t fileSettingsCount = 0;
   serialization::readPod(inputFile, fileSettingsCount);
+  logSerial.printf("[CPS] loadFromFile: version=%d, count=%d\n", (int)version, (int)fileSettingsCount);
 
   // load settings that exist (support older files with fewer fields)
   uint8_t settingsRead = 0;
@@ -362,6 +375,8 @@ bool CrossPointSettings::loadFromFile() {
     if (++settingsRead >= fileSettingsCount) break;
     serialization::readPod(inputFile, readerBoldSwap);
     if (++settingsRead >= fileSettingsCount) break;
+    serialization::readPod(inputFile, debugBorders);
+    if (++settingsRead >= fileSettingsCount) break;
     // New fields added at end for backward compatibility
   } while (false);
 
@@ -383,6 +398,7 @@ bool CrossPointSettings::loadFromFile() {
   }
 
   inputFile.close();
+  logSerial.printf("[CPS] loadFromFile: done, read=%d, debugBorders=%d\n", (int)settingsRead, (int)debugBorders);
   LOG_DBG("CPS", "Settings loaded from file");
   return true;
 }
