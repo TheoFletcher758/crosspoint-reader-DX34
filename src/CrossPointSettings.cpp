@@ -451,6 +451,14 @@ int CrossPointSettings::getReaderFontId() const {
         default:
           return ATKINSON_16_FONT_ID;
       }
+    case UBUNTU:
+      switch (fontSize) {
+        case LARGE:
+          return UBUNTU_18_FONT_ID;
+        case MEDIUM:
+        default:
+          return UBUNTU_16_FONT_ID;
+      }
     case BOOKERLY:
     default:
       switch (fontSize) {

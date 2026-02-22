@@ -21,6 +21,13 @@
 #include <builtinFonts/atkinson_18_bold.h>
 #include <builtinFonts/atkinson_18_italic.h>
 
+#include <builtinFonts/ubuntu_16_regular.h>
+#include <builtinFonts/ubuntu_16_bold.h>
+#include <builtinFonts/ubuntu_16_italic.h>
+#include <builtinFonts/ubuntu_18_regular.h>
+#include <builtinFonts/ubuntu_18_bold.h>
+#include <builtinFonts/ubuntu_18_italic.h>
+
 #include <builtinFonts/unifont_14_regular.h>
 #include <builtinFonts/unifont_18_regular.h>
 

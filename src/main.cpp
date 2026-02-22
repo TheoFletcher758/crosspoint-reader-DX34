@@ -66,6 +66,15 @@ EpdFont atkinson18BoldFont(&atkinson_18_bold);
 EpdFont atkinson18ItalicFont(&atkinson_18_italic);
 EpdFontFamily atkinson18FontFamily(&atkinson18RegularFont, &atkinson18BoldFont, &atkinson18ItalicFont, nullptr);
 
+EpdFont ubuntu16RegularFont(&ubuntu_16_regular);
+EpdFont ubuntu16BoldFont(&ubuntu_16_bold);
+EpdFont ubuntu16ItalicFont(&ubuntu_16_italic);
+EpdFontFamily ubuntu16FontFamily(&ubuntu16RegularFont, &ubuntu16BoldFont, &ubuntu16ItalicFont, nullptr);
+EpdFont ubuntu18RegularFont(&ubuntu_18_regular);
+EpdFont ubuntu18BoldFont(&ubuntu_18_bold);
+EpdFont ubuntu18ItalicFont(&ubuntu_18_italic);
+EpdFontFamily ubuntu18FontFamily(&ubuntu18RegularFont, &ubuntu18BoldFont, &ubuntu18ItalicFont, nullptr);
+
 EpdFont unifont14RegularFont(&unifont_14_regular);
 EpdFontFamily unifont14FontFamily(&unifont14RegularFont, nullptr, nullptr, nullptr, 1, 0, false);
 EpdFont unifont18RegularFont(&unifont_18_regular);
@@ -217,6 +226,8 @@ void setupDisplayAndFonts() {
   renderer.insertFont(CHAREINK_18_FONT_ID, chareink18FontFamily);
   renderer.insertFont(ATKINSON_16_FONT_ID, atkinson16FontFamily);
   renderer.insertFont(ATKINSON_18_FONT_ID, atkinson18FontFamily);
+  renderer.insertFont(UBUNTU_16_FONT_ID, ubuntu16FontFamily);
+  renderer.insertFont(UBUNTU_18_FONT_ID, ubuntu18FontFamily);
   renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
   renderer.insertFont(UNIFONT_18_FONT_ID, unifont18FontFamily);
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);
