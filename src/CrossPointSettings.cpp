@@ -1,6 +1,7 @@
 #include "CrossPointSettings.h"
 
 #include <HalStorage.h>
+#include <JsonSettingsIO.h>
 #include <Logging.h>
 #include <Serialization.h>
 
@@ -22,8 +23,9 @@ void readAndValidate(FsFile &file, uint8_t &member, const uint8_t maxValue) {
 
 namespace {
 constexpr uint8_t SETTINGS_FILE_VERSION = 1;
-// SETTINGS_COUNT is now calculated automatically in saveToFile
-constexpr char SETTINGS_FILE[] = "/.crosspoint/settings_v2.bin";
+constexpr char SETTINGS_FILE_BIN[] = "/.crosspoint/settings.bin";
+constexpr char SETTINGS_FILE_JSON[] = "/.crosspoint/settings.json";
+constexpr char SETTINGS_FILE_BAK[] = "/.crosspoint/settings.bin.bak";
 
 // Validate front button mapping to ensure each hardware button is unique.
 // If duplicates are detected, reset to the default physical order to prevent
@@ -125,157 +127,74 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
 }
 } // namespace
 
-class SettingsWriter {
-public:
-  bool is_counting = false;
-  uint8_t item_count = 0;
-  template <typename T>
-
-  void writeItem(FsFile &file, const T &value) {
-    if (is_counting) {
-      item_count++;
-    } else {
-      serialization::writePod(file, value);
+void CrossPointSettings::validateFrontButtonMapping(
+    CrossPointSettings &settings) {
+  const uint8_t mapping[] = {
+      settings.frontButtonBack, settings.frontButtonConfirm,
+      settings.frontButtonLeft, settings.frontButtonRight};
+  for (size_t i = 0; i < 4; i++) {
+    for (size_t j = i + 1; j < 4; j++) {
+      if (mapping[i] == mapping[j]) {
+        settings.frontButtonBack = FRONT_HW_BACK;
+        settings.frontButtonConfirm = FRONT_HW_CONFIRM;
+        settings.frontButtonLeft = FRONT_HW_LEFT;
+        settings.frontButtonRight = FRONT_HW_RIGHT;
+        return;
+      }
     }
   }
-
-  void writeItemString(FsFile &file, const char *value) {
-    if (is_counting) {
-      item_count++;
-    } else {
-      serialization::writeString(file, std::string(value));
-    }
-  }
-};
-
-uint8_t CrossPointSettings::writeSettings(FsFile &file, bool count_only) const {
-  SettingsWriter writer;
-  writer.is_counting = count_only;
-
-  writer.writeItem(file, sleepScreen);
-  writer.writeItem(file, extraParagraphSpacing);
-  writer.writeItem(file, shortPwrBtn);
-  writer.writeItem(file, statusBar);
-  writer.writeItem(file, orientation);
-  writer.writeItem(file, frontButtonLayout); // legacy
-  writer.writeItem(file, sideButtonLayout);
-  writer.writeItem(file, fontFamily);
-  writer.writeItem(file, fontSize);
-  writer.writeItem(file, lineSpacing);
-  writer.writeItem(file, paragraphAlignment);
-  writer.writeItem(file, sleepTimeout);
-  writer.writeItem(file, refreshFrequency);
-  writer.writeItem(file, screenMargin);
-  writer.writeItem(file, sleepScreenCoverMode);
-  writer.writeItemString(file, opdsServerUrl);
-  writer.writeItem(file, textAntiAliasing);
-  writer.writeItem(file, hideBatteryPercentage);
-  writer.writeItem(file, longPressChapterSkip);
-  writer.writeItem(file, hyphenationEnabled);
-  writer.writeItemString(file, opdsUsername);
-  writer.writeItemString(file, opdsPassword);
-  writer.writeItem(file, sleepScreenCoverFilter);
-  writer.writeItem(file, frontButtonBack);
-  writer.writeItem(file, frontButtonConfirm);
-  writer.writeItem(file, frontButtonLeft);
-  writer.writeItem(file, frontButtonRight);
-  writer.writeItem(file, fadingFix);
-  writer.writeItem(file, embeddedStyle);
-  writer.writeItem(file, screenMarginHorizontal);
-  writer.writeItem(file, screenMarginTop);
-  writer.writeItem(file, screenMarginBottom);
-  writer.writeItem(file, showSleepImageFilename);
-  writer.writeItem(file, statusBarEnabled);
-  writer.writeItem(file, statusBarShowBattery);
-  writer.writeItem(file, statusBarShowPageCounter);
-  writer.writeItem(file, statusBarShowBookPercentage);
-  writer.writeItem(file, statusBarShowChapterPercentage);
-  writer.writeItem(file, statusBarShowBookBar);
-  writer.writeItem(file, statusBarShowChapterBar);
-  writer.writeItem(file, statusBarShowChapterTitle);
-  writer.writeItem(file, statusBarTopLine);
-  writer.writeItem(file, statusBarTextAlignment);
-  writer.writeItem(file, statusBarProgressStyle);
-  writer.writeItem(file, readerBoldSwap);
-  writer.writeItem(file, debugBorders);
-  // New fields need to be added at end for backward compatibility
-
-  return writer.item_count;
 }
 
 bool CrossPointSettings::saveToFile() const {
-  // Make sure the directory exists
-  Storage.ensureDirectoryExists("/.crosspoint");
-
-  const char *tmpFile = "/.crosspoint/settings_tmp.bin";
-  if (Storage.exists(tmpFile)) {
-    Storage.remove(tmpFile);
-  }
-
-  FsFile outputFile;
-  if (!Storage.openFileForWrite("CPS", tmpFile, outputFile)) {
-    LOG_ERR("CPS", "Failed to open settings temp file for write");
-    logSerial.printf("[CPS] saveToFile: open temp failed\n");
-    return false;
-  }
-
-  // First pass: count the items
-  uint8_t item_count =
-      writeSettings(outputFile, true); // This will just count, not write
-  logSerial.printf("[CPS] saveToFile: writing %d items\n", (int)item_count);
-
-  // Write header
-  serialization::writePod(outputFile, SETTINGS_FILE_VERSION);
-  serialization::writePod(outputFile, static_cast<uint8_t>(item_count));
-  // Second pass: actually write the settings
-  writeSettings(outputFile); // This will write the actual data
-
-  outputFile.sync();
-  outputFile.close();
-
-  if (Storage.exists(SETTINGS_FILE)) {
-    Storage.remove(SETTINGS_FILE);
-  }
-  Storage.rename(tmpFile, SETTINGS_FILE);
-
-  logSerial.printf("[CPS] saveToFile: done, debugBorders=%d\n",
-                   (int)debugBorders);
-
-  LOG_DBG("CPS", "Settings saved to file");
-  return true;
+  Storage.mkdir("/.crosspoint");
+  return JsonSettingsIO::saveSettings(*this, SETTINGS_FILE_JSON);
 }
 
 bool CrossPointSettings::loadFromFile() {
-  FsFile inputFile;
-  bool usingLegacy = false;
-
-  if (!Storage.exists(SETTINGS_FILE) &&
-      Storage.exists("/.crosspoint/settings.bin")) {
-    usingLegacy = true;
-    logSerial.printf("[CPS] using legacy settings.bin for migration\n");
+  // Try JSON first
+  if (Storage.exists(SETTINGS_FILE_JSON)) {
+    String json = Storage.readFile(SETTINGS_FILE_JSON);
+    if (!json.isEmpty()) {
+      bool resave = false;
+      bool result = JsonSettingsIO::loadSettings(*this, json.c_str(), &resave);
+      if (result && resave) {
+        if (saveToFile()) {
+          LOG_DBG("CPS", "Resaved settings to update format");
+        } else {
+          LOG_ERR("CPS", "Failed to resave settings after format update");
+        }
+      }
+      return result;
+    }
   }
 
-  const char *fileToOpen =
-      usingLegacy ? "/.crosspoint/settings.bin" : SETTINGS_FILE;
-
-  if (!Storage.openFileForRead("CPS", fileToOpen, inputFile)) {
-    LOG_ERR("CPS", "Failed to open settings file for read: %s", fileToOpen);
-    logSerial.printf("[CPS] loadFromFile: open failed\n");
-    if (usingLegacy) {
-      Storage.remove("/.crosspoint/settings.bin");
+  // Fall back to binary migration
+  if (Storage.exists(SETTINGS_FILE_BIN)) {
+    if (loadFromBinaryFile()) {
+      if (saveToFile()) {
+        Storage.rename(SETTINGS_FILE_BIN, SETTINGS_FILE_BAK);
+        LOG_DBG("CPS", "Migrated settings.bin to settings.json");
+        return true;
+      } else {
+        LOG_ERR("CPS", "Failed to save migrated settings to JSON");
+        return false;
+      }
     }
+  }
+
+  return false;
+}
+
+bool CrossPointSettings::loadFromBinaryFile() {
+  FsFile inputFile;
+  if (!Storage.openFileForRead("CPS", SETTINGS_FILE_BIN, inputFile)) {
     return false;
   }
 
   uint8_t version;
   serialization::readPod(inputFile, version);
   if (version != SETTINGS_FILE_VERSION) {
-    LOG_ERR("CPS", "Deserialization failed: Unknown version %u", version);
-    logSerial.printf("[CPS] loadFromFile: bad version %d\n", (int)version);
     inputFile.close();
-    if (usingLegacy) {
-      Storage.remove("/.crosspoint/settings.bin");
-    }
     return false;
   }
 
@@ -284,9 +203,7 @@ bool CrossPointSettings::loadFromFile() {
   logSerial.printf("[CPS] loadFromFile: version=%d, count=%d\n", (int)version,
                    (int)fileSettingsCount);
 
-  // load settings that exist (support older files with fewer fields)
   uint8_t settingsRead = 0;
-  // Track whether remap fields were present in the settings file.
   bool frontButtonMappingRead = false;
   bool splitReaderMarginsRead = false;
   bool statusBarGranularRead = false;
@@ -466,7 +383,7 @@ bool CrossPointSettings::loadFromFile() {
   } while (false);
 
   if (frontButtonMappingRead) {
-    validateFrontButtonMapping(*this);
+    CrossPointSettings::validateFrontButtonMapping(*this);
   } else {
     applyLegacyFrontButtonLayout(*this);
   }
@@ -483,18 +400,7 @@ bool CrossPointSettings::loadFromFile() {
   }
 
   inputFile.close();
-
-  if (Storage.exists("/.crosspoint/settings.bin")) {
-    logSerial.printf("[CPS] Cleaning up legacy settings.bin\n");
-    Storage.remove("/.crosspoint/settings.bin");
-    if (usingLegacy) {
-      saveToFile();
-    }
-  }
-
-  logSerial.printf("[CPS] loadFromFile: done, read=%d, debugBorders=%d\n",
-                   (int)settingsRead, (int)debugBorders);
-  LOG_DBG("CPS", "Settings loaded from file");
+  LOG_DBG("CPS", "Settings loaded from binary file");
   return true;
 }
 
