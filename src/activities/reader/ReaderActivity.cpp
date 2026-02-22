@@ -1,6 +1,7 @@
 #include "ReaderActivity.h"
 
 #include <HalStorage.h>
+#include <I18n.h>
 
 #include "CrossPointSettings.h"
 #include "Epub.h"
@@ -117,6 +118,9 @@ void ReaderActivity::openBookPath(const std::string& bookPath) {
     auto xtc = loadXtc(bookPath);
     if (xtc) {
       onGoToXtcReader(std::move(xtc));
+    } else {
+      exitActivity();
+      enterNewActivity(new FullScreenMessageActivity(renderer, mappedInput, tr(STR_LOAD_XTC_FAILED)));
     }
     return;
   }
@@ -125,6 +129,9 @@ void ReaderActivity::openBookPath(const std::string& bookPath) {
     auto txt = loadTxt(bookPath);
     if (txt) {
       onGoToTxtReader(std::move(txt));
+    } else {
+      exitActivity();
+      enterNewActivity(new FullScreenMessageActivity(renderer, mappedInput, tr(STR_LOAD_TXT_FAILED)));
     }
     return;
   }
@@ -132,6 +139,9 @@ void ReaderActivity::openBookPath(const std::string& bookPath) {
   auto epub = loadEpub(bookPath);
   if (epub) {
     onGoToEpubReader(std::move(epub));
+  } else {
+    exitActivity();
+    enterNewActivity(new FullScreenMessageActivity(renderer, mappedInput, tr(STR_LOAD_EPUB_FAILED)));
   }
 }
 
@@ -144,6 +154,7 @@ void ReaderActivity::onEnter() {
   }
   openBookPath(initialBookPath);
   if (!subActivity) {
-    onGoBack();
+    // Book failed to load and no error screen was shown — go to library at book location
+    goToLibrary(initialBookPath);
   }
 }
