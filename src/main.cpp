@@ -57,14 +57,14 @@ EpdFont chareink18BoldFont(&chareink_18_bold);
 EpdFont chareink18ItalicFont(&chareink_18_italic);
 EpdFontFamily chareink18FontFamily(&chareink18RegularFont, &chareink18BoldFont, &chareink18ItalicFont, nullptr);
 
-EpdFont alegreya16RegularFont(&alegreya_16_regular);
-EpdFont alegreya16BoldFont(&alegreya_16_bold);
-EpdFont alegreya16ItalicFont(&alegreya_16_italic);
-EpdFontFamily alegreya16FontFamily(&alegreya16RegularFont, &alegreya16BoldFont, &alegreya16ItalicFont, nullptr);
-EpdFont alegreya18RegularFont(&alegreya_18_regular);
-EpdFont alegreya18BoldFont(&alegreya_18_bold);
-EpdFont alegreya18ItalicFont(&alegreya_18_italic);
-EpdFontFamily alegreya18FontFamily(&alegreya18RegularFont, &alegreya18BoldFont, &alegreya18ItalicFont, nullptr);
+EpdFont atkinson16RegularFont(&atkinson_16_regular);
+EpdFont atkinson16BoldFont(&atkinson_16_bold);
+EpdFont atkinson16ItalicFont(&atkinson_16_italic);
+EpdFontFamily atkinson16FontFamily(&atkinson16RegularFont, &atkinson16BoldFont, &atkinson16ItalicFont, nullptr);
+EpdFont atkinson18RegularFont(&atkinson_18_regular);
+EpdFont atkinson18BoldFont(&atkinson_18_bold);
+EpdFont atkinson18ItalicFont(&atkinson_18_italic);
+EpdFontFamily atkinson18FontFamily(&atkinson18RegularFont, &atkinson18BoldFont, &atkinson18ItalicFont, nullptr);
 
 EpdFont unifont14RegularFont(&unifont_14_regular);
 EpdFontFamily unifont14FontFamily(&unifont14RegularFont, nullptr, nullptr, nullptr, 1, 0, false);
@@ -215,8 +215,8 @@ void setupDisplayAndFonts() {
   renderer.insertFont(BOOKERLY_18_FONT_ID, bookerly18FontFamily);
   renderer.insertFont(CHAREINK_16_FONT_ID, chareink16FontFamily);
   renderer.insertFont(CHAREINK_18_FONT_ID, chareink18FontFamily);
-  renderer.insertFont(ALEGREYA_16_FONT_ID, alegreya16FontFamily);
-  renderer.insertFont(ALEGREYA_18_FONT_ID, alegreya18FontFamily);
+  renderer.insertFont(ATKINSON_16_FONT_ID, atkinson16FontFamily);
+  renderer.insertFont(ATKINSON_18_FONT_ID, atkinson18FontFamily);
   renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
   renderer.insertFont(UNIFONT_18_FONT_ID, unifont18FontFamily);
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);

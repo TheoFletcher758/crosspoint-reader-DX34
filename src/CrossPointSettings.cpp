@@ -444,13 +444,13 @@ int CrossPointSettings::getReaderFontId() const {
         default:
           return CHAREINK_16_FONT_ID;
       }
-    case ALEGREYA:
+    case ATKINSON:
       switch (fontSize) {
         case LARGE:
-          return ALEGREYA_18_FONT_ID;
+          return ATKINSON_18_FONT_ID;
         case MEDIUM:
         default:
-          return ALEGREYA_16_FONT_ID;
+          return ATKINSON_16_FONT_ID;
       }
     case BOOKERLY:
     default:
