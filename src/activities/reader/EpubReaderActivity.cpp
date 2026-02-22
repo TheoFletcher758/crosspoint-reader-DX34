@@ -40,6 +40,21 @@ int clampPercent(int percent) {
   return percent;
 }
 
+void drawDottedRect(const GfxRenderer& renderer, int x, int y, int w, int h) {
+  const int x2 = x + w - 1;
+  const int y2 = y + h - 1;
+  // Top and bottom edges
+  for (int px = x; px <= x2; px += 2) {
+    renderer.drawPixel(px, y);
+    renderer.drawPixel(px, y2);
+  }
+  // Left and right edges
+  for (int py = y + 1; py < y2; py += 2) {
+    renderer.drawPixel(x, py);
+    renderer.drawPixel(x2, py);
+  }
+}
+
 void drawStyledProgressBar(const GfxRenderer& renderer, const size_t progressPercent, const int levelFromBottom) {
   int vieweableMarginTop, vieweableMarginRight, vieweableMarginBottom, vieweableMarginLeft;
   renderer.getOrientedViewableTRBL(&vieweableMarginTop, &vieweableMarginRight, &vieweableMarginBottom,
@@ -958,6 +973,12 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   const int contentY = orientedMarginTop + verticalOffset;
 
   page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
+  // Debug: dotted border around reader content viewport
+  const int viewportX = orientedMarginLeft;
+  const int viewportY = orientedMarginTop;
+  const int viewportW = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
+  const int viewportH = viewportHeight;
+  drawDottedRect(renderer, viewportX, viewportY, viewportW, viewportH);
   renderStatusBar(orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
   if (forceFullRefresh || pagesUntilFullRefresh <= 1) {
     renderer.displayBuffer(HalDisplay::HALF_REFRESH);
@@ -997,6 +1018,9 @@ void EpubReaderActivity::renderStatusBar(const int orientedMarginRight, const in
   const int statusBottomInset = getStatusBottomInset(renderer);
   const int statusTopY = screenHeight - statusBottomInset - statusBarReserved;
   const auto textY = statusTopY + statusTextTopPadding;
+  // Debug: dotted border around status bar viewport
+  drawDottedRect(renderer, orientedMarginLeft, statusTopY,
+                 renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight, statusBarReserved);
   if (showStatusTopLine) {
     renderer.drawLine(orientedMarginLeft, statusTopY, renderer.getScreenWidth() - orientedMarginRight - 1, statusTopY,
                       true);

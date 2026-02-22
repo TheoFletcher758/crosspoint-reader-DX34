@@ -438,28 +438,20 @@ int CrossPointSettings::getReaderFontId() const {
   switch (fontFamily) {
     case CHAREINK:
       switch (fontSize) {
-        case SMALL:
-          return CHAREINK_14_FONT_ID;
-        case MEDIUM:
-          return CHAREINK_16_FONT_ID;
         case LARGE:
           return CHAREINK_18_FONT_ID;
-        case X_LARGE:
+        case MEDIUM:
         default:
-          return CHAREINK_20_FONT_ID;
+          return CHAREINK_16_FONT_ID;
       }
     case BOOKERLY:
     default:
       switch (fontSize) {
-        case SMALL:
-          return BOOKERLY_14_FONT_ID;
-        case MEDIUM:
-          return BOOKERLY_16_FONT_ID;
         case LARGE:
           return BOOKERLY_18_FONT_ID;
-        case X_LARGE:
+        case MEDIUM:
         default:
-          return BOOKERLY_20_FONT_ID;
+          return BOOKERLY_16_FONT_ID;
       }
   }
 }

@@ -31,8 +31,8 @@ const EpdFont* EpdFontFamily::getFont(const Style style) const {
 
   if (hasBold && hasItalic) {
     if (boldItalic) return boldItalic;
-    if (bold) return bold;
     if (italic) return italic;
+    if (bold) return bold;
   } else if (hasBold && bold) {
     return bold;
   } else if (hasItalic && italic) {
