@@ -148,6 +148,8 @@ class SettingsActivity final : public ActivityWithSubactivity {
   unsigned long lastNextTapMs = 0;
   unsigned long lastPreviousTapMs = 0;
   bool homeStatsPopupOpen = false;
+  bool randomizePopupOpen = false;
+  bool randomizePopupSuccess = false;
 
   // Per-category settings derived from shared list + device-only actions
   std::vector<SettingInfo> displaySettings;

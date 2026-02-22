@@ -173,6 +173,21 @@ void SettingsActivity::loop() {
     return;
   }
 
+  if (randomizePopupOpen) {
+    const bool anyPress = mappedInput.wasPressed(MappedInputManager::Button::Confirm) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Back) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::PageForward) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Left) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Right) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Power);
+    if (anyPress) {
+      randomizePopupOpen = false;
+      requestUpdate();
+    }
+    return;
+  }
+
   // Handle actions with early return
   if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
     toggleCurrentSetting();
@@ -299,7 +314,9 @@ void SettingsActivity::toggleCurrentSetting() {
         enterSubActivity(new LanguageSelectActivity(renderer, mappedInput, onComplete));
         break;
       case SettingAction::RandomizeSleepImages:
-        SleepActivity::randomizeSleepImagePlaylist();
+        randomizePopupSuccess = SleepActivity::randomizeSleepImagePlaylist();
+        randomizePopupOpen = true;
+        requestUpdate();
         break;
       case SettingAction::RefreshHomeStats: {
         homeStatsPopupOpen = true;
@@ -393,6 +410,11 @@ void SettingsActivity::render(Activity::RenderLock&&) {
 
   if (homeStatsPopupOpen) {
     GUI.drawHomeInfoStatsPopup(renderer);
+  }
+
+  if (randomizePopupOpen) {
+    const char* msg = randomizePopupSuccess ? tr(STR_DONE) : tr(STR_NO_ENTRIES);
+    GUI.drawPopup(renderer, msg);
   }
 
   // Always use standard refresh for settings screen
