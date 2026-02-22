@@ -67,6 +67,11 @@ bool ZipFile::loadAllFileStatSlims() {
     file.read(&k, 2);
     file.seekCur(8);
     file.read(&fileStat.localHeaderOffset, 4);
+    if (nameLen >= sizeof(itemName)) {
+      // Name too long for buffer, skip this entry
+      file.seekCur(nameLen + m + k);
+      continue;
+    }
     file.read(itemName, nameLen);
     itemName[nameLen] = '\0';
 
@@ -119,7 +124,12 @@ bool ZipFile::loadFileStatSlim(const char* filename, FileStatSlim* fileStat) {
   uint32_t sig;
   char itemName[256];
 
-  while (true) {
+  // Limit scan to at most totalEntries*2 to handle one wrap-around on corrupted ZIPs
+  const uint32_t maxScan = static_cast<uint32_t>(zipDetails.totalEntries) * 2 + 2;
+  uint32_t scanned = 0;
+
+  while (scanned < maxScan) {
+    scanned++;
     uint32_t entryStart = file.position();
 
     if (file.read(&sig, 4) != 4 || sig != 0x02014b50) {
@@ -463,6 +473,7 @@ uint8_t* ZipFile::readFileToMemory(const char* filename, size_t* size, const boo
     // Continue out of block with data set
   } else {
     LOG_ERR("ZIP", "Unsupported compression method");
+    free(data);
     if (!wasOpen) {
       close();
     }

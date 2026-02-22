@@ -351,6 +351,11 @@ bool JpegToBmpConverter::jpegFileToBmpStreamInternal(FsFile& jpegFile, Print& bm
         } else {
           LOG_ERR("JPG", "JPEG decode MCU failed at (%d, %d) with error code: %d", mcuX, mcuY, mcuStatus);
         }
+        delete atkinson1BitDitherer;
+        delete atkinsonDitherer;
+        delete fsDitherer;
+        delete[] rowAccum;
+        delete[] rowCount;
         free(mcuRowBuffer);
         free(rowBuffer);
         return false;

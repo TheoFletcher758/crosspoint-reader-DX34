@@ -39,6 +39,12 @@ static void writeString(FsFile& file, const std::string& s) {
 static void readString(std::istream& is, std::string& s) {
   uint32_t len;
   readPod(is, len);
+  // Guard against corrupted files claiming absurdly large strings (OOM on 320KB RAM device)
+  constexpr uint32_t MAX_STRING_LEN = 4096;
+  if (len > MAX_STRING_LEN) {
+    s.clear();
+    return;
+  }
   s.resize(len);
   is.read(&s[0], len);
 }
@@ -46,6 +52,12 @@ static void readString(std::istream& is, std::string& s) {
 static void readString(FsFile& file, std::string& s) {
   uint32_t len;
   readPod(file, len);
+  // Guard against corrupted files claiming absurdly large strings (OOM on 320KB RAM device)
+  constexpr uint32_t MAX_STRING_LEN = 4096;
+  if (len > MAX_STRING_LEN) {
+    s.clear();
+    return;
+  }
   s.resize(len);
   file.read(&s[0], len);
 }

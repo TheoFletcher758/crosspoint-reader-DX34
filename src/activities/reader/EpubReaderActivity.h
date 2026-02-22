@@ -34,6 +34,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   int lastSavedSpineIndex = -1;
   int lastSavedPage = -1;
   int lastSavedPageCount = -1;
+  int pageLoadFailCount = 0;  // Tracks consecutive page load failures to prevent infinite retry loops
   const std::function<void()> onGoBack;
   const std::function<void()> onGoHome;
   const std::function<void(const std::string&)> onOpenBook;

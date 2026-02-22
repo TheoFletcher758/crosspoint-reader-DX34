@@ -22,6 +22,7 @@ std::unique_ptr<PageLine> PageLine::deserialize(FsFile& file) {
   serialization::readPod(file, yPos);
 
   auto tb = TextBlock::deserialize(file);
+  if (!tb) return nullptr;  // TextBlock failed (e.g. corrupt word count), don't create a PageLine with null block
   return std::unique_ptr<PageLine>(new PageLine(std::move(tb), xPos, yPos));
 }
 
@@ -82,6 +83,10 @@ std::unique_ptr<Page> Page::deserialize(FsFile& file) {
 
     if (tag == TAG_PageLine) {
       auto pl = PageLine::deserialize(file);
+      if (!pl) {
+        LOG_ERR("PGE", "Deserialization failed: PageLine at index %u returned null", i);
+        return nullptr;
+      }
       page->elements.push_back(std::move(pl));
     } else if (tag == TAG_PageImage) {
       auto pi = PageImage::deserialize(file);

@@ -594,7 +594,8 @@ void MyLibraryActivity::loop() {
       if (basepath != "/") {
         const std::string oldPath = basepath;
 
-        basepath.replace(basepath.find_last_of('/'), std::string::npos, "");
+        const auto lastSlash = basepath.find_last_of('/');
+        if (lastSlash != std::string::npos) basepath.replace(lastSlash, std::string::npos, "");
         if (basepath.empty()) basepath = "/";
         loadFiles();
 

@@ -860,13 +860,18 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
   {
     auto p = section->loadPageFromSectionFile();
     if (!p) {
-      LOG_ERR("ERS", "Failed to load page from SD - clearing section cache");
+      pageLoadFailCount++;
+      LOG_ERR("ERS", "Failed to load page from SD - clearing section cache (attempt %d)", pageLoadFailCount);
       section->clearCache();
       section.reset();
-      requestUpdate();  // Try again after clearing cache
-      // TODO: prevent infinite loop if the page keeps failing to load for some reason
+      if (pageLoadFailCount < 3) {
+        requestUpdate();  // Try again after clearing cache
+      } else {
+        LOG_ERR("ERS", "Page load failed %d times, giving up to prevent infinite loop", pageLoadFailCount);
+      }
       return;
     }
+    pageLoadFailCount = 0;
     const auto start = millis();
     renderContents(std::move(p), orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
     LOG_DBG("ERS", "Rendered page in %dms", millis() - start);
@@ -1000,7 +1005,7 @@ void EpubReaderActivity::renderStatusBar(const int orientedMarginRight, const in
   int progressTextWidth = 0;
 
   // Calculate progress in book
-  const float sectionChapterProg = static_cast<float>(section->currentPage) / section->pageCount;
+  const float sectionChapterProg = (section->pageCount > 0) ? static_cast<float>(section->currentPage) / section->pageCount : 0.0f;
   const float bookProgress = epub->calculateProgress(currentSpineIndex, sectionChapterProg) * 100;
 
   const float chapterProgress = (section->pageCount > 0) ? (static_cast<float>(section->currentPage + 1) / section->pageCount) * 100 : 0;
