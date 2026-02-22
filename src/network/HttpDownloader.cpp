@@ -29,7 +29,7 @@ bool HttpDownloader::fetchUrl(const std::string& url, Stream& outContent) {
 
   http.begin(*client, url.c_str());
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  http.addHeader("User-Agent", "CrossPoint-ESP32-" CROSSPOINT_VERSION);
+  http.addHeader("User-Agent", "DX34-ESP32-" CROSSPOINT_VERSION);
 
   // Add Basic HTTP auth if credentials are configured
   if (strlen(SETTINGS.opdsUsername) > 0 && strlen(SETTINGS.opdsPassword) > 0) {
@@ -80,7 +80,7 @@ HttpDownloader::DownloadError HttpDownloader::downloadToFile(const std::string& 
 
   http.begin(*client, url.c_str());
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  http.addHeader("User-Agent", "CrossPoint-ESP32-" CROSSPOINT_VERSION);
+  http.addHeader("User-Agent", "DX34-ESP32-" CROSSPOINT_VERSION);
 
   // Add Basic HTTP auth if credentials are configured
   if (strlen(SETTINGS.opdsUsername) > 0 && strlen(SETTINGS.opdsPassword) > 0) {

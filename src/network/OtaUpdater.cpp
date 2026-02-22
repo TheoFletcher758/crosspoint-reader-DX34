@@ -24,7 +24,7 @@ extern esp_err_t esp_crt_bundle_attach(void* conf);
 }
 
 esp_err_t http_client_set_header_cb(esp_http_client_handle_t http_client) {
-  return esp_http_client_set_header(http_client, "User-Agent", "CrossPoint-ESP32-" CROSSPOINT_VERSION);
+  return esp_http_client_set_header(http_client, "User-Agent", "DX34-ESP32-" CROSSPOINT_VERSION);
 }
 
 esp_err_t event_handler(esp_http_client_event_t* event) {
@@ -93,7 +93,7 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
     return INTERNAL_UPDATE_ERROR;
   }
 
-  esp_err = esp_http_client_set_header(client_handle, "User-Agent", "CrossPoint-ESP32-" CROSSPOINT_VERSION);
+  esp_err = esp_http_client_set_header(client_handle, "User-Agent", "DX34-ESP32-" CROSSPOINT_VERSION);
   if (esp_err != ESP_OK) {
     LOG_ERR("OTA", "esp_http_client_set_header Failed : %s", esp_err_to_name(esp_err));
     esp_http_client_cleanup(client_handle);
