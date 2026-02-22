@@ -973,12 +973,10 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   const int contentY = orientedMarginTop + verticalOffset;
 
   page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
-  // Debug: dotted border around reader content viewport
-  const int viewportX = orientedMarginLeft;
-  const int viewportY = orientedMarginTop;
-  const int viewportW = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
-  const int viewportH = viewportHeight;
-  drawDottedRect(renderer, viewportX, viewportY, viewportW, viewportH);
+  if (SETTINGS.debugBorders) {
+    drawDottedRect(renderer, orientedMarginLeft, orientedMarginTop,
+                   renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight, viewportHeight);
+  }
   renderStatusBar(orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
   if (forceFullRefresh || pagesUntilFullRefresh <= 1) {
     renderer.displayBuffer(HalDisplay::HALF_REFRESH);
@@ -1018,9 +1016,10 @@ void EpubReaderActivity::renderStatusBar(const int orientedMarginRight, const in
   const int statusBottomInset = getStatusBottomInset(renderer);
   const int statusTopY = screenHeight - statusBottomInset - statusBarReserved;
   const auto textY = statusTopY + statusTextTopPadding;
-  // Debug: dotted border around status bar viewport
-  drawDottedRect(renderer, orientedMarginLeft, statusTopY,
-                 renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight, statusBarReserved);
+  if (SETTINGS.debugBorders) {
+    drawDottedRect(renderer, orientedMarginLeft, statusTopY,
+                   renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight, statusBarReserved);
+  }
   if (showStatusTopLine) {
     renderer.drawLine(orientedMarginLeft, statusTopY, renderer.getScreenWidth() - orientedMarginRight - 1, statusTopY,
                       true);

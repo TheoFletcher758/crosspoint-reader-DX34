@@ -82,7 +82,7 @@ class CrossPointSettings {
   enum SIDE_BUTTON_LAYOUT { PREV_NEXT = 0, NEXT_PREV = 1, SIDE_BUTTON_LAYOUT_COUNT };
 
   // Font family options
-  enum FONT_FAMILY { BOOKERLY = 0, CHAREINK = 1, FONT_FAMILY_COUNT };
+  enum FONT_FAMILY { BOOKERLY = 0, CHAREINK = 1, ALEGREYA = 2, FONT_FAMILY_COUNT };
   // Font size options
   enum FONT_SIZE { MEDIUM = 0, LARGE = 1, FONT_SIZE_COUNT };
   // Legacy line spacing enum (kept for settings migration compatibility)
@@ -199,6 +199,8 @@ class CrossPointSettings {
   uint8_t fadingFix = 0;
   // Use book's embedded CSS styles for EPUB rendering (1 = enabled, 0 = disabled)
   uint8_t embeddedStyle = 1;
+  // Draw dotted debug borders around reader and status bar viewports
+  uint8_t debugBorders = 0;
 
   ~CrossPointSettings() = default;
 

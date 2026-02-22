@@ -196,6 +196,7 @@ enum class StrId : uint16_t {
   STR_NOTO_SANS,
   STR_OPEN_DYSLEXIC,
   STR_GEORGIA,
+  STR_ALEGREYA,
   STR_SMALL,
   STR_MEDIUM,
   STR_LARGE,
@@ -357,6 +358,7 @@ enum class StrId : uint16_t {
   STR_STATUS_BAR_DOTTED,
   STR_STATUS_CHAPTER_TITLE,
   STR_STATUS_TOP_LINE,
+  STR_DEBUG_BORDERS,
   // Sentinel - must be last
   _COUNT
 };
