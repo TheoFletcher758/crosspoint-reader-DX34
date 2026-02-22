@@ -9,6 +9,7 @@
 #include <string>
 
 #include "Battery.h"
+#include "CrossPointSettings.h"
 #include "I18n.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"

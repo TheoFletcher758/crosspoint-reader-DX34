@@ -170,7 +170,6 @@ uint8_t CrossPointSettings::writeSettings(FsFile& file, bool count_only) const {
   writer.writeItemString(file, opdsUsername);
   writer.writeItemString(file, opdsPassword);
   writer.writeItem(file, sleepScreenCoverFilter);
-  writer.writeItem(file, uiTheme);
   writer.writeItem(file, frontButtonBack);
   writer.writeItem(file, frontButtonConfirm);
   writer.writeItem(file, frontButtonLeft);
@@ -316,7 +315,7 @@ bool CrossPointSettings::loadFromFile() {
     if (++settingsRead >= fileSettingsCount) break;
     readAndValidate(inputFile, sleepScreenCoverFilter, SLEEP_SCREEN_COVER_FILTER_COUNT);
     if (++settingsRead >= fileSettingsCount) break;
-    serialization::readPod(inputFile, uiTheme);
+    { uint8_t skip; serialization::readPod(inputFile, skip); }  // legacy: uiTheme (removed)
     if (++settingsRead >= fileSettingsCount) break;
     readAndValidate(inputFile, frontButtonBack, FRONT_BUTTON_HARDWARE_COUNT);
     if (++settingsRead >= fileSettingsCount) break;

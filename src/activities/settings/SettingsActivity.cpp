@@ -150,7 +150,6 @@ void SettingsActivity::onEnter() {
 void SettingsActivity::onExit() {
   ActivityWithSubactivity::onExit();
 
-  UITheme::getInstance().reload();  // Re-apply theme in case it was changed
 }
 
 void SettingsActivity::loop() {
