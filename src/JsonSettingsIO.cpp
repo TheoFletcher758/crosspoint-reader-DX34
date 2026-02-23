@@ -21,9 +21,8 @@
 // 3. Rename current to .bak
 // 4. Rename .tmp to current
 static bool safeWriteFile(const char *path, const String &json) {
-  char tmpPath[128], bakPath[128];
+  char tmpPath[128];
   snprintf(tmpPath, sizeof(tmpPath), "%s.tmp", path);
-  snprintf(bakPath, sizeof(bakPath), "%s.bak", path);
 
   // 1. Write to temp file
   if (!Storage.writeFile(tmpPath, json)) {
@@ -31,26 +30,17 @@ static bool safeWriteFile(const char *path, const String &json) {
     return false;
   }
 
-  // 2. Erase old bak if it exists
-  if (Storage.exists(bakPath)) {
-    Storage.remove(bakPath);
-  }
-
-  // 3. Rename current to bak (if it exists)
+  // 2. Remove current target before rename (SdFat rename fails if target
+  // exists)
   if (Storage.exists(path)) {
-    if (!Storage.rename(path, bakPath)) {
-      LOG_ERR("JSN", "safeWriteFile: failed to backup %s", path);
-      // We can't safely proceed without risking the only good copy
-      Storage.remove(tmpPath);
-      return false;
+    if (!Storage.remove(path)) {
+      LOG_ERR("JSN", "safeWriteFile: failed to remove %s before rename", path);
     }
   }
 
-  // 4. Rename tmp to current
+  // 3. Rename tmp to current
   if (!Storage.rename(tmpPath, path)) {
     LOG_ERR("JSN", "safeWriteFile: failed to promote %s", tmpPath);
-    // Try to rollback
-    Storage.rename(bakPath, path);
     return false;
   }
 
