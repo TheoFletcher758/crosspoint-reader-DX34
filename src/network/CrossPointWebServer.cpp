@@ -12,7 +12,10 @@
 
 #include "CrossPointSettings.h"
 #include "SettingsList.h"
+#if __has_include("WebDAVHandler.h")
 #include "WebDAVHandler.h"
+#define CROSSPOINT_HAS_WEBDAV 1
+#endif
 #include "html/FilesPageHtml.generated.h"
 #include "html/HomePageHtml.generated.h"
 #include "html/SettingsPageHtml.generated.h"
@@ -160,11 +163,13 @@ void CrossPointWebServer::begin() {
   server->onNotFound([this] { handleNotFound(); });
   LOG_DBG("WEB", "[MEM] Free heap after route setup: %d bytes", ESP.getFreeHeap());
 
+#if defined(CROSSPOINT_HAS_WEBDAV)
   // Collect WebDAV headers and register handler
   const char* davHeaders[] = {"Depth", "Destination", "Overwrite", "If", "Lock-Token", "Timeout"};
   server->collectHeaders(davHeaders, 6);
-  server->addHandler(new WebDAVHandler());  // Note: WebDAVHandler will be deleted by WebServer when server is stopped
+  server->addHandler(new WebDAVHandler());  // WebDAVHandler is deleted by WebServer when server stops
   LOG_DBG("WEB", "WebDAV handler initialized");
+#endif
   server->begin();
 
   // Start WebSocket server for fast binary uploads
