@@ -4,6 +4,7 @@
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <I18n.h>
+#include <Logging.h>
 #include <Serialization.h>
 #include <Utf8.h>
 
@@ -283,7 +284,9 @@ void TxtReaderActivity::toggleReaderBoldSwap() {
   flushProgressIfNeeded(true);
   const bool enableSwap = SETTINGS.readerBoldSwap == 0;
   SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
-  SETTINGS.saveToFile();
+  if (!SETTINGS.saveToFile()) {
+    LOG_ERR("TRS", "Failed to save settings after bold swap toggle");
+  }
   EpdFontFamily::setReaderBoldSwapEnabled(enableSwap);
 
   if (txt) {

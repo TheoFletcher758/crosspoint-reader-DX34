@@ -13,6 +13,52 @@
 #include "RecentBooksStore.h"
 #include "WifiCredentialStore.h"
 
+namespace {
+void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
+  settings.statusBarEnabled = 1;
+  settings.statusBarShowBattery = 1;
+  settings.statusBarShowPageCounter = 0;
+  settings.statusBarShowBookPercentage = 0;
+  settings.statusBarShowChapterPercentage = 0;
+  settings.statusBarShowBookBar = 0;
+  settings.statusBarShowChapterBar = 0;
+  settings.statusBarShowChapterTitle = 1;
+  settings.statusBarTopLine = 0;
+  settings.statusBarTextAlignment = CrossPointSettings::STATUS_TEXT_RIGHT;
+  settings.statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THICK;
+
+  switch (
+      static_cast<CrossPointSettings::STATUS_BAR_MODE>(settings.statusBar)) {
+  case CrossPointSettings::STATUS_BAR_MODE::NONE:
+    settings.statusBarEnabled = 0;
+    settings.statusBarShowBattery = 0;
+    settings.statusBarShowChapterTitle = 0;
+    break;
+  case CrossPointSettings::STATUS_BAR_MODE::NO_PROGRESS:
+    break;
+  case CrossPointSettings::STATUS_BAR_MODE::FULL:
+    settings.statusBarShowPageCounter = 1;
+    settings.statusBarShowBookPercentage = 1;
+    break;
+  case CrossPointSettings::STATUS_BAR_MODE::BOOK_PROGRESS_BAR:
+    settings.statusBarShowPageCounter = 1;
+    settings.statusBarShowBookBar = 1;
+    break;
+  case CrossPointSettings::STATUS_BAR_MODE::ONLY_BOOK_PROGRESS_BAR:
+    settings.statusBarShowBattery = 0;
+    settings.statusBarShowChapterTitle = 0;
+    settings.statusBarShowBookBar = 1;
+    break;
+  case CrossPointSettings::STATUS_BAR_MODE::CHAPTER_PROGRESS_BAR:
+    settings.statusBarShowBookPercentage = 1;
+    settings.statusBarShowChapterBar = 1;
+    break;
+  default:
+    break;
+  }
+}
+} // namespace
+
 // ---- Atomic write & read helpers ----
 // FAT32 does not support atomic rename over existing files.
 // To prevent dataloss on crash, we rotate backups:
@@ -22,7 +68,9 @@
 // 4. Rename .tmp to current
 static bool safeWriteFile(const char *path, const String &json) {
   char tmpPath[128];
+  char bakPath[128];
   snprintf(tmpPath, sizeof(tmpPath), "%s.tmp", path);
+  snprintf(bakPath, sizeof(bakPath), "%s.bak", path);
 
   // 1. Write to temp file
   if (!Storage.writeFile(tmpPath, json)) {
@@ -30,17 +78,36 @@ static bool safeWriteFile(const char *path, const String &json) {
     return false;
   }
 
-  // 2. Remove current target before rename (SdFat rename fails if target
-  // exists)
-  if (Storage.exists(path)) {
-    if (!Storage.remove(path)) {
-      LOG_ERR("JSN", "safeWriteFile: failed to remove %s before rename", path);
+  // 2. Remove stale backup
+  if (Storage.exists(bakPath)) {
+    if (!Storage.remove(bakPath)) {
+      LOG_ERR("JSN", "safeWriteFile: failed to remove stale bak %s", bakPath);
     }
   }
 
-  // 3. Rename tmp to current
+  // 3. Rotate current to backup
+  if (Storage.exists(path)) {
+    if (!Storage.rename(path, bakPath)) {
+      LOG_ERR("JSN", "safeWriteFile: failed to rotate %s to %s", path, bakPath);
+      Storage.remove(tmpPath);
+      return false;
+    }
+  }
+
+  // 4. Promote tmp to current
   if (!Storage.rename(tmpPath, path)) {
     LOG_ERR("JSN", "safeWriteFile: failed to promote %s", tmpPath);
+    if (Storage.exists(bakPath)) {
+      if (Storage.exists(path)) {
+        Storage.remove(path);
+      }
+      if (Storage.rename(bakPath, path)) {
+        LOG_ERR("JSN", "safeWriteFile: restored %s from backup", path);
+      } else {
+        LOG_ERR("JSN", "safeWriteFile: failed to restore %s from backup %s",
+                path, bakPath);
+      }
+    }
     return false;
   }
 
@@ -121,7 +188,19 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["sleepScreen"] = s.sleepScreen;
   doc["sleepScreenCoverMode"] = s.sleepScreenCoverMode;
   doc["sleepScreenCoverFilter"] = s.sleepScreenCoverFilter;
+  doc["showSleepImageFilename"] = s.showSleepImageFilename;
   doc["statusBar"] = s.statusBar;
+  doc["statusBarEnabled"] = s.statusBarEnabled;
+  doc["statusBarShowBattery"] = s.statusBarShowBattery;
+  doc["statusBarShowPageCounter"] = s.statusBarShowPageCounter;
+  doc["statusBarShowBookPercentage"] = s.statusBarShowBookPercentage;
+  doc["statusBarShowChapterPercentage"] = s.statusBarShowChapterPercentage;
+  doc["statusBarShowBookBar"] = s.statusBarShowBookBar;
+  doc["statusBarShowChapterBar"] = s.statusBarShowChapterBar;
+  doc["statusBarShowChapterTitle"] = s.statusBarShowChapterTitle;
+  doc["statusBarTopLine"] = s.statusBarTopLine;
+  doc["statusBarTextAlignment"] = s.statusBarTextAlignment;
+  doc["statusBarProgressStyle"] = s.statusBarProgressStyle;
   doc["extraParagraphSpacing"] = s.extraParagraphSpacing;
   doc["textAntiAliasing"] = s.textAntiAliasing;
   doc["shortPwrBtn"] = s.shortPwrBtn;
@@ -138,14 +217,19 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["sleepTimeout"] = s.sleepTimeout;
   doc["refreshFrequency"] = s.refreshFrequency;
   doc["screenMargin"] = s.screenMargin;
+  doc["screenMarginHorizontal"] = s.screenMarginHorizontal;
+  doc["screenMarginTop"] = s.screenMarginTop;
+  doc["screenMarginBottom"] = s.screenMarginBottom;
   doc["opdsServerUrl"] = s.opdsServerUrl;
   doc["opdsUsername"] = s.opdsUsername;
   doc["opdsPassword_obf"] = obfuscation::obfuscateToBase64(s.opdsPassword);
   doc["hideBatteryPercentage"] = s.hideBatteryPercentage;
   doc["longPressChapterSkip"] = s.longPressChapterSkip;
   doc["hyphenationEnabled"] = s.hyphenationEnabled;
+  doc["readerBoldSwap"] = s.readerBoldSwap;
   doc["fadingFix"] = s.fadingFix;
   doc["embeddedStyle"] = s.embeddedStyle;
+  doc["debugBorders"] = s.debugBorders;
 
   String json;
   serializeJson(doc, json);
@@ -175,8 +259,43 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
   s.sleepScreenCoverFilter =
       clamp(doc["sleepScreenCoverFilter"] | (uint8_t)S::NO_FILTER,
             S::SLEEP_SCREEN_COVER_FILTER_COUNT, S::NO_FILTER);
+  s.showSleepImageFilename = doc["showSleepImageFilename"] | (uint8_t)0;
   s.statusBar = clamp(doc["statusBar"] | (uint8_t)S::FULL,
                       S::STATUS_BAR_MODE_COUNT, S::FULL);
+  const bool hasGranularStatusBar = !doc["statusBarEnabled"].isNull() &&
+                                    !doc["statusBarShowBattery"].isNull() &&
+                                    !doc["statusBarShowPageCounter"].isNull() &&
+                                    !doc["statusBarShowBookPercentage"].isNull() &&
+                                    !doc["statusBarShowChapterPercentage"].isNull() &&
+                                    !doc["statusBarShowBookBar"].isNull() &&
+                                    !doc["statusBarShowChapterBar"].isNull() &&
+                                    !doc["statusBarShowChapterTitle"].isNull() &&
+                                    !doc["statusBarTopLine"].isNull() &&
+                                    !doc["statusBarTextAlignment"].isNull() &&
+                                    !doc["statusBarProgressStyle"].isNull();
+  if (hasGranularStatusBar) {
+    s.statusBarEnabled = doc["statusBarEnabled"] | (uint8_t)1;
+    s.statusBarShowBattery = doc["statusBarShowBattery"] | (uint8_t)1;
+    s.statusBarShowPageCounter = doc["statusBarShowPageCounter"] | (uint8_t)0;
+    s.statusBarShowBookPercentage =
+        doc["statusBarShowBookPercentage"] | (uint8_t)0;
+    s.statusBarShowChapterPercentage =
+        doc["statusBarShowChapterPercentage"] | (uint8_t)0;
+    s.statusBarShowBookBar = doc["statusBarShowBookBar"] | (uint8_t)0;
+    s.statusBarShowChapterBar = doc["statusBarShowChapterBar"] | (uint8_t)0;
+    s.statusBarShowChapterTitle = doc["statusBarShowChapterTitle"] | (uint8_t)1;
+    s.statusBarTopLine = doc["statusBarTopLine"] | (uint8_t)0;
+    s.statusBarTextAlignment =
+        clamp(doc["statusBarTextAlignment"] | (uint8_t)S::STATUS_TEXT_RIGHT,
+              S::STATUS_TEXT_ALIGNMENT_COUNT, S::STATUS_TEXT_RIGHT);
+    s.statusBarProgressStyle =
+        clamp(doc["statusBarProgressStyle"] | (uint8_t)S::STATUS_BAR_THICK,
+              S::STATUS_BAR_PROGRESS_STYLE_COUNT, S::STATUS_BAR_THICK);
+  } else {
+    migrateLegacyStatusBarMode(s);
+    if (needsResave)
+      *needsResave = true;
+  }
   s.extraParagraphSpacing = doc["extraParagraphSpacing"] | (uint8_t)1;
   s.textAntiAliasing = doc["textAntiAliasing"] | (uint8_t)1;
   s.shortPwrBtn = clamp(doc["shortPwrBtn"] | (uint8_t)S::IGNORE,
@@ -210,13 +329,29 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
   s.refreshFrequency = clamp(doc["refreshFrequency"] | (uint8_t)S::REFRESH_15,
                              S::REFRESH_FREQUENCY_COUNT, S::REFRESH_15);
   s.screenMargin = doc["screenMargin"] | (uint8_t)5;
+  const bool hasSplitMargins = !doc["screenMarginHorizontal"].isNull() &&
+                               !doc["screenMarginTop"].isNull() &&
+                               !doc["screenMarginBottom"].isNull();
+  if (hasSplitMargins) {
+    s.screenMarginHorizontal = doc["screenMarginHorizontal"] | s.screenMargin;
+    s.screenMarginTop = doc["screenMarginTop"] | s.screenMargin;
+    s.screenMarginBottom = doc["screenMarginBottom"] | s.screenMargin;
+  } else {
+    s.screenMarginHorizontal = s.screenMargin;
+    s.screenMarginTop = s.screenMargin;
+    s.screenMarginBottom = s.screenMargin;
+    if (needsResave)
+      *needsResave = true;
+  }
   s.hideBatteryPercentage =
       clamp(doc["hideBatteryPercentage"] | (uint8_t)S::HIDE_NEVER,
             S::HIDE_BATTERY_PERCENTAGE_COUNT, S::HIDE_NEVER);
   s.longPressChapterSkip = doc["longPressChapterSkip"] | (uint8_t)1;
   s.hyphenationEnabled = doc["hyphenationEnabled"] | (uint8_t)0;
+  s.readerBoldSwap = doc["readerBoldSwap"] | (uint8_t)0;
   s.fadingFix = doc["fadingFix"] | (uint8_t)0;
   s.embeddedStyle = doc["embeddedStyle"] | (uint8_t)1;
+  s.debugBorders = doc["debugBorders"] | (uint8_t)0;
 
   const char *url = doc["opdsServerUrl"] | "";
   strncpy(s.opdsServerUrl, url, sizeof(s.opdsServerUrl) - 1);

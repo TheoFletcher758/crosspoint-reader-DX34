@@ -38,6 +38,12 @@ uint8_t nextReaderMarginValue(const uint8_t current) {
   return kMargins[0];
 }
 
+void persistSettingsWithLog(const char* context) {
+  if (!SETTINGS.saveToFile()) {
+    LOG_ERR("SET", "Failed to save settings (%s)", context);
+  }
+}
+
 }
 
 const std::vector<SettingInfo>* SettingsActivity::settingsForCategory(const int categoryIndex) const {
@@ -149,7 +155,7 @@ void SettingsActivity::onEnter() {
 
 void SettingsActivity::onExit() {
   ActivityWithSubactivity::onExit();
-  SETTINGS.saveToFile();
+  persistSettingsWithLog("settings exit");
 }
 
 void SettingsActivity::loop() {
@@ -196,7 +202,7 @@ void SettingsActivity::loop() {
   }
 
   if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
-    SETTINGS.saveToFile();
+    persistSettingsWithLog("settings back");
     onGoHome();
     return;
   }
@@ -331,7 +337,7 @@ void SettingsActivity::toggleCurrentSetting() {
     return;
   }
 
-  SETTINGS.saveToFile();
+  persistSettingsWithLog("settings toggle");
 }
 
 void SettingsActivity::render(Activity::RenderLock&&) {

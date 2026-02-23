@@ -507,7 +507,9 @@ void EpubReaderActivity::toggleReaderBoldSwap() {
   flushProgressIfNeeded(true);
   const bool enableSwap = SETTINGS.readerBoldSwap == 0;
   SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
-  SETTINGS.saveToFile();
+  if (!SETTINGS.saveToFile()) {
+    LOG_ERR("ERS", "Failed to save settings after bold swap toggle");
+  }
   EpdFontFamily::setReaderBoldSwapEnabled(enableSwap);
 
   uint16_t backupSpine = 0;

@@ -12,6 +12,7 @@
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <I18n.h>
+#include <Logging.h>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
@@ -249,7 +250,9 @@ void XtcReaderActivity::toggleReaderBoldSwap() {
   flushProgressIfNeeded(true);
   const bool enableSwap = SETTINGS.readerBoldSwap == 0;
   SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
-  SETTINGS.saveToFile();
+  if (!SETTINGS.saveToFile()) {
+    LOG_ERR("XRS", "Failed to save settings after bold swap toggle");
+  }
   EpdFontFamily::setReaderBoldSwapEnabled(enableSwap);
   requestUpdate();
 }
