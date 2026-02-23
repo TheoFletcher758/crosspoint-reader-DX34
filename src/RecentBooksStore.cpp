@@ -193,14 +193,59 @@ bool RecentBooksStore::loadFromFile() {
     }
   }
 
-  // Fall back to binary migration
-  if (Storage.exists(RECENT_BOOKS_FILE_BIN)) {
-    if (loadFromBinaryFile()) {
-      saveToFile();
-      Storage.rename(RECENT_BOOKS_FILE_BIN, RECENT_BOOKS_FILE_BAK);
-      LOG_DBG("RBS", "Migrated recent.bin to recent.json");
-      return true;
+  // Fall back to binary migration — check upstream path first, then DX34 legacy
+  // path
+  const char *binPaths[] = {
+      RECENT_BOOKS_FILE_BIN,        // "/.crosspoint/recent.bin"
+      "/.crosspoint/recent_v2.bin", // DX34 legacy path before JSON migration
+  };
+  for (const char *binPath : binPaths) {
+    if (!Storage.exists(binPath))
+      continue;
+
+    FsFile inputFile;
+    if (!Storage.openFileForRead("RBS", binPath, inputFile))
+      continue;
+
+    // Inline the binary parse (same logic as loadFromBinaryFile but
+    // path-agnostic)
+    uint8_t version;
+    serialization::readPod(inputFile, version);
+    if (version != 1 && version != 2 && version != 3) {
+      LOG_ERR("RBS", "Unknown recent books version %u in %s", version, binPath);
+      inputFile.close();
+      continue;
     }
+
+    uint8_t count;
+    serialization::readPod(inputFile, count);
+    recentBooks.clear();
+    recentBooks.reserve(count);
+
+    for (uint8_t i = 0; i < count; i++) {
+      std::string path, title, author, coverBmpPath;
+      serialization::readString(inputFile, path);
+      if (version >= 2) {
+        serialization::readString(inputFile, title);
+        serialization::readString(inputFile, author);
+      }
+      if (version >= 3) {
+        serialization::readString(inputFile, coverBmpPath);
+      }
+      if (!path.empty()) {
+        recentBooks.push_back(
+            {normalizeRecentPath(path), title, author, coverBmpPath});
+      }
+    }
+    inputFile.close();
+
+    dedupeRecentBooks(recentBooks);
+    LOG_DBG("RBS", "Migrated %d books from %s to recent.json",
+            static_cast<int>(recentBooks.size()), binPath);
+
+    saveToFile();
+    Storage.rename(binPath, RECENT_BOOKS_FILE_BAK);
+    return true;
   }
 
   return false;
