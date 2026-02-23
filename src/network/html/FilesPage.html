@@ -199,13 +199,15 @@
     .file-icon {
       margin-right: 8px;
     }
-    .folder-link {
-      color: #2c3e50;
+    .folder-link,
+    .file-link {
+      color: var(--accent-color);
       text-decoration: none;
       cursor: pointer;
     }
-    .folder-link:hover {
-      color: #3498db;
+    .folder-link:hover,
+    .file-link:hover {
+      color: var(--accent-hover-color);
       text-decoration: underline;
     }
     .upload-form {
@@ -859,7 +861,8 @@
           // Checkbox cell + file row
           fileTableContent += `<tr class="${file.isEpub ? 'epub-file' : ''}">`;
           fileTableContent += `<td><input type="checkbox" class="select-item" data-path="${encodeURIComponent(filePath)}" data-name="${escapeHtml(file.name)}" data-type="file"></td>`;
-          fileTableContent += `<td><span class="file-icon">${file.isEpub ? '📗' : '📄'}</span>${escapeHtml(file.name)}`;
+          fileTableContent += `<td><span class="file-icon">${file.isEpub ? '📗' : '📄'}</span>`;
+          fileTableContent += `<a rel="noopener noreferrer" target="_blank" href="/download?path=${encodeURIComponent(filePath)}" class="file-link">${escapeHtml(file.name)}</a>`;
           if (file.isEpub) fileTableContent += '<span class="epub-badge">EPUB</span>';
           fileTableContent += '</td>';
           fileTableContent += `<td>${file.name.split('.').pop().toUpperCase()}</td>`;
