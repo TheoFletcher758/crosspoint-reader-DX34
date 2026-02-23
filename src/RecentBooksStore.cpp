@@ -186,11 +186,13 @@ RecentBook RecentBooksStore::getDataFromBook(std::string path) const {
 
 bool RecentBooksStore::loadFromFile() {
   // Try JSON first
-  if (Storage.exists(RECENT_BOOKS_FILE_JSON)) {
-    String json = Storage.readFile(RECENT_BOOKS_FILE_JSON);
-    if (!json.isEmpty()) {
-      return JsonSettingsIO::loadRecentBooks(*this, json.c_str());
-    }
+  if (!Storage.exists(RECENT_BOOKS_FILE_JSON)) {
+    return false;
+  }
+
+  String json = JsonSettingsIO::safeReadFile(RECENT_BOOKS_FILE_JSON);
+  if (!json.isEmpty()) {
+    return JsonSettingsIO::loadRecentBooks(*this, json.c_str());
   }
 
   // Fall back to binary migration — check upstream path first, then DX34 legacy

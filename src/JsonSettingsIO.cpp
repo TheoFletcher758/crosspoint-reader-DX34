@@ -13,31 +13,84 @@
 #include "RecentBooksStore.h"
 #include "WifiCredentialStore.h"
 
-// ---- Atomic write helper ----
-// Write JSON to a .tmp file first, then rename over the real path.
-// If the device crashes mid-write, the old file survives intact.
+// ---- Atomic write & read helpers ----
+// FAT32 does not support atomic rename over existing files.
+// To prevent dataloss on crash, we rotate backups:
+// 1. Write to .tmp
+// 2. Erase old .bak
+// 3. Rename current to .bak
+// 4. Rename .tmp to current
 static bool safeWriteFile(const char *path, const String &json) {
-  // Build tmp path: append ".tmp" (max 8 extra chars, safe for any path)
-  char tmpPath[128];
+  char tmpPath[128], bakPath[128];
   snprintf(tmpPath, sizeof(tmpPath), "%s.tmp", path);
+  snprintf(bakPath, sizeof(bakPath), "%s.bak", path);
 
-  // Write to temp file
+  // 1. Write to temp file
   if (!Storage.writeFile(tmpPath, json)) {
-    LOG_ERR("JSN", "safeWriteFile: failed to write tmp file %s", tmpPath);
+    LOG_ERR("JSN", "safeWriteFile: failed to write tmp %s", tmpPath);
     return false;
   }
 
-  // Remove old target if it exists, then rename tmp → target
-  if (Storage.exists(path)) {
-    Storage.remove(path);
+  // 2. Erase old bak if it exists
+  if (Storage.exists(bakPath)) {
+    Storage.remove(bakPath);
   }
+
+  // 3. Rename current to bak (if it exists)
+  if (Storage.exists(path)) {
+    if (!Storage.rename(path, bakPath)) {
+      LOG_ERR("JSN", "safeWriteFile: failed to backup %s", path);
+      // We can't safely proceed without risking the only good copy
+      Storage.remove(tmpPath);
+      return false;
+    }
+  }
+
+  // 4. Rename tmp to current
   if (!Storage.rename(tmpPath, path)) {
-    LOG_ERR("JSN", "safeWriteFile: rename failed %s -> %s", tmpPath, path);
-    // tmp file is still there and valid — try to leave it as a fallback
+    LOG_ERR("JSN", "safeWriteFile: failed to promote %s", tmpPath);
+    // Try to rollback
+    Storage.rename(bakPath, path);
     return false;
   }
 
   return true;
+}
+
+// Read the JSON file, automatically trying fallbacks if a crash occurred
+// mid-save
+String JsonSettingsIO::safeReadFile(const char *path) {
+  if (Storage.exists(path)) {
+    String json = Storage.readFile(path);
+    if (!json.isEmpty())
+      return json;
+  }
+
+  // Primary failed/empty. Try backup (which means crash happened during step 4
+  // or 3)
+  char bakPath[128];
+  snprintf(bakPath, sizeof(bakPath), "%s.bak", path);
+  if (Storage.exists(bakPath)) {
+    String json = Storage.readFile(bakPath);
+    if (!json.isEmpty()) {
+      LOG_DBG("JSN", "safeReadFile: Recovered %s from .bak", path);
+      return json;
+    }
+  }
+
+  // Backup failed/empty. Try tmp (which means crash happened during step 1 or
+  // 2, but primary was also missing beforehand)
+  char tmpPath[128];
+  snprintf(tmpPath, sizeof(tmpPath), "%s.tmp", path);
+  if (Storage.exists(tmpPath)) {
+    String json = Storage.readFile(tmpPath);
+    if (!json.isEmpty()) {
+      LOG_DBG("JSN", "safeReadFile: Recovered %s from .tmp", path);
+      return json;
+    }
+  }
+
+  return "";
 }
 
 // ---- CrossPointState ----

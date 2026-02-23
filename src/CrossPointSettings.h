@@ -239,7 +239,7 @@ public:
   // disabled)
   uint8_t embeddedStyle = 1;
   // Draw dotted debug borders around reader and status bar viewports
-  uint8_t debugBorders = 1;
+  uint8_t debugBorders = 0;
 
   ~CrossPointSettings() = default;
 
