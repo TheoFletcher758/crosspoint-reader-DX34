@@ -13,6 +13,33 @@
 #include "RecentBooksStore.h"
 #include "WifiCredentialStore.h"
 
+// ---- Atomic write helper ----
+// Write JSON to a .tmp file first, then rename over the real path.
+// If the device crashes mid-write, the old file survives intact.
+static bool safeWriteFile(const char *path, const String &json) {
+  // Build tmp path: append ".tmp" (max 8 extra chars, safe for any path)
+  char tmpPath[128];
+  snprintf(tmpPath, sizeof(tmpPath), "%s.tmp", path);
+
+  // Write to temp file
+  if (!Storage.writeFile(tmpPath, json)) {
+    LOG_ERR("JSN", "safeWriteFile: failed to write tmp file %s", tmpPath);
+    return false;
+  }
+
+  // Remove old target if it exists, then rename tmp → target
+  if (Storage.exists(path)) {
+    Storage.remove(path);
+  }
+  if (!Storage.rename(tmpPath, path)) {
+    LOG_ERR("JSN", "safeWriteFile: rename failed %s -> %s", tmpPath, path);
+    // tmp file is still there and valid — try to leave it as a fallback
+    return false;
+  }
+
+  return true;
+}
+
 // ---- CrossPointState ----
 
 bool JsonSettingsIO::saveState(const CrossPointState &s, const char *path) {
@@ -24,7 +51,7 @@ bool JsonSettingsIO::saveState(const CrossPointState &s, const char *path) {
 
   String json;
   serializeJson(doc, json);
-  return Storage.writeFile(path, json);
+  return safeWriteFile(path, json);
 }
 
 bool JsonSettingsIO::loadState(CrossPointState &s, const char *json) {
@@ -79,7 +106,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
 
   String json;
   serializeJson(doc, json);
-  return Storage.writeFile(path, json);
+  return safeWriteFile(path, json);
 }
 
 bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
@@ -182,7 +209,7 @@ bool JsonSettingsIO::saveKOReader(const KOReaderCredentialStore &store,
 
   String json;
   serializeJson(doc, json);
-  return Storage.writeFile(path, json);
+  return safeWriteFile(path, json);
 }
 
 bool JsonSettingsIO::loadKOReader(KOReaderCredentialStore &store,
@@ -230,7 +257,7 @@ bool JsonSettingsIO::saveWifi(const WifiCredentialStore &store,
 
   String json;
   serializeJson(doc, json);
-  return Storage.writeFile(path, json);
+  return safeWriteFile(path, json);
 }
 
 bool JsonSettingsIO::loadWifi(WifiCredentialStore &store, const char *json,
@@ -285,7 +312,7 @@ bool JsonSettingsIO::saveRecentBooks(const RecentBooksStore &store,
 
   String json;
   serializeJson(doc, json);
-  return Storage.writeFile(path, json);
+  return safeWriteFile(path, json);
 }
 
 bool JsonSettingsIO::loadRecentBooks(RecentBooksStore &store,

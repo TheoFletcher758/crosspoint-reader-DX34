@@ -182,6 +182,18 @@ bool CrossPointSettings::loadFromFile() {
     }
   }
 
+  // Fallback to old backed up settings if .json was destroyed in a crash
+  if (Storage.exists(SETTINGS_FILE_BAK)) {
+    // temporarily swap name and load it as binary
+    Storage.rename(SETTINGS_FILE_BAK, SETTINGS_FILE_BIN);
+    bool didLoad = loadFromBinaryFile();
+    if (didLoad && saveToFile()) {
+      Storage.rename(SETTINGS_FILE_BIN, SETTINGS_FILE_BAK);
+      LOG_DBG("CPS", "Recovered settings from settings.bin.bak");
+      return true;
+    }
+  }
+
   return false;
 }
 
