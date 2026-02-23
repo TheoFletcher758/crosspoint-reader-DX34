@@ -158,6 +158,10 @@ bool JsonSettingsIO::saveState(const CrossPointState &s, const char *path) {
   doc["lastSleepImage"] = s.lastSleepImage;
   doc["readerActivityLoadCount"] = s.readerActivityLoadCount;
   doc["lastSleepFromReader"] = s.lastSleepFromReader;
+  JsonArray sleepImagePlaylist = doc["sleepImagePlaylist"].to<JsonArray>();
+  for (const auto &entry : s.sleepImagePlaylist) {
+    sleepImagePlaylist.add(entry);
+  }
 
   String json;
   serializeJson(doc, json);
@@ -176,6 +180,15 @@ bool JsonSettingsIO::loadState(CrossPointState &s, const char *json) {
   s.lastSleepImage = doc["lastSleepImage"] | (uint8_t)0;
   s.readerActivityLoadCount = doc["readerActivityLoadCount"] | (uint8_t)0;
   s.lastSleepFromReader = doc["lastSleepFromReader"] | false;
+  s.sleepImagePlaylist.clear();
+  if (doc["sleepImagePlaylist"].is<JsonArray>()) {
+    for (const JsonVariant value : doc["sleepImagePlaylist"].as<JsonArray>()) {
+      const char *entry = value.as<const char *>();
+      if (entry != nullptr && entry[0] != '\0') {
+        s.sleepImagePlaylist.emplace_back(entry);
+      }
+    }
+  }
   return true;
 }
 
