@@ -185,28 +185,31 @@ void SleepActivity::renderCustomSleepScreen() const {
         LOG_DBG("SLP", "Playlist loading: %s", filename.c_str());
         delay(100);
         Bitmap bitmap(file, true);
-        renderBitmapSleepScreen(bitmap, selectedImage.c_str());
+        if (bitmap.parseHeaders() == BmpReaderError::Ok) {
+          renderBitmapSleepScreen(bitmap, selectedImage.c_str());
+          file.close();
+          return;
+        }
         file.close();
-        return;
       }
-      file.close();
     }
   }
-}
 
-// Look for sleep.bmp on the root of the sd card to determine if we should
-// render a custom sleep screen instead of the default.
-FsFile file;
-if (Storage.openFileForRead("SLP", "/sleep.bmp", file)) {
-  Bitmap bitmap(file, true);
-  renderBitmapSleepScreen(bitmap, "sleep.bmp");
-  file.close();
-  return;
-}
-file.close();
-}
+  // Look for sleep.bmp on the root of the sd card to determine if we should
+  // render a custom sleep screen instead of the default.
+  FsFile file;
+  if (Storage.openFileForRead("SLP", "/sleep.bmp", file)) {
+    Bitmap bitmap(file, true);
+    if (bitmap.parseHeaders() == BmpReaderError::Ok) {
+      LOG_DBG("SLP", "Loading: /sleep.bmp");
+      renderBitmapSleepScreen(bitmap, "sleep.bmp");
+      file.close();
+      return;
+    }
+    file.close();
+  }
 
-renderDefaultSleepScreen();
+  renderDefaultSleepScreen();
 }
 
 bool SleepActivity::randomizeSleepImagePlaylist() {
