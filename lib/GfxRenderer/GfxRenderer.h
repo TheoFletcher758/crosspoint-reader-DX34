@@ -23,10 +23,10 @@ public:
 
   // Logical screen orientation from the perspective of callers
   enum Orientation {
-    Portrait,           // 480x800 logical coordinates (current default)
-    LandscapeClockwise, // 800x480 logical coordinates, rotated 180° (swap
-                        // top/bottom)
-    PortraitInverted,   // 480x800 logical coordinates, inverted
+    Portrait,                 // 480x800 logical coordinates (current default)
+    LandscapeClockwise,       // 800x480 logical coordinates, rotated 180° (swap
+                              // top/bottom)
+    PortraitInverted,         // 480x800 logical coordinates, inverted
     LandscapeCounterClockwise // 800x480 logical coordinates, native panel
                               // orientation
   };
@@ -132,8 +132,11 @@ public:
                    EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   void drawText(int fontId, int x, int y, const char *text, bool black = true,
                 EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
-  int getSpaceWidth(int fontId) const;
-  int getTextAdvanceX(int fontId, const char *text) const;
+  int getSpaceWidth(int fontId,
+                    EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
+  int getTextAdvanceX(
+      int fontId, const char *text,
+      EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   int getFontAscenderSize(int fontId) const;
   int getLineHeight(int fontId) const;
   std::string
