@@ -207,10 +207,15 @@ bool CrossPointSettings::saveToFile() const {
   // Make sure the directory exists
   Storage.ensureDirectoryExists("/.crosspoint");
 
+  const char *tmpFile = "/.crosspoint/settings_tmp.bin";
+  if (Storage.exists(tmpFile)) {
+    Storage.remove(tmpFile);
+  }
+
   FsFile outputFile;
-  if (!Storage.openFileForWrite("CPS", SETTINGS_FILE, outputFile)) {
-    LOG_ERR("CPS", "Failed to open settings file for write: %s", SETTINGS_FILE);
-    logSerial.printf("[CPS] saveToFile: open failed\n");
+  if (!Storage.openFileForWrite("CPS", tmpFile, outputFile)) {
+    LOG_ERR("CPS", "Failed to open settings temp file for write");
+    logSerial.printf("[CPS] saveToFile: open temp failed\n");
     return false;
   }
 
@@ -227,6 +232,12 @@ bool CrossPointSettings::saveToFile() const {
 
   outputFile.sync();
   outputFile.close();
+
+  if (Storage.exists(SETTINGS_FILE)) {
+    Storage.remove(SETTINGS_FILE);
+  }
+  Storage.rename(tmpFile, SETTINGS_FILE);
+
   logSerial.printf("[CPS] saveToFile: done, debugBorders=%d\n",
                    (int)debugBorders);
 

@@ -150,8 +150,13 @@ bool RecentBooksStore::saveToFile() const {
   // Make sure the directory exists
   Storage.mkdir("/.crosspoint");
 
+  const char *tmpFile = "/.crosspoint/recent_tmp.bin";
+  if (Storage.exists(tmpFile)) {
+    Storage.remove(tmpFile);
+  }
+
   FsFile outputFile;
-  if (!Storage.openFileForWrite("RBS", RECENT_BOOKS_FILE, outputFile)) {
+  if (!Storage.openFileForWrite("RBS", tmpFile, outputFile)) {
     return false;
   }
 
@@ -166,7 +171,15 @@ bool RecentBooksStore::saveToFile() const {
     serialization::writeString(outputFile, book.coverBmpPath);
   }
 
+  outputFile.sync();
   outputFile.close();
+
+  // Atomically swap the temp file with the actual file
+  if (Storage.exists(RECENT_BOOKS_FILE)) {
+    Storage.remove(RECENT_BOOKS_FILE);
+  }
+  Storage.rename(tmpFile, RECENT_BOOKS_FILE);
+
   LOG_DBG("RBS", "Recent books saved to file (%d entries)", count);
   return true;
 }
