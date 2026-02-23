@@ -274,8 +274,11 @@ void SettingsActivity::toggleCurrentSetting() {
       SETTINGS.screenMarginTop = next;
       SETTINGS.screenMarginBottom = next;
     } else {
-      const int8_t currentValue = SETTINGS.*(setting.valuePtr);
-      if (currentValue + setting.valueRange.step > setting.valueRange.max) {
+      const int currentValue = SETTINGS.*(setting.valuePtr);
+      if (currentValue < setting.valueRange.min ||
+          currentValue > setting.valueRange.max) {
+        SETTINGS.*(setting.valuePtr) = setting.valueRange.min;
+      } else if (currentValue + setting.valueRange.step > setting.valueRange.max) {
         SETTINGS.*(setting.valuePtr) = setting.valueRange.min;
       } else {
         SETTINGS.*(setting.valuePtr) = currentValue + setting.valueRange.step;
@@ -397,6 +400,9 @@ void SettingsActivity::render(Activity::RenderLock&&) {
       valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
     } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
       valueText = std::to_string(SETTINGS.*(setting.valuePtr));
+      if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
+        valueText += "%";
+      }
     }
 
     if (!valueText.empty()) {

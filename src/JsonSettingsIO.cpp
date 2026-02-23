@@ -226,6 +226,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["fontFamily"] = s.fontFamily;
   doc["fontSize"] = s.fontSize;
   doc["lineSpacing"] = s.lineSpacing;
+  doc["lineSpacingPercent"] = s.lineSpacingPercent;
   doc["paragraphAlignment"] = s.paragraphAlignment;
   doc["sleepTimeout"] = s.sleepTimeout;
   doc["refreshFrequency"] = s.refreshFrequency;
@@ -334,6 +335,32 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
                      S::MEDIUM);
   s.lineSpacing = clamp(doc["lineSpacing"] | (uint8_t)S::NORMAL,
                         S::LINE_COMPRESSION_COUNT, S::NORMAL);
+  if (!doc["lineSpacingPercent"].isNull()) {
+    const uint8_t parsed = doc["lineSpacingPercent"] | (uint8_t)110;
+    if (parsed < 15) {
+      s.lineSpacingPercent = 15;
+    } else if (parsed > 150) {
+      s.lineSpacingPercent = 150;
+    } else {
+      s.lineSpacingPercent = parsed;
+    }
+  } else {
+    switch (s.lineSpacing) {
+    case S::TIGHT:
+      s.lineSpacingPercent = 95;
+      break;
+    case S::WIDE:
+      s.lineSpacingPercent = 125;
+      break;
+    case S::NORMAL:
+    default:
+      s.lineSpacingPercent = 110;
+      break;
+    }
+    if (needsResave) {
+      *needsResave = true;
+    }
+  }
   s.paragraphAlignment =
       clamp(doc["paragraphAlignment"] | (uint8_t)S::JUSTIFIED,
             S::PARAGRAPH_ALIGNMENT_COUNT, S::JUSTIFIED);

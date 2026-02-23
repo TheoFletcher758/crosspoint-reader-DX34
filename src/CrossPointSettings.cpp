@@ -125,6 +125,18 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
     break;
   }
 }
+
+uint8_t legacyLineSpacingToPercent(const uint8_t legacy) {
+  switch (legacy) {
+  case CrossPointSettings::TIGHT:
+    return 95;
+  case CrossPointSettings::WIDE:
+    return 125;
+  case CrossPointSettings::NORMAL:
+  default:
+    return 110;
+  }
+}
 } // namespace
 
 void CrossPointSettings::validateFrontButtonMapping(
@@ -411,21 +423,22 @@ bool CrossPointSettings::loadFromBinaryFile() {
     migrateLegacyStatusBarMode(*this);
   }
 
+  // Binary settings only store legacy 3-step spacing; map it to percent.
+  lineSpacingPercent = legacyLineSpacingToPercent(lineSpacing);
+
   inputFile.close();
   LOG_DBG("CPS", "Settings loaded from binary file");
   return true;
 }
 
 float CrossPointSettings::getReaderLineCompression() const {
-  switch (lineSpacing) {
-  case TIGHT:
-    return 0.95f;
-  case NORMAL:
-  default:
-    return 1.10f;
-  case WIDE:
-    return 1.25f;
+  uint8_t spacing = lineSpacingPercent;
+  if (spacing < 15) {
+    spacing = 15;
+  } else if (spacing > 150) {
+    spacing = 150;
   }
+  return static_cast<float>(spacing) / 100.0f;
 }
 
 unsigned long CrossPointSettings::getSleepTimeoutMs() const {
