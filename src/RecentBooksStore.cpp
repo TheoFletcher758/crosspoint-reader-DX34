@@ -15,7 +15,7 @@
 
 namespace {
 constexpr uint8_t RECENT_BOOKS_FILE_VERSION = 3;
-constexpr char RECENT_BOOKS_FILE[] = "/.crosspoint/recent.bin";
+constexpr char RECENT_BOOKS_FILE[] = "/.crosspoint/recent_v2.bin";
 constexpr int MAX_RECENT_BOOKS = 100;
 
 std::string normalizeRecentPath(std::string path) {
@@ -23,7 +23,7 @@ std::string normalizeRecentPath(std::string path) {
     return path;
   }
 
-  for (char& c : path) {
+  for (char &c : path) {
     if (c == '\\') {
       c = '/';
     }
@@ -42,21 +42,21 @@ std::string normalizeRecentPath(std::string path) {
   return normalized;
 }
 
-std::string makeRecentPathKey(const std::string& rawPath) {
+std::string makeRecentPathKey(const std::string &rawPath) {
   std::string key = normalizeRecentPath(rawPath);
-  for (char& c : key) {
+  for (char &c : key) {
     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
   }
   return key;
 }
 
-void dedupeRecentBooks(std::vector<RecentBook>& books) {
+void dedupeRecentBooks(std::vector<RecentBook> &books) {
   std::vector<RecentBook> unique;
   unique.reserve(books.size());
   std::unordered_set<std::string> seen;
   seen.reserve(books.size());
 
-  for (const auto& book : books) {
+  for (const auto &book : books) {
     const std::string normalizedPath = normalizeRecentPath(book.path);
     if (normalizedPath.empty()) {
       continue;
@@ -75,12 +75,14 @@ void dedupeRecentBooks(std::vector<RecentBook>& books) {
     books.resize(MAX_RECENT_BOOKS);
   }
 }
-}  // namespace
+} // namespace
 
 RecentBooksStore RecentBooksStore::instance;
 
-void RecentBooksStore::addBook(const std::string& path, const std::string& title, const std::string& author,
-                               const std::string& coverBmpPath) {
+void RecentBooksStore::addBook(const std::string &path,
+                               const std::string &title,
+                               const std::string &author,
+                               const std::string &coverBmpPath) {
   const std::string normalizedPath = normalizeRecentPath(path);
   const std::string normalizedKey = makeRecentPathKey(normalizedPath);
   if (normalizedPath.empty()) {
@@ -97,21 +99,26 @@ void RecentBooksStore::addBook(const std::string& path, const std::string& title
   }
 
   // Add to front
-  recentBooks.insert(recentBooks.begin(), {normalizedPath, title, author, coverBmpPath});
+  recentBooks.insert(recentBooks.begin(),
+                     {normalizedPath, title, author, coverBmpPath});
 
   dedupeRecentBooks(recentBooks);
 
   saveToFile();
 }
 
-void RecentBooksStore::updateBook(const std::string& path, const std::string& title, const std::string& author,
-                                  const std::string& coverBmpPath) {
+void RecentBooksStore::updateBook(const std::string &path,
+                                  const std::string &title,
+                                  const std::string &author,
+                                  const std::string &coverBmpPath) {
   const std::string normalizedPath = normalizeRecentPath(path);
   const std::string normalizedKey = makeRecentPathKey(normalizedPath);
   auto it = std::find_if(recentBooks.begin(), recentBooks.end(),
-                         [&](const RecentBook& book) { return makeRecentPathKey(book.path) == normalizedKey; });
+                         [&](const RecentBook &book) {
+                           return makeRecentPathKey(book.path) == normalizedKey;
+                         });
   if (it != recentBooks.end()) {
-    RecentBook& book = *it;
+    RecentBook &book = *it;
     book.path = normalizedPath;
     book.title = title;
     book.author = author;
@@ -121,7 +128,7 @@ void RecentBooksStore::updateBook(const std::string& path, const std::string& ti
   }
 }
 
-void RecentBooksStore::removeBook(const std::string& path) {
+void RecentBooksStore::removeBook(const std::string &path) {
   const std::string normalizedPath = normalizeRecentPath(path);
   const std::string normalizedKey = makeRecentPathKey(normalizedPath);
   bool removed = false;
@@ -152,7 +159,7 @@ bool RecentBooksStore::saveToFile() const {
   const uint8_t count = static_cast<uint8_t>(recentBooks.size());
   serialization::writePod(outputFile, count);
 
-  for (const auto& book : recentBooks) {
+  for (const auto &book : recentBooks) {
     serialization::writeString(outputFile, book.path);
     serialization::writeString(outputFile, book.title);
     serialization::writeString(outputFile, book.author);
@@ -177,13 +184,15 @@ RecentBook RecentBooksStore::getDataFromBook(std::string path) const {
   if (StringUtils::checkFileExtension(lastBookFileName, ".epub")) {
     Epub epub(path, "/.crosspoint");
     epub.load(false, true);
-    return RecentBook{path, epub.getTitle(), epub.getAuthor(), epub.getThumbBmpPath()};
+    return RecentBook{path, epub.getTitle(), epub.getAuthor(),
+                      epub.getThumbBmpPath()};
   } else if (StringUtils::checkFileExtension(lastBookFileName, ".xtch") ||
              StringUtils::checkFileExtension(lastBookFileName, ".xtc")) {
     // Handle XTC file
     Xtc xtc(path, "/.crosspoint");
     if (xtc.load()) {
-      return RecentBook{path, xtc.getTitle(), xtc.getAuthor(), xtc.getThumbBmpPath()};
+      return RecentBook{path, xtc.getTitle(), xtc.getAuthor(),
+                        xtc.getThumbBmpPath()};
     }
   } else if (StringUtils::checkFileExtension(lastBookFileName, ".txt") ||
              StringUtils::checkFileExtension(lastBookFileName, ".md")) {
@@ -194,7 +203,21 @@ RecentBook RecentBooksStore::getDataFromBook(std::string path) const {
 
 bool RecentBooksStore::loadFromFile() {
   FsFile inputFile;
-  if (!Storage.openFileForRead("RBS", RECENT_BOOKS_FILE, inputFile)) {
+  bool usingLegacy = false;
+
+  if (!Storage.exists(RECENT_BOOKS_FILE) &&
+      Storage.exists("/.crosspoint/recent.bin")) {
+    usingLegacy = true;
+    LOG_DBG("RBS", "using legacy recent.bin for migration");
+  }
+
+  const char *fileToOpen =
+      usingLegacy ? "/.crosspoint/recent.bin" : RECENT_BOOKS_FILE;
+
+  if (!Storage.openFileForRead("RBS", fileToOpen, inputFile)) {
+    if (usingLegacy) {
+      Storage.remove("/.crosspoint/recent.bin");
+    }
     return false;
   }
 
@@ -226,6 +249,9 @@ bool RecentBooksStore::loadFromFile() {
     } else {
       LOG_ERR("RBS", "Deserialization failed: Unknown version %u", version);
       inputFile.close();
+      if (usingLegacy) {
+        Storage.remove("/.crosspoint/recent.bin");
+      }
       return false;
     }
   } else {
@@ -241,12 +267,23 @@ bool RecentBooksStore::loadFromFile() {
       serialization::readString(inputFile, title);
       serialization::readString(inputFile, author);
       serialization::readString(inputFile, coverBmpPath);
-      recentBooks.push_back({normalizeRecentPath(path), title, author, coverBmpPath});
+      recentBooks.push_back(
+          {normalizeRecentPath(path), title, author, coverBmpPath});
     }
   }
 
   dedupeRecentBooks(recentBooks);
   inputFile.close();
-  LOG_DBG("RBS", "Recent books loaded from file (%d entries)", recentBooks.size());
+
+  if (Storage.exists("/.crosspoint/recent.bin")) {
+    LOG_DBG("RBS", "Cleaning up legacy recent.bin");
+    Storage.remove("/.crosspoint/recent.bin");
+    if (usingLegacy) {
+      saveToFile();
+    }
+  }
+
+  LOG_DBG("RBS", "Recent books loaded from file (%d entries)",
+          recentBooks.size());
   return true;
 }

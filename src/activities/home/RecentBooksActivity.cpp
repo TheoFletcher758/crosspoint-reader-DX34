@@ -18,7 +18,7 @@
 namespace {
 constexpr unsigned long GO_HOME_MS = 1000;
 
-std::string buildAuthorInitials(const std::string& author) {
+std::string buildAuthorInitials(const std::string &author) {
   std::string initials;
   bool newWord = true;
   for (const char ch : author) {
@@ -41,30 +41,16 @@ std::string buildAuthorInitials(const std::string& author) {
   return initials;
 }
 
-std::string normalizeDisplayKey(const std::string& title, const std::string& author) {
-  std::string key;
-  key.reserve(title.size() + author.size() + 1);
-  for (char c : title) {
-    key.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-  }
-  key.push_back('|');
-  for (char c : author) {
-    key.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-  }
-  return key;
-}
-}  // namespace
+} // namespace
 
 void RecentBooksActivity::loadRecentBooks() {
   recentBooks.clear();
-  const auto& books = RECENT_BOOKS.getBooks();
+  const auto &books = RECENT_BOOKS.getBooks();
   recentBooks.reserve(books.size());
   std::unordered_set<std::string> seenPaths;
-  std::unordered_set<std::string> seenDisplayKeys;
   seenPaths.reserve(books.size());
-  seenDisplayKeys.reserve(books.size());
 
-  for (const auto& book : books) {
+  for (const auto &book : books) {
     // Skip if file no longer exists
     if (!Storage.exists(book.path.c_str())) {
       continue;
@@ -75,10 +61,6 @@ void RecentBooksActivity::loadRecentBooks() {
     }
 
     if (!seenPaths.insert(book.path).second) {
-      continue;
-    }
-    const std::string displayKey = normalizeDisplayKey(book.title, book.author);
-    if (!seenDisplayKeys.insert(displayKey).second) {
       continue;
     }
 
@@ -107,11 +89,14 @@ void RecentBooksActivity::onExit() {
 }
 
 void RecentBooksActivity::loop() {
-  const int pageItems = UITheme::getInstance().getNumberOfItemsPerPage(renderer, true, false, true, true);
+  const int pageItems = UITheme::getInstance().getNumberOfItemsPerPage(
+      renderer, true, false, true, true);
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    if (!recentBooks.empty() && selectorIndex < static_cast<int>(recentBooks.size())) {
-      LOG_DBG("RBA", "Selected recent book: %s", recentBooks[selectorIndex].path.c_str());
+    if (!recentBooks.empty() &&
+        selectorIndex < static_cast<int>(recentBooks.size())) {
+      LOG_DBG("RBA", "Selected recent book: %s",
+              recentBooks[selectorIndex].path.c_str());
       onSelectBook(recentBooks[selectorIndex].path);
       return;
     }
@@ -124,50 +109,63 @@ void RecentBooksActivity::loop() {
   int listSize = static_cast<int>(recentBooks.size());
 
   buttonNavigator.onNextRelease([this, listSize] {
-    selectorIndex = ButtonNavigator::nextIndex(static_cast<int>(selectorIndex), listSize);
+    selectorIndex =
+        ButtonNavigator::nextIndex(static_cast<int>(selectorIndex), listSize);
     requestUpdate();
   });
 
   buttonNavigator.onPreviousRelease([this, listSize] {
-    selectorIndex = ButtonNavigator::previousIndex(static_cast<int>(selectorIndex), listSize);
+    selectorIndex = ButtonNavigator::previousIndex(
+        static_cast<int>(selectorIndex), listSize);
     requestUpdate();
   });
 
   buttonNavigator.onNextContinuous([this, listSize, pageItems] {
-    selectorIndex = ButtonNavigator::nextPageIndex(static_cast<int>(selectorIndex), listSize, pageItems);
+    selectorIndex = ButtonNavigator::nextPageIndex(
+        static_cast<int>(selectorIndex), listSize, pageItems);
     requestUpdate();
   });
 
   buttonNavigator.onPreviousContinuous([this, listSize, pageItems] {
-    selectorIndex = ButtonNavigator::previousPageIndex(static_cast<int>(selectorIndex), listSize, pageItems);
+    selectorIndex = ButtonNavigator::previousPageIndex(
+        static_cast<int>(selectorIndex), listSize, pageItems);
     requestUpdate();
   });
 }
 
-void RecentBooksActivity::render(Activity::RenderLock&&) {
+void RecentBooksActivity::render(Activity::RenderLock &&) {
   renderer.clearScreen();
 
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
   auto metrics = UITheme::getInstance().getMetrics();
 
-  GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight}, tr(STR_MENU_RECENT_BOOKS));
+  GUI.drawHeader(renderer,
+                 Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight},
+                 tr(STR_MENU_RECENT_BOOKS));
 
-  const int contentTop = metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
-  const int contentHeight = pageHeight - contentTop - metrics.buttonHintsHeight - metrics.verticalSpacing;
+  const int contentTop =
+      metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
+  const int contentHeight = pageHeight - contentTop -
+                            metrics.buttonHintsHeight - metrics.verticalSpacing;
 
   // Recent tab
   if (recentBooks.empty()) {
-    renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, contentTop + 20, tr(STR_NO_RECENT_BOOKS));
+    renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding,
+                      contentTop + 20, tr(STR_NO_RECENT_BOOKS));
   } else {
-    GUI.drawList(renderer, Rect{0, contentTop, pageWidth, contentHeight}, recentBooks.size(), selectorIndex,
-                 [this](int index) { return recentBooks[index].title; }, [](int) { return std::string(); }, nullptr,
-                 nullptr);
+    GUI.drawList(
+        renderer, Rect{0, contentTop, pageWidth, contentHeight},
+        recentBooks.size(), selectorIndex,
+        [this](int index) { return recentBooks[index].title; },
+        [](int) { return std::string(); }, nullptr, nullptr);
   }
 
   // Help text
-  const auto labels = mappedInput.mapLabels(tr(STR_HOME), tr(STR_OPEN), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
-  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+  const auto labels = mappedInput.mapLabels(tr(STR_HOME), tr(STR_OPEN),
+                                            tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
+                      labels.btn4);
 
   renderer.displayBuffer();
 }
