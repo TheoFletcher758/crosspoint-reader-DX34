@@ -671,7 +671,7 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
     const int listTop = pathY + renderer.getLineHeight(SMALL_FONT_ID) + 2;
     const int listHeight = pageHeight - listTop - metrics.buttonHintsHeight - metrics.verticalSpacing;
     const int rowGap = 1;
-    const int lineHeight = renderer.getLineHeight(UI_12_FONT_ID);
+    const int lineHeight = renderer.getLineHeight(UI_10_FONT_ID);
     const int rowPadY = 2;
     const int oneLineRowHeight = lineHeight + rowPadY * 2;
     const int listX = 0;
@@ -694,7 +694,7 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
         rowText = cached->second + " " + name;
       }
 
-      wrappedRows[i] = wrapTextToWidth(renderer, UI_12_FONT_ID, rowText, textW);
+      wrappedRows[i] = wrapTextToWidth(renderer, UI_10_FONT_ID, rowText, textW);
       rowHeights[i] = static_cast<int>(wrappedRows[i].size()) * lineHeight + rowPadY * 2;
     }
 
@@ -726,7 +726,7 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
 
       int lineY = y + rowPadY;
       for (const auto& line : wrappedRows[static_cast<size_t>(i)]) {
-        renderer.drawText(UI_12_FONT_ID, textX, lineY, line.c_str(), !isSelected);
+        renderer.drawText(UI_10_FONT_ID, textX, lineY, line.c_str(), !isSelected);
         lineY += lineHeight;
       }
       lastVisibleIndex = i;

@@ -150,6 +150,13 @@ class SettingsActivity final : public ActivityWithSubactivity {
   bool homeStatsPopupOpen = false;
   bool randomizePopupOpen = false;
   bool randomizePopupSuccess = false;
+  bool valueEditMode = false;
+  int valueEditCategoryIndex = -1;
+  int valueEditSettingIndex = -1;
+  uint8_t valueEditOriginal = 0;
+  uint8_t valueEditDraft = 0;
+  uint8_t valueEditMin = 0;
+  uint8_t valueEditMax = 0;
 
   // Per-category settings derived from shared list + device-only actions
   std::vector<SettingInfo> displaySettings;
@@ -168,6 +175,13 @@ class SettingsActivity final : public ActivityWithSubactivity {
   const std::vector<SettingInfo>* settingsForCategory(int categoryIndex) const;
   int findNextEditableRow(int startIndex, int direction) const;
   void jumpCategory(int direction);
+  bool isPopupValueSetting(const SettingInfo& setting) const;
+  bool isEditingCurrentSetting() const;
+  void startValueEdit(const SettingInfo& setting, int categoryIndex, int settingIndex);
+  void adjustValueEdit(int delta);
+  void applyValueEdit();
+  void cancelValueEdit();
+  std::string currentValueEditText() const;
   void toggleCurrentSetting();
 
  public:

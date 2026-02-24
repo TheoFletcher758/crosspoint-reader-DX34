@@ -433,8 +433,8 @@ bool CrossPointSettings::loadFromBinaryFile() {
 
 float CrossPointSettings::getReaderLineCompression() const {
   uint8_t spacing = lineSpacingPercent;
-  if (spacing < 15) {
-    spacing = 15;
+  if (spacing < 65) {
+    spacing = 65;
   } else if (spacing > 150) {
     spacing = 150;
   }

@@ -81,11 +81,11 @@ EpdFont unifont18RegularFont(&unifont_18_regular);
 EpdFontFamily unifont18FontFamily(&unifont18RegularFont, nullptr, nullptr, nullptr, 1, 0, false);
 
 EpdFont smallFont(&ui_8_regular);
-EpdFontFamily smallFontFamily(&smallFont, nullptr, nullptr, nullptr, 1, 0, false);
+EpdFontFamily smallFontFamily(&smallFont, nullptr, nullptr, nullptr, 0, 0, false);
 EpdFont ui10RegularFont(&ui_10_regular);
-EpdFontFamily ui10FontFamily(&ui10RegularFont, nullptr, nullptr, nullptr, 1, 1, false);
+EpdFontFamily ui10FontFamily(&ui10RegularFont, nullptr, nullptr, nullptr, 0, 0, false);
 EpdFont ui12RegularFont(&ui_12_regular);
-EpdFontFamily ui12FontFamily(&ui12RegularFont, nullptr, nullptr, nullptr, 1, 1, false);
+EpdFontFamily ui12FontFamily(&ui12RegularFont, nullptr, nullptr, nullptr, 0, 0, false);
 
 
 // measurement of power button press duration calibration value

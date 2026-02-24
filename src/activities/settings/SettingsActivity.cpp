@@ -1,5 +1,6 @@
 #include "SettingsActivity.h"
 
+#include <algorithm>
 #include <GfxRenderer.h>
 #include <Logging.h>
 
@@ -95,6 +96,88 @@ void SettingsActivity::jumpCategory(const int direction) {
   selectedRowIndex = findNextEditableRow(headerRow, +1);
 }
 
+bool SettingsActivity::isPopupValueSetting(const SettingInfo& setting) const {
+  if (setting.type != SettingType::VALUE || setting.valuePtr == nullptr) {
+    return false;
+  }
+  return setting.valuePtr == &CrossPointSettings::lineSpacingPercent ||
+         setting.valuePtr == &CrossPointSettings::screenMarginHorizontal ||
+         setting.valuePtr == &CrossPointSettings::screenMarginTop;
+}
+
+bool SettingsActivity::isEditingCurrentSetting() const {
+  if (!valueEditMode) {
+    return false;
+  }
+  if (selectedRowIndex < 0 || selectedRowIndex >= static_cast<int>(flatRows.size())) {
+    return false;
+  }
+  const auto& row = flatRows[selectedRowIndex];
+  return !row.isHeader && row.categoryIndex == valueEditCategoryIndex && row.settingIndex == valueEditSettingIndex;
+}
+
+void SettingsActivity::startValueEdit(const SettingInfo& setting, const int categoryIndex, const int settingIndex) {
+  valueEditMode = true;
+  valueEditCategoryIndex = categoryIndex;
+  valueEditSettingIndex = settingIndex;
+  valueEditMin = setting.valueRange.min;
+  valueEditMax = setting.valueRange.max;
+  valueEditOriginal = SETTINGS.*(setting.valuePtr);
+  valueEditDraft = std::clamp(valueEditOriginal, valueEditMin, valueEditMax);
+}
+
+void SettingsActivity::adjustValueEdit(const int delta) {
+  const int next = static_cast<int>(valueEditDraft) + delta;
+  valueEditDraft = static_cast<uint8_t>(std::clamp(next, static_cast<int>(valueEditMin), static_cast<int>(valueEditMax)));
+}
+
+void SettingsActivity::applyValueEdit() {
+  if (!valueEditMode) {
+    return;
+  }
+  const auto* settings = settingsForCategory(valueEditCategoryIndex);
+  if (!settings || valueEditSettingIndex < 0 || valueEditSettingIndex >= static_cast<int>(settings->size())) {
+    cancelValueEdit();
+    return;
+  }
+
+  const auto& setting = (*settings)[valueEditSettingIndex];
+  if (setting.valuePtr == &CrossPointSettings::screenMarginTop ||
+      setting.valuePtr == &CrossPointSettings::screenMarginBottom) {
+    SETTINGS.screenMarginTop = valueEditDraft;
+    SETTINGS.screenMarginBottom = valueEditDraft;
+  } else {
+    SETTINGS.*(setting.valuePtr) = valueEditDraft;
+  }
+
+  persistSettingsWithLog("settings value confirm");
+  valueEditMode = false;
+  valueEditCategoryIndex = -1;
+  valueEditSettingIndex = -1;
+}
+
+void SettingsActivity::cancelValueEdit() {
+  valueEditMode = false;
+  valueEditCategoryIndex = -1;
+  valueEditSettingIndex = -1;
+}
+
+std::string SettingsActivity::currentValueEditText() const {
+  if (!valueEditMode) {
+    return {};
+  }
+  const auto* settings = settingsForCategory(valueEditCategoryIndex);
+  if (!settings || valueEditSettingIndex < 0 || valueEditSettingIndex >= static_cast<int>(settings->size())) {
+    return {};
+  }
+  const auto& setting = (*settings)[valueEditSettingIndex];
+  std::string v = std::to_string(valueEditDraft);
+  if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
+    v += "%";
+  }
+  return v;
+}
+
 void SettingsActivity::onEnter() {
   Activity::onEnter();
 
@@ -155,6 +238,7 @@ void SettingsActivity::onEnter() {
 
 void SettingsActivity::onExit() {
   ActivityWithSubactivity::onExit();
+  cancelValueEdit();
   persistSettingsWithLog("settings exit");
 }
 
@@ -191,6 +275,41 @@ void SettingsActivity::loop() {
       randomizePopupOpen = false;
       requestUpdate();
     }
+    return;
+  }
+
+  if (valueEditMode) {
+    if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
+      cancelValueEdit();
+      requestUpdate();
+      return;
+    }
+
+    if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
+      applyValueEdit();
+      requestUpdate();
+      return;
+    }
+
+    buttonNavigator.onNextRelease([this] {
+      adjustValueEdit(+1);
+      requestUpdate();
+    });
+
+    buttonNavigator.onPreviousRelease([this] {
+      adjustValueEdit(-1);
+      requestUpdate();
+    });
+
+    buttonNavigator.onNextContinuous([this] {
+      adjustValueEdit(+1);
+      requestUpdate();
+    });
+
+    buttonNavigator.onPreviousContinuous([this] {
+      adjustValueEdit(-1);
+      requestUpdate();
+    });
     return;
   }
 
@@ -266,6 +385,10 @@ void SettingsActivity::toggleCurrentSetting() {
     const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
     SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
   } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
+    if (isPopupValueSetting(setting)) {
+      startValueEdit(setting, row.categoryIndex, row.settingIndex);
+      return;
+    }
     if (setting.valuePtr == &CrossPointSettings::screenMarginHorizontal) {
       SETTINGS.*(setting.valuePtr) = nextReaderMarginValue(SETTINGS.*(setting.valuePtr));
     } else if (setting.valuePtr == &CrossPointSettings::screenMarginTop ||
@@ -372,26 +495,26 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     if (row.isHeader) {
       renderer.fillRect(0, rowY, pageWidth, rowHeight, true);
       const char* label = I18N.get(categoryNames[row.categoryIndex]);
-      const int textW = renderer.getTextWidth(UI_12_FONT_ID, label, EpdFontFamily::REGULAR);
+      const int textW = renderer.getTextWidth(UI_10_FONT_ID, label, EpdFontFamily::REGULAR);
       const int textX = (pageWidth - textW) / 2;
-      renderer.drawText(UI_12_FONT_ID, textX, rowY, label, false, EpdFontFamily::REGULAR);
+      renderer.drawText(UI_10_FONT_ID, textX, rowY, label, false, EpdFontFamily::REGULAR);
       continue;
     }
 
     const auto* settings = settingsForCategory(row.categoryIndex);
     const auto& setting = (*settings)[row.settingIndex];
-    const bool black = true;
     const int rowFont = UI_10_FONT_ID;
     const bool isSelected = (i == selectedRowIndex);
     const char* settingName = I18N.get(setting.nameId);
-
-    renderer.drawText(rowFont, metrics.contentSidePadding, rowY, settingName, black);
+    constexpr int kSelectPad = 1;
+    constexpr int kSelectRightEdgeFix = 1;
+    const int textHeight = renderer.getLineHeight(rowFont);
+    const int nameWidth = renderer.getTextWidth(rowFont, settingName);
     if (isSelected) {
-      const int nameWidth = renderer.getTextWidth(rowFont, settingName);
-      const int underlineY = rowY + renderer.getTextHeight(rowFont) + 1;
-      renderer.drawLine(metrics.contentSidePadding, underlineY, metrics.contentSidePadding + nameWidth, underlineY, 3,
-                        black);
+      renderer.fillRect(metrics.contentSidePadding - kSelectPad, rowY - kSelectPad,
+                        nameWidth + kSelectPad * 2 + kSelectRightEdgeFix, textHeight + kSelectPad * 2, true);
     }
+    renderer.drawText(rowFont, metrics.contentSidePadding, rowY, settingName, !isSelected);
 
     std::string valueText;
     if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
@@ -399,7 +522,11 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
       valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
     } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
-      valueText = std::to_string(SETTINGS.*(setting.valuePtr));
+      const uint8_t valueToShow =
+          (valueEditMode && row.categoryIndex == valueEditCategoryIndex && row.settingIndex == valueEditSettingIndex)
+              ? valueEditDraft
+              : SETTINGS.*(setting.valuePtr);
+      valueText = std::to_string(valueToShow);
       if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
         valueText += "%";
       }
@@ -408,16 +535,17 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     if (!valueText.empty()) {
       const int valueW = renderer.getTextWidth(rowFont, valueText.c_str());
       const int valueX = pageWidth - metrics.contentSidePadding - valueW;
-      renderer.drawText(rowFont, valueX, rowY, valueText.c_str(), black);
       if (isSelected) {
-        const int underlineY = rowY + renderer.getTextHeight(rowFont) + 1;
-        renderer.drawLine(valueX, underlineY, valueX + valueW, underlineY, 3, black);
+        renderer.fillRect(valueX - kSelectPad, rowY - kSelectPad, valueW + kSelectPad * 2 + kSelectRightEdgeFix,
+                          textHeight + kSelectPad * 2, true);
       }
+      renderer.drawText(rowFont, valueX, rowY, valueText.c_str(), !isSelected);
     }
   }
 
   // Draw help text
-  const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_TOGGLE), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+  const char* confirmLabel = valueEditMode ? tr(STR_CONFIRM) : tr(STR_TOGGLE);
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), confirmLabel, tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
   if (homeStatsPopupOpen) {
@@ -427,6 +555,39 @@ void SettingsActivity::render(Activity::RenderLock&&) {
   if (randomizePopupOpen) {
     const char* msg = randomizePopupSuccess ? tr(STR_DONE) : tr(STR_NO_ENTRIES);
     GUI.drawPopup(renderer, msg);
+  }
+
+  if (valueEditMode) {
+    const auto* settings = settingsForCategory(valueEditCategoryIndex);
+    if (settings && valueEditSettingIndex >= 0 && valueEditSettingIndex < static_cast<int>(settings->size())) {
+      const auto& setting = (*settings)[valueEditSettingIndex];
+      const char* settingLabel = I18N.get(setting.nameId);
+      const std::string valueText = currentValueEditText();
+
+      const int popupW = std::min(pageWidth - 30, 300);
+      const int popupH = 86;
+      const int popupX = (pageWidth - popupW) / 2;
+      const int popupY = (pageHeight - popupH) / 2;
+
+      renderer.fillRect(popupX - 2, popupY - 2, popupW + 4, popupH + 4, true);
+      renderer.fillRect(popupX, popupY, popupW, popupH, false);
+
+      const int titleW = renderer.getTextWidth(UI_10_FONT_ID, settingLabel);
+      renderer.drawText(UI_10_FONT_ID, popupX + (popupW - titleW) / 2, popupY + 8, settingLabel, true);
+
+      const int valueW = renderer.getTextWidth(UI_12_FONT_ID, valueText.c_str());
+      renderer.drawText(UI_12_FONT_ID, popupX + (popupW - valueW) / 2, popupY + 30, valueText.c_str(), true);
+
+      const int barX = popupX + 20;
+      const int barY = popupY + popupH - 22;
+      const int barW = popupW - 40;
+      const int barH = 8;
+      renderer.drawRect(barX, barY, barW, barH, true);
+      const int range = std::max(1, static_cast<int>(valueEditMax) - static_cast<int>(valueEditMin));
+      const int filledW =
+          2 + ((static_cast<int>(valueEditDraft) - static_cast<int>(valueEditMin)) * std::max(1, barW - 4)) / range;
+      renderer.fillRect(barX + 2, barY + 2, filledW, std::max(1, barH - 4), true);
+    }
   }
 
   // Always use standard refresh for settings screen

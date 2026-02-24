@@ -171,8 +171,10 @@ void BaseTheme::drawBatteryLeft(const GfxRenderer& renderer, Rect rect, const bo
 
   if (showPercentage) {
     const auto percentageText = std::to_string(percentage) + "%";
-    renderer.drawText(SMALL_FONT_ID, rect.x + batteryPercentSpacing + BaseMetrics::values.batteryWidth, rect.y,
-                      percentageText.c_str());
+    const int textX = rect.x + batteryPercentSpacing + BaseMetrics::values.batteryWidth;
+    const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
+    const int textY = y + (rect.height - textHeight) / 2;
+    renderer.drawText(SMALL_FONT_ID, textX, textY, percentageText.c_str());
   }
 
   drawBatteryIcon(renderer, rect.x, y, BaseMetrics::values.batteryWidth, rect.height, percentage);
@@ -187,11 +189,13 @@ void BaseTheme::drawBatteryRight(const GfxRenderer& renderer, Rect rect, const b
   if (showPercentage) {
     const auto percentageText = std::to_string(percentage) + "%";
     const int textWidth = renderer.getTextWidth(SMALL_FONT_ID, percentageText.c_str());
-    // Clear the area where we're going to draw the text to prevent ghosting
-    const auto textHeight = renderer.getTextHeight(SMALL_FONT_ID);
-    renderer.fillRect(rect.x - textWidth - batteryPercentSpacing, rect.y, textWidth, textHeight, false);
+    const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
+    const int textX = rect.x - textWidth - batteryPercentSpacing;
+    const int textY = y + (rect.height - textHeight) / 2;
+    // Clear the area where we're going to draw the text to prevent ghosting.
+    renderer.fillRect(textX, textY, textWidth, textHeight, false);
     // Draw text to the left of the icon
-    renderer.drawText(SMALL_FONT_ID, rect.x - textWidth - batteryPercentSpacing, rect.y, percentageText.c_str());
+    renderer.drawText(SMALL_FONT_ID, textX, textY, percentageText.c_str());
   }
 
   // Icon is already at correct position from rect.x
@@ -465,16 +469,18 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   const int count = std::min(static_cast<int>(recentBooks.size()), maxRowsCap);
   const int visibleRows = std::max(1, count);
   constexpr int rowGap = 4;
-  const int rowLineHeight = renderer.getLineHeight(UI_12_FONT_ID);
+  const int rowLineHeight = renderer.getLineHeight(UI_10_FONT_ID);
   constexpr int rowsTopInset = 18;
   constexpr int rowsBottomInset = 6;
   const int rowsTopMinY = rect.y + rowsTopInset;
   const int rowsBottomY = rect.y + rect.height - rowsBottomInset;
   const int rowsAvailableHeight = rowsBottomY - rowsTopMinY;
-  const int rowX = rect.x + BaseMetrics::values.contentSidePadding;
-  const int rowW = rect.width - BaseMetrics::values.contentSidePadding * 2;
+  const int availableRowW = std::max(1, rect.width - BaseMetrics::values.contentSidePadding * 2);
+  constexpr int maxRowW = 520;
+  const int rowW = std::min(availableRowW, maxRowW);
+  const int rowX = rect.x + (rect.width - rowW) / 2;
   const int contentX = rowX + 12;
-  const int contentW = rowW - 24;
+  const int contentW = std::max(1, rowW - 24);
 
   std::vector<std::vector<std::string>> rowLines(visibleRows);
   std::vector<int> rowHeights(visibleRows, rowLineHeight + 6);
@@ -505,7 +511,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
         const std::string word = input.substr(lineEndPos, wordEnd - lineEndPos);
         const std::string candidate = line.empty() ? word : (line + " " + word);
 
-        if (renderer.getTextWidth(UI_12_FONT_ID, candidate.c_str()) <= maxWidth) {
+        if (renderer.getTextWidth(UI_10_FONT_ID, candidate.c_str()) <= maxWidth) {
           line = candidate;
           lineEndPos = wordEnd;
           while (lineEndPos < input.size() && input[lineEndPos] == ' ') {
@@ -516,7 +522,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
 
         if (line.empty()) {
           size_t fit = 1;
-          while (fit < word.size() && renderer.getTextWidth(UI_12_FONT_ID, word.substr(0, fit + 1).c_str()) <= maxWidth) {
+          while (fit < word.size() && renderer.getTextWidth(UI_10_FONT_ID, word.substr(0, fit + 1).c_str()) <= maxWidth) {
             fit++;
           }
           line = word.substr(0, fit);
@@ -526,7 +532,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
       }
 
       if (line.empty()) {
-        line = renderer.truncatedText(UI_12_FONT_ID, input.substr(i).c_str(), maxWidth);
+        line = renderer.truncatedText(UI_10_FONT_ID, input.substr(i).c_str(), maxWidth);
         lines.push_back(line);
         break;
       }
@@ -536,7 +542,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     }
 
     if (lines.empty()) {
-      lines.push_back(renderer.truncatedText(UI_12_FONT_ID, input.c_str(), maxWidth));
+      lines.push_back(renderer.truncatedText(UI_10_FONT_ID, input.c_str(), maxWidth));
     }
     return lines;
   };
@@ -544,7 +550,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   for (int i = 0; i < visibleRows; i++) {
     const bool hasBook = i < count;
     if (!hasBook) {
-      rowLines[i].push_back(renderer.truncatedText(UI_12_FONT_ID, placeholderLabel, contentW));
+      rowLines[i].push_back(renderer.truncatedText(UI_10_FONT_ID, placeholderLabel, contentW));
       continue;
     }
 
@@ -555,7 +561,19 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   }
 
   if (rowsAvailableHeight > 0) {
+    int totalRowsHeight = 0;
+    for (int i = 0; i < visibleRows; i++) {
+      totalRowsHeight += rowHeights[i];
+    }
+    if (visibleRows > 1) {
+      totalRowsHeight += (visibleRows - 1) * rowGap;
+    }
+
     int rowY = rowsTopMinY;
+    if (totalRowsHeight < rowsAvailableHeight) {
+      rowY += (rowsAvailableHeight - totalRowsHeight) / 2;
+    }
+
     for (int i = 0; i < visibleRows; i++) {
       const int rowHeight = rowHeights[i];
       if (rowY + rowHeight > rowsBottomY) {
@@ -570,7 +588,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
 
       int baselineY = rowY + 3;
       for (const auto& line : rowLines[i]) {
-        renderer.drawText(UI_12_FONT_ID, contentX, baselineY, line.c_str(), textBlack);
+        renderer.drawText(UI_10_FONT_ID, contentX, baselineY, line.c_str(), textBlack);
         baselineY += rowLineHeight;
       }
 
