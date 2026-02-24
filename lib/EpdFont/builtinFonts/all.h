@@ -14,6 +14,13 @@
 #include <builtinFonts/chareink_18_bold.h>
 #include <builtinFonts/chareink_18_italic.h>
 
+#include <builtinFonts/chareinkalt_16_regular.h>
+#include <builtinFonts/chareinkalt_16_bold.h>
+#include <builtinFonts/chareinkalt_16_italic.h>
+#include <builtinFonts/chareinkalt_18_regular.h>
+#include <builtinFonts/chareinkalt_18_bold.h>
+#include <builtinFonts/chareinkalt_18_italic.h>
+
 #include <builtinFonts/atkinson_16_regular.h>
 #include <builtinFonts/atkinson_16_bold.h>
 #include <builtinFonts/atkinson_16_italic.h>

@@ -483,6 +483,14 @@ int CrossPointSettings::getReaderFontId() const {
     default:
       return CHAREINK_16_FONT_ID;
     }
+  case CHAREINK_ALT:
+    switch (fontSize) {
+    case LARGE:
+      return CHAREINK_ALT_18_FONT_ID;
+    case MEDIUM:
+    default:
+      return CHAREINK_ALT_16_FONT_ID;
+    }
   case ATKINSON:
     switch (fontSize) {
     case LARGE:

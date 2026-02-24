@@ -106,6 +106,7 @@ public:
     CHAREINK = 1,
     ATKINSON = 2,
     UBUNTU = 3,
+    CHAREINK_ALT = 4,
     FONT_FAMILY_COUNT
   };
   // Font size options
