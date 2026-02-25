@@ -888,7 +888,7 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
     if (!section->loadSectionFile(
             SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
             SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment,
-            viewportWidth, viewportHeight, SETTINGS.hyphenationEnabled,
+            viewportWidth, viewportHeight, false,
             SETTINGS.embeddedStyle, SETTINGS.readerBoldSwap != 0)) {
       LOG_DBG("ERS", "Cache not found, building...");
 
@@ -899,7 +899,7 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
       if (!section->createSectionFile(
               SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
               SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment,
-              viewportWidth, viewportHeight, SETTINGS.hyphenationEnabled,
+              viewportWidth, viewportHeight, false,
               SETTINGS.embeddedStyle, SETTINGS.readerBoldSwap != 0, popupFn)) {
         LOG_ERR("ERS", "Failed to persist page data to SD");
         section.reset();

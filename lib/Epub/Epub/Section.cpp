@@ -5,7 +5,6 @@
 #include <Serialization.h>
 
 #include "Page.h"
-#include "hyphenation/Hyphenator.h"
 #include "parsers/ChapterHtmlSlimParser.h"
 
 namespace {
@@ -206,7 +205,6 @@ bool Section::createSectionFile(const int fontId, const float lineCompression, c
       viewportHeight, hyphenationEnabled,
       [this, &lut](std::unique_ptr<Page> page) { lut.emplace_back(this->onPageComplete(std::move(page))); },
       embeddedStyle, contentBase, imageBasePath, popupFn, cssParser);
-  Hyphenator::setPreferredLanguage(epub->getLanguage());
   success = visitor.parseAndBuildPages();
 
   Storage.remove(tmpHtmlPath.c_str());
