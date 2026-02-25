@@ -214,7 +214,10 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["statusBarTopLine"] = s.statusBarTopLine;
   doc["statusBarTextAlignment"] = s.statusBarTextAlignment;
   doc["statusBarProgressStyle"] = s.statusBarProgressStyle;
-  doc["extraParagraphSpacing"] = s.extraParagraphSpacing;
+  doc["extraParagraphSpacingLevel"] = s.extraParagraphSpacingLevel;
+  // Legacy compatibility key for older builds that still expect a toggle.
+  doc["extraParagraphSpacing"] =
+      s.extraParagraphSpacingLevel != CrossPointSettings::EXTRA_SPACING_OFF;
   doc["textAntiAliasing"] = s.textAntiAliasing;
   doc["shortPwrBtn"] = s.shortPwrBtn;
   doc["orientation"] = s.orientation;
@@ -310,7 +313,18 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
     if (needsResave)
       *needsResave = true;
   }
-  s.extraParagraphSpacing = doc["extraParagraphSpacing"] | (uint8_t)1;
+  if (!doc["extraParagraphSpacingLevel"].isNull()) {
+    s.extraParagraphSpacingLevel = clamp(
+        doc["extraParagraphSpacingLevel"] | (uint8_t)S::EXTRA_SPACING_M,
+        S::EXTRA_PARAGRAPH_SPACING_COUNT, S::EXTRA_SPACING_M);
+  } else {
+    const uint8_t legacyExtraSpacing = doc["extraParagraphSpacing"] | (uint8_t)1;
+    s.extraParagraphSpacingLevel = legacyExtraSpacing
+                                       ? (uint8_t)S::EXTRA_SPACING_M
+                                       : (uint8_t)S::EXTRA_SPACING_OFF;
+    if (needsResave)
+      *needsResave = true;
+  }
   s.textAntiAliasing = doc["textAntiAliasing"] | (uint8_t)1;
   s.shortPwrBtn = clamp(doc["shortPwrBtn"] | (uint8_t)S::IGNORE,
                         S::SHORT_PWRBTN_COUNT, S::IGNORE);

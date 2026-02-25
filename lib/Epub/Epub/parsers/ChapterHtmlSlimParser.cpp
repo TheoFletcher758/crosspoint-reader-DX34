@@ -115,7 +115,7 @@ void ChapterHtmlSlimParser::startNewTextBlock(const BlockStyle& blockStyle) {
 
     makePages();
   }
-  currentTextBlock.reset(new ParsedText(extraParagraphSpacing, hyphenationEnabled, blockStyle));
+  currentTextBlock.reset(new ParsedText(extraParagraphSpacingLevel != 0, hyphenationEnabled, blockStyle));
 }
 
 void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char* name, const XML_Char** atts) {
@@ -747,8 +747,23 @@ void ChapterHtmlSlimParser::makePages() {
     currentPageNextY += blockStyle.paddingBottom;
   }
 
-  // Extra paragraph spacing if enabled (default behavior)
-  if (extraParagraphSpacing) {
-    currentPageNextY += lineHeight / 4;
+  // Additional spacing between paragraphs based on user-selected level.
+  int extraParagraphGap = 0;
+  switch (extraParagraphSpacingLevel) {
+    case 1: // S
+      extraParagraphGap = lineHeight / 6;
+      break;
+    case 2: // M
+      extraParagraphGap = lineHeight / 4;
+      break;
+    case 3: // L
+      extraParagraphGap = lineHeight / 3;
+      break;
+    case 0: // Off
+    default:
+      break;
+  }
+  if (extraParagraphGap > 0) {
+    currentPageNextY += extraParagraphGap;
   }
 }

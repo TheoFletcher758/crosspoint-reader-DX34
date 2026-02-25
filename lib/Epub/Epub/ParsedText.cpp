@@ -128,10 +128,9 @@ ParsedText::computeLineBreaks(const GfxRenderer &renderer, const int fontId,
     return {};
   }
 
-  // Calculate first line indent (only for left/justified text without extra
-  // paragraph spacing)
+  // Calculate first line indent for left/justified text.
   const int firstLineIndent =
-      blockStyle.textIndent > 0 && !extraParagraphSpacing &&
+      blockStyle.textIndent > 0 &&
               (blockStyle.alignment == CssTextAlign::Justify ||
                blockStyle.alignment == CssTextAlign::Left)
           ? blockStyle.textIndent
@@ -233,7 +232,7 @@ ParsedText::computeLineBreaks(const GfxRenderer &renderer, const int fontId,
 }
 
 void ParsedText::applyParagraphIndent() {
-  if (extraParagraphSpacing || words.empty()) {
+  if (words.empty()) {
     return;
   }
 
@@ -258,11 +257,10 @@ void ParsedText::extractLine(
       breakIndex > 0 ? lineBreakIndices[breakIndex - 1] : 0;
   const size_t lineWordCount = lineBreak - lastBreakAt;
 
-  // Calculate first line indent (only for left/justified text without extra
-  // paragraph spacing)
+  // Calculate first line indent for left/justified text.
   const bool isFirstLine = breakIndex == 0;
   const int firstLineIndent =
-      isFirstLine && blockStyle.textIndent > 0 && !extraParagraphSpacing &&
+      isFirstLine && blockStyle.textIndent > 0 &&
               (blockStyle.alignment == CssTextAlign::Justify ||
                blockStyle.alignment == CssTextAlign::Left)
           ? blockStyle.textIndent

@@ -124,6 +124,13 @@ public:
     BOOK_STYLE = 4,
     PARAGRAPH_ALIGNMENT_COUNT
   };
+  enum EXTRA_PARAGRAPH_SPACING_LEVEL {
+    EXTRA_SPACING_OFF = 0,
+    EXTRA_SPACING_S = 1,
+    EXTRA_SPACING_M = 2,
+    EXTRA_SPACING_L = 3,
+    EXTRA_PARAGRAPH_SPACING_COUNT
+  };
 
   // Auto-sleep timeout options (in minutes)
   enum SLEEP_TIMEOUT {
@@ -183,7 +190,7 @@ public:
   uint8_t statusBarTextAlignment = STATUS_TEXT_RIGHT;
   uint8_t statusBarProgressStyle = STATUS_BAR_THICK;
   // Text rendering settings
-  uint8_t extraParagraphSpacing = 1;
+  uint8_t extraParagraphSpacingLevel = EXTRA_SPACING_M;
   uint8_t textAntiAliasing = 1;
   // Short power button click behaviour
   uint8_t shortPwrBtn = IGNORE;

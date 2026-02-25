@@ -235,7 +235,12 @@ bool CrossPointSettings::loadFromBinaryFile() {
     readAndValidate(inputFile, sleepScreen, SLEEP_SCREEN_MODE_COUNT);
     if (++settingsRead >= fileSettingsCount)
       break;
-    serialization::readPod(inputFile, extraParagraphSpacing);
+    {
+      uint8_t legacyExtraSpacing = 1;
+      serialization::readPod(inputFile, legacyExtraSpacing);
+      extraParagraphSpacingLevel =
+          legacyExtraSpacing ? EXTRA_SPACING_M : EXTRA_SPACING_OFF;
+    }
     if (++settingsRead >= fileSettingsCount)
       break;
     readAndValidate(inputFile, shortPwrBtn, SHORT_PWRBTN_COUNT);
