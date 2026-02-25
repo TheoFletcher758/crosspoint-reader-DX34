@@ -37,12 +37,11 @@ inline std::vector<SettingInfo> getSettingsList() {
 
       // --- Reader ---
       SettingInfo::Enum(StrId::STR_FONT_FAMILY, &CrossPointSettings::fontFamily,
-                        {StrId::STR_BOOKERLY, StrId::STR_GEORGIA, StrId::STR_ALEGREYA, StrId::STR_UBUNTU,
-                         StrId::STR_CHAREINK},
+                        {StrId::STR_BOOKERLY, StrId::STR_CHAREINK, StrId::STR_GEORGIA},
                         "fontFamily",
                         StrId::STR_CAT_READER),
       SettingInfo::Enum(StrId::STR_FONT_SIZE, &CrossPointSettings::fontSize,
-                        {StrId::STR_MEDIUM, StrId::STR_LARGE}, "fontSize",
+                        {StrId::STR_MEDIUM, StrId::STR_LARGE, StrId::STR_X_LARGE}, "fontSize",
                         StrId::STR_CAT_READER),
       SettingInfo::Value(StrId::STR_LINE_SPACING, &CrossPointSettings::lineSpacingPercent, {65, 150, 5},
                          "lineSpacingPercent", StrId::STR_CAT_READER),

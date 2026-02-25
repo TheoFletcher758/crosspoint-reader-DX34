@@ -257,11 +257,23 @@ bool CrossPointSettings::loadFromBinaryFile() {
     {
       uint8_t storedFontFamily = BOOKERLY;
       serialization::readPod(inputFile, storedFontFamily);
-      // Current format: 0 = Charter, 1 = EB Garamond.
-      if (storedFontFamily < FONT_FAMILY_COUNT) {
-        fontFamily = storedFontFamily;
-      } else {
+      // Migrate legacy indices:
+      // 0=BOOKERLY, 1=CHAREINK, 2=ATKINSON(Merriweather), 3=UBUNTU(Galmuri), 4=CHAREINK_ALT(Chare)
+      switch (storedFontFamily) {
+      case 0:
         fontFamily = BOOKERLY;
+        break;
+      case 1:
+        fontFamily = CHAREINK;
+        break;
+      case 4:
+      case 2:
+      case 3:
+        fontFamily = CHARE;
+        break;
+      default:
+        fontFamily = BOOKERLY;
+        break;
       }
     }
     if (++settingsRead >= fileSettingsCount)
@@ -477,39 +489,29 @@ int CrossPointSettings::getReaderFontId() const {
   switch (fontFamily) {
   case CHAREINK:
     switch (fontSize) {
+    case X_LARGE:
+      return CHAREINK_20_FONT_ID;
     case LARGE:
       return CHAREINK_18_FONT_ID;
     case MEDIUM:
     default:
       return CHAREINK_16_FONT_ID;
     }
-  case CHAREINK_ALT:
+  case CHARE:
     switch (fontSize) {
+    case X_LARGE:
+      return CHARE_20_FONT_ID;
     case LARGE:
-      return CHAREINK_ALT_18_FONT_ID;
+      return CHARE_18_FONT_ID;
     case MEDIUM:
     default:
-      return CHAREINK_ALT_16_FONT_ID;
-    }
-  case ATKINSON:
-    switch (fontSize) {
-    case LARGE:
-      return ATKINSON_18_FONT_ID;
-    case MEDIUM:
-    default:
-      return ATKINSON_16_FONT_ID;
-    }
-  case UBUNTU:
-    switch (fontSize) {
-    case LARGE:
-      return UBUNTU_18_FONT_ID;
-    case MEDIUM:
-    default:
-      return UBUNTU_16_FONT_ID;
+      return CHARE_16_FONT_ID;
     }
   case BOOKERLY:
   default:
     switch (fontSize) {
+    case X_LARGE:
+      return BOOKERLY_20_FONT_ID;
     case LARGE:
       return BOOKERLY_18_FONT_ID;
     case MEDIUM:

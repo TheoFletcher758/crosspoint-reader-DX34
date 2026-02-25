@@ -104,13 +104,11 @@ public:
   enum FONT_FAMILY {
     BOOKERLY = 0,
     CHAREINK = 1,
-    ATKINSON = 2,
-    UBUNTU = 3,
-    CHAREINK_ALT = 4,
+    CHARE = 2,
     FONT_FAMILY_COUNT
   };
   // Font size options
-  enum FONT_SIZE { MEDIUM = 0, LARGE = 1, FONT_SIZE_COUNT };
+  enum FONT_SIZE { MEDIUM = 0, LARGE = 1, X_LARGE = 2, FONT_SIZE_COUNT };
   // Legacy line spacing enum (kept for settings migration compatibility)
   enum LINE_COMPRESSION {
     TIGHT = 0,
