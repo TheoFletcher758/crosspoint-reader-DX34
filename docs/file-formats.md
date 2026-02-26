@@ -104,7 +104,7 @@ if (parsedSize != fileSize) {
 
 ## `section.bin`
 
-### Version 8
+### Version 14
 
 ImHex Pattern:
 
@@ -114,7 +114,7 @@ import std.string;
 import std.core;
 
 // === Configuration ===
-#define EXPECTED_VERSION 8
+#define EXPECTED_VERSION 14
 #define MAX_STRING_LENGTH 65535
 
 // === String Structure ===
@@ -189,9 +189,13 @@ struct SectionBin {
     // Cache busting parameters
     s32 fontId;
     float lineCompression;
-    bool extraParagraphSpacing;
+    u8 extraParagraphSpacingLevel; // 0=None, 1=Small, 2=Medium, 3=Large
+    u8 paragraphAlignment;
     u16 viewportWidth;
-    u16 vieportHeight;
+    u16 viewportHeight;
+    bool hyphenationEnabled;
+    bool embeddedStyle;
+    bool readerBoldSwap;
     u16 pageCount;
     u32 lutOffset;
     

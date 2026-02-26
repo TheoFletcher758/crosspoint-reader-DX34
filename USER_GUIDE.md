@@ -1,8 +1,8 @@
-# CrossPoint User Guide
+# CrossPoint-Mod-DX34 User Guide
 
-Welcome to the **CrossPoint** firmware. This guide outlines the hardware controls, navigation, and reading features of the device.
+Welcome to **CrossPoint-Mod-DX34** firmware. This guide outlines the hardware controls, navigation, and reading features of the device.
 
-- [CrossPoint User Guide](#crosspoint-user-guide)
+- [CrossPoint-Mod-DX34 User Guide](#crosspoint-mod-dx34-user-guide)
   - [1. Hardware Overview](#1-hardware-overview)
     - [Button Layout](#button-layout)
   - [2. Power \& Startup](#2-power--startup)
@@ -86,7 +86,7 @@ See the [webserver docs](./docs/webserver.md) for more information on how to con
 
 ### 3.4.1 Calibre Wireless Transfers
 
-CrossPoint supports sending books from Calibre using the CrossPoint Reader device plugin.
+CrossPoint-Mod-DX34 supports sending books from Calibre using the CrossPoint Reader device plugin.
 
 1. Install the plugin in Calibre:
    - Head to https://github.com/crosspoint-reader/calibre-plugins/releases to download the latest version of the crosspoint_reader plugin.
@@ -124,7 +124,12 @@ The Settings screen allows you to configure the device's behavior. There are a f
   - "Never" - Always show battery percentage (default)
   - "In Reader" - Show battery percentage everywhere except in reading mode
   - "Always" - Always hide battery percentage
-- **Extra Paragraph Spacing**: If enabled, vertical space will be added between paragraphs in the book. If disabled, paragraphs will not have vertical space between them, but will have first-line indentation.
+- **Extra Paragraph Spacing**: Controls additional gap between paragraphs:
+  - "None" - No extra vertical gap between paragraphs
+  - "Small" - Adds a small gap
+  - "Medium" - Adds a medium gap (legacy default behavior)
+  - "Large" - Adds a large gap
+  - First-line paragraph indentation is still preserved with spacing enabled
 - **Text Anti-Aliasing**: Whether to show smooth grey edges (anti-aliasing) on text in reading mode. Note this slows down page turns slightly.
 - **Short Power Button Click**: Controls the effect of a short click of the power button:
   - "Ignore" - Require a long press to turn off the device
@@ -144,13 +149,12 @@ The Settings screen allows you to configure the device's behavior. There are a f
 - **Long-press Chapter Skip**: Set whether long-pressing page turn buttons skip to the next/previous chapter.
   - "Chapter Skip" (default) - Long-pressing skips to next/previous chapter
   - "Page Scroll" - Long-pressing scrolls a page up/down
-- Swap the order of the up and down volume buttons from Previous/Next to Next/Previous. This change is only in effect when reading.
 - **Reader Font Family**: Choose the font used for reading:
-  - "Bookerly" (default) - Amazon's reading font
-  - "Noto Sans" - Google's sans-serif font
-  - "Open Dyslexic" - Font designed for readers with dyslexia
-- **Reader Font Size**: Adjust the text size for reading; options are "Small", "Medium", "Large", or "X Large".
-- **Reader Line Spacing**: Adjust the spacing between lines; options are "Tight", "Normal", or "Wide".
+  - "Bookerly" (default)
+  - "ChareInk"
+  - "Chare"
+- **Reader Font Size**: Adjust text size for reading; options are "Medium", "Large", or "X Large".
+- **Reader Line Spacing**: Adjust line spacing as a percentage value in reader settings.
 - **Reader Screen Margin**: Controls the screen margins in reader mode between 5 and 40 pixels in 5 pixel increments.
 - **Reader Paragraph Alignment**: Set the alignment of paragraphs; options are "Justified" (default), "Left", "Center", or "Right".
 - **Time to Sleep**: Set the duration of inactivity before the device automatically goes to sleep.
@@ -206,12 +210,11 @@ This feature can be disabled in **[Settings](#35-settings)** to help avoid chang
 
 ### Supported Languages
 
-CrossPoint renders text using the following Unicode character blocks, enabling support for a wide range of languages:
+CrossPoint-Mod-DX34 currently ships as an English-first UI experience.
 
-*   **Latin Script (Basic, Supplement, Extended-A):** Covers English, German, French, Spanish, Portuguese, Italian, Dutch, Swedish, Norwegian, Danish, Finnish, Polish, Czech, Hungarian, Romanian, Slovak, Slovenian, Turkish, and others.
-*   **Cyrillic Script (Standard and Extended):** Covers Russian, Ukrainian, Belarusian, Bulgarian, Serbian, Macedonian, Kazakh, Kyrgyz, Mongolian, and others.
+Reader text rendering still supports Latin and Cyrillic codepoints covered by the included fonts, but only the shipped DX34 UI language behavior is considered release-supported.
 
-What is not supported: Chinese, Japanese, Korean, Vietnamese, Hebrew, Arabic, Greek and Farsi.
+Hyphenation is not treated as a supported user-facing DX34 feature in current releases.
 
 ---
 
@@ -244,4 +247,4 @@ pio device monitor
 
 If the device is stuck in a bootloop, press and release the Reset button. Then, press and hold on to the configured Back button and the Power Button to boot to the Home Screen.
 
-There can be issues with broken cache or config. In this case, delete the `.crosspoint` directory on your SD card (or consider deleting only `settings.bin`, `state.bin`, or `epub_*` cache directories in the `.crosspoint/` folder).
+There can be issues with broken cache or config. In this case, delete the `.crosspoint` directory on your SD card (or consider deleting `settings.json`, `state.json`, or `epub_*` cache directories in `/.crosspoint/`).

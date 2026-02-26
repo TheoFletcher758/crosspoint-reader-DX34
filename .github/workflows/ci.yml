@@ -2,7 +2,7 @@ name: CI (build)
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -64,10 +64,14 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
-      - name: Build CrossPoint
+      - name: Build CrossPoint-Mod-DX34
         run: |
           set -euo pipefail
           pio run | tee pio.log
+
+      - name: Verify firmware artifact exists
+        run: |
+          test -f .pio/build/default/firmware.bin
 
       - name: Extract firmware stats
 

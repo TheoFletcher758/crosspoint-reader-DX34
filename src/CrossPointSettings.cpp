@@ -201,8 +201,6 @@ bool CrossPointSettings::loadFromFile() {
       Storage.rename(SETTINGS_FILE_BIN, SETTINGS_FILE_BAK);
       LOG_DBG("CPS", "Recovered settings from settings.bin.bak");
       return true;
-      Storage.rename(SETTINGS_FILE_BIN, SETTINGS_FILE_BAK);
-      LOG_DBG("CPS", "Recovered settings from settings.bin.bak");
     }
   }
 

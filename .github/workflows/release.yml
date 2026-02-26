@@ -26,13 +26,13 @@ jobs:
       - name: Install PlatformIO Core
         run: pip install --upgrade platformio
 
-      - name: Build CrossPoint
+      - name: Build CrossPoint-Mod-DX34
         run: pio run -e gh_release
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: CrossPoint-${{ github.ref_name }}
+          name: CrossPoint-Mod-DX34-${{ github.ref_name }}
           path: |
             .pio/build/gh_release/bootloader.bin
             .pio/build/gh_release/firmware.bin

@@ -1,8 +1,7 @@
-# CrossPoint vs XTOS
+# CrossPoint-Mod-DX34 vs XTOS
 
-Below is like for like comparison of CrossPoint (version 0.5.1) and XTOS (version 3.1.1). CrossPoint is on the left, 
-XTOS is on the right. CrossPoint does not currently support all features of XTOS, so this comparison is just of key 
-features which both firmwares support.
+Below is a like-for-like historical visual comparison of CrossPoint-Mod-DX34 and XTOS. Images may reflect earlier
+development builds, but still show the main reader/menu style differences.
 
 ## EPUB reading
 

@@ -1,6 +1,6 @@
-# Project Vision & Scope: CrossPoint Reader
+# Project Vision & Scope: CrossPoint-Mod-DX34
 
-The goal of CrossPoint Reader is to create an efficient, open-source reading experience for the Xteink X4. We believe a
+The goal of CrossPoint-Mod-DX34 is to create an efficient, open-source reading experience for the Xteink X4. We believe a
 dedicated e-reader should do one thing exceptionally well: **facilitate focused reading.**
 
 ## 1. Core Mission
@@ -20,7 +20,7 @@ usability over "swiss-army-knife" functionality.
   engine.
 * **Format Optimization:** E.g. Efficiently parsing EPUB (CSS/Images) and other documents within the device's
   capabilities.
-* **Typography & Legibility:** E.g. Custom font support, hyphenation engines, and adjustable line spacing.
+* **Typography & Legibility:** E.g. Custom font support and adjustable line spacing.
 * **E-Ink Driver Refinement:** E.g. Reducing full-screen flashes (ghosting management) and improving general rendering.
 * **Library Management:** E.g. Simple, intuitive ways to organize and navigate a collection of books.
 * **Local Transfer:** E.g. Simple, "pull" based book loading via a basic web-server or public and widely-used standards.
@@ -41,7 +41,7 @@ usability over "swiss-army-knife" functionality.
 
 ## 3. Idea Evaluation
 
-While I appreciate the desire to add new and exciting features to CrossPoint Reader, CrossPoint Reader is designed to be
+While I appreciate the desire to add new and exciting features to CrossPoint-Mod-DX34, CrossPoint-Mod-DX34 is designed to be
 a lightweight, reliable, and performant e-reader. Things which distract or compromise the device's core mission will not
 be accepted. As a guiding question, consider if your idea improve the "core reading experience" for the average user,
 and, critically, not distract from that reading experience.

@@ -3,6 +3,8 @@
 CrossPoint embeds the exact binary automata produced by
 [Typst's `hypher`](https://github.com/typst/hypher). 
 
+> Note: In CrossPoint-Mod-DX34 releases, hyphenation is not treated as a supported user-facing feature. This document is retained as technical reference only and is planned for cleanup/removal in a later de-scope phase.
+
 ## File layout
 
 Each `.bin` blob is a single self-contained automaton:
