@@ -20,7 +20,6 @@ enum class SettingAction {
   Network,
   ClearCache,
   CheckForUpdates,
-  Language,
   RandomizeSleepImages,
   RefreshHomeStats,
 };

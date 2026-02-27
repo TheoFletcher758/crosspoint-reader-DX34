@@ -1072,8 +1072,17 @@ void CrossPointWebServer::handleGetSettings() const {
           doc["value"] = static_cast<int>(s.valueGetter());
         }
         JsonArray options = doc["options"].to<JsonArray>();
-        for (const auto& opt : s.enumValues) {
-          options.add(I18N.get(opt));
+        if (s.valuePtr == &CrossPointSettings::fontSize) {
+          options.add("15");
+          options.add("17");
+          options.add("19");
+          options.add("14");
+          options.add("16");
+          options.add("18");
+        } else {
+          for (const auto& opt : s.enumValues) {
+            options.add(I18N.get(opt));
+          }
         }
         break;
       }
@@ -1151,7 +1160,11 @@ void CrossPointWebServer::handlePostSettings() {
       }
       case SettingType::ENUM: {
         const int val = doc[s.key].as<int>();
-        if (val >= 0 && val < static_cast<int>(s.enumValues.size())) {
+        const int maxEnumValue =
+            (s.valuePtr == &CrossPointSettings::fontSize)
+                ? static_cast<int>(CrossPointSettings::FONT_SIZE_COUNT)
+                : static_cast<int>(s.enumValues.size());
+        if (val >= 0 && val < maxEnumValue) {
           if (s.valuePtr) {
             SETTINGS.*(s.valuePtr) = static_cast<uint8_t>(val);
           } else if (s.valueSetter) {

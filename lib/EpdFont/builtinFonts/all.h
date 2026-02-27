@@ -1,27 +1,11 @@
 #pragma once
 
-#include <builtinFonts/bookerly_16_regular.h>
-#include <builtinFonts/bookerly_16_bold.h>
-#include <builtinFonts/bookerly_16_italic.h>
-#include <builtinFonts/bookerly_15_regular.h>
-#include <builtinFonts/bookerly_15_bold.h>
-#include <builtinFonts/bookerly_15_italic.h>
-#include <builtinFonts/bookerly_17_regular.h>
-#include <builtinFonts/bookerly_17_bold.h>
-#include <builtinFonts/bookerly_17_italic.h>
-#include <builtinFonts/bookerly_19_regular.h>
-#include <builtinFonts/bookerly_19_bold.h>
-#include <builtinFonts/bookerly_19_italic.h>
-#include <builtinFonts/bookerly_18_regular.h>
-#include <builtinFonts/bookerly_18_bold.h>
-#include <builtinFonts/bookerly_18_italic.h>
-#include <builtinFonts/bookerly_20_regular.h>
-#include <builtinFonts/bookerly_20_bold.h>
-#include <builtinFonts/bookerly_20_italic.h>
-
 #include <builtinFonts/chareink_16_regular.h>
 #include <builtinFonts/chareink_16_bold.h>
 #include <builtinFonts/chareink_16_italic.h>
+#include <builtinFonts/chareink_14_regular.h>
+#include <builtinFonts/chareink_14_bold.h>
+#include <builtinFonts/chareink_14_italic.h>
 #include <builtinFonts/chareink_15_regular.h>
 #include <builtinFonts/chareink_15_bold.h>
 #include <builtinFonts/chareink_15_italic.h>
@@ -37,25 +21,6 @@
 #include <builtinFonts/chareink_20_regular.h>
 #include <builtinFonts/chareink_20_bold.h>
 #include <builtinFonts/chareink_20_italic.h>
-
-#include <builtinFonts/chareinkalt_16_regular.h>
-#include <builtinFonts/chareinkalt_16_bold.h>
-#include <builtinFonts/chareinkalt_16_italic.h>
-#include <builtinFonts/chareinkalt_15_regular.h>
-#include <builtinFonts/chareinkalt_15_bold.h>
-#include <builtinFonts/chareinkalt_15_italic.h>
-#include <builtinFonts/chareinkalt_17_regular.h>
-#include <builtinFonts/chareinkalt_17_bold.h>
-#include <builtinFonts/chareinkalt_17_italic.h>
-#include <builtinFonts/chareinkalt_19_regular.h>
-#include <builtinFonts/chareinkalt_19_bold.h>
-#include <builtinFonts/chareinkalt_19_italic.h>
-#include <builtinFonts/chareinkalt_18_regular.h>
-#include <builtinFonts/chareinkalt_18_bold.h>
-#include <builtinFonts/chareinkalt_18_italic.h>
-#include <builtinFonts/chareinkalt_20_regular.h>
-#include <builtinFonts/chareinkalt_20_bold.h>
-#include <builtinFonts/chareinkalt_20_italic.h>
 
 #include <builtinFonts/unifont_14_regular.h>
 #include <builtinFonts/unifont_18_regular.h>

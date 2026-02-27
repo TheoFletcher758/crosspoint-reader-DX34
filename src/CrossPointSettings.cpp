@@ -258,26 +258,11 @@ bool CrossPointSettings::loadFromBinaryFile() {
     if (++settingsRead >= fileSettingsCount)
       break;
     {
-      uint8_t storedFontFamily = BOOKERLY;
+      uint8_t storedFontFamily = CHAREINK;
       serialization::readPod(inputFile, storedFontFamily);
-      // Migrate legacy indices:
-      // 0=BOOKERLY, 1=CHAREINK, 2=ATKINSON(Merriweather), 3=UBUNTU(Galmuri), 4=CHAREINK_ALT(Chare)
-      switch (storedFontFamily) {
-      case 0:
-        fontFamily = BOOKERLY;
-        break;
-      case 1:
-        fontFamily = CHAREINK;
-        break;
-      case 4:
-      case 2:
-      case 3:
-        fontFamily = CHARE;
-        break;
-      default:
-        fontFamily = BOOKERLY;
-        break;
-      }
+      // DX34 now keeps only ChareInk. Any legacy value maps to ChareInk.
+      (void)storedFontFamily;
+      fontFamily = CHAREINK;
     }
     if (++settingsRead >= fileSettingsCount)
       break;
@@ -489,38 +474,21 @@ int CrossPointSettings::getRefreshFrequency() const {
 }
 
 int CrossPointSettings::getReaderFontId() const {
-  switch (fontFamily) {
-  case CHAREINK:
-    switch (fontSize) {
-    case X_LARGE:
-      return CHAREINK_19_FONT_ID;
-    case LARGE:
-      return CHAREINK_17_FONT_ID;
-    case MEDIUM:
-    default:
-      return CHAREINK_15_FONT_ID;
-    }
-  case CHARE:
-    switch (fontSize) {
-    case X_LARGE:
-      return CHARE_19_FONT_ID;
-    case LARGE:
-      return CHARE_17_FONT_ID;
-    case MEDIUM:
-    default:
-      return CHARE_15_FONT_ID;
-    }
-  case BOOKERLY:
+  (void)fontFamily;
+  switch (fontSize) {
+  case SIZE_14:
+    return CHAREINK_14_FONT_ID;
+  case SIZE_16:
+    return CHAREINK_16_FONT_ID;
+  case SIZE_18:
+    return CHAREINK_18_FONT_ID;
+  case X_LARGE:
+    return CHAREINK_19_FONT_ID;
+  case LARGE:
+    return CHAREINK_17_FONT_ID;
+  case MEDIUM:
   default:
-    switch (fontSize) {
-    case X_LARGE:
-      return BOOKERLY_19_FONT_ID;
-    case LARGE:
-      return BOOKERLY_17_FONT_ID;
-    case MEDIUM:
-    default:
-      return BOOKERLY_15_FONT_ID;
-    }
+    return CHAREINK_15_FONT_ID;
   }
 }
 

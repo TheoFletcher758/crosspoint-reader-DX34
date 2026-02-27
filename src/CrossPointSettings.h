@@ -102,13 +102,21 @@ public:
 
   // Font family options
   enum FONT_FAMILY {
-    BOOKERLY = 0,
-    CHAREINK = 1,
-    CHARE = 2,
+    CHAREINK = 0,
     FONT_FAMILY_COUNT
   };
-  // Font size options
-  enum FONT_SIZE { MEDIUM = 0, LARGE = 1, X_LARGE = 2, FONT_SIZE_COUNT };
+  // Font size options.
+  // Keep legacy values first for compatibility:
+  // 0=15, 1=17, 2=19 (existing installs), then add 14/16/18.
+  enum FONT_SIZE {
+    MEDIUM = 0,
+    LARGE = 1,
+    X_LARGE = 2,
+    SIZE_14 = 3,
+    SIZE_16 = 4,
+    SIZE_18 = 5,
+    FONT_SIZE_COUNT
+  };
   // Legacy line spacing enum (kept for settings migration compatibility)
   enum LINE_COMPRESSION {
     TIGHT = 0,
@@ -209,7 +217,7 @@ public:
   uint8_t frontButtonLeft = FRONT_HW_LEFT;
   uint8_t frontButtonRight = FRONT_HW_RIGHT;
   // Reader font settings
-  uint8_t fontFamily = BOOKERLY;
+  uint8_t fontFamily = CHAREINK;
   uint8_t fontSize = MEDIUM;
   // Legacy line spacing setting (kept for migration from old settings files)
   uint8_t lineSpacing = NORMAL;

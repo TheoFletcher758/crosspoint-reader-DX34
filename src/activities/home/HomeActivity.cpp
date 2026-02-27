@@ -28,6 +28,16 @@
 namespace {
 constexpr const char *seeMoreLabel = "See all...";
 
+std::string getHomeHeaderVersionLabel() {
+  const std::string rawVersion = CROSSPOINT_VERSION;
+  const size_t dashPos = rawVersion.find_last_of('-');
+  const std::string semver =
+      (dashPos != std::string::npos && dashPos + 1 < rawVersion.size())
+          ? rawVersion.substr(dashPos + 1)
+          : rawVersion;
+  return "DX34 [" + semver + "]";
+}
+
 } // namespace
 
 int HomeActivity::getMenuItemCount() const {
@@ -275,8 +285,9 @@ void HomeActivity::render(Activity::RenderLock &&) {
   GUI.drawHeader(renderer,
                  Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding},
                  nullptr);
+  const std::string homeVersionLabel = getHomeHeaderVersionLabel();
   renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding,
-                    metrics.topPadding + 5, CROSSPOINT_VERSION);
+                    metrics.topPadding + 5, homeVersionLabel.c_str());
 
   // Build menu items dynamically
   std::vector<const char *> menuItems = {

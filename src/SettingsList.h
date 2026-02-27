@@ -37,7 +37,7 @@ inline std::vector<SettingInfo> getSettingsList() {
 
       // --- Reader ---
       SettingInfo::Enum(StrId::STR_FONT_FAMILY, &CrossPointSettings::fontFamily,
-                        {StrId::STR_BOOKERLY, StrId::STR_CHAREINK, StrId::STR_GEORGIA},
+                        {StrId::STR_CHAREINK},
                         "fontFamily",
                         StrId::STR_CAT_READER),
       SettingInfo::Enum(StrId::STR_FONT_SIZE, &CrossPointSettings::fontSize,
@@ -83,8 +83,6 @@ inline std::vector<SettingInfo> getSettingsList() {
                           "statusBarShowChapterBar", StrId::STR_STATUS_BAR),
       SettingInfo::Toggle(StrId::STR_STATUS_CHAPTER_TITLE, &CrossPointSettings::statusBarShowChapterTitle,
                           "statusBarShowChapterTitle", StrId::STR_STATUS_BAR),
-      SettingInfo::Toggle(StrId::STR_STATUS_TOP_LINE, &CrossPointSettings::statusBarTopLine, "statusBarTopLine",
-                          StrId::STR_STATUS_BAR),
 
       // --- Controls ---
       SettingInfo::Enum(StrId::STR_SIDE_BTN_LAYOUT, &CrossPointSettings::sideButtonLayout,

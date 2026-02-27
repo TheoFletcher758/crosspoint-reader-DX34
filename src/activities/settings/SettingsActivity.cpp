@@ -9,7 +9,6 @@
 #include "ClearCacheActivity.h"
 #include "CrossPointSettings.h"
 #include "KOReaderSettingsActivity.h"
-#include "LanguageSelectActivity.h"
 #include "MappedInputManager.h"
 #include "OtaUpdateActivity.h"
 #include "SettingsList.h"
@@ -42,6 +41,24 @@ uint8_t nextReaderMarginValue(const uint8_t current) {
 void persistSettingsWithLog(const char* context) {
   if (!SETTINGS.saveToFile()) {
     LOG_ERR("SET", "Failed to save settings (%s)", context);
+  }
+}
+
+const char* fontSizeValueLabel(const uint8_t fontSize) {
+  switch (fontSize) {
+    case CrossPointSettings::SIZE_14:
+      return "14";
+    case CrossPointSettings::SIZE_16:
+      return "16";
+    case CrossPointSettings::SIZE_18:
+      return "18";
+    case CrossPointSettings::X_LARGE:
+      return "19";
+    case CrossPointSettings::LARGE:
+      return "17";
+    case CrossPointSettings::MEDIUM:
+    default:
+      return "15";
   }
 }
 
@@ -131,6 +148,12 @@ void SettingsActivity::adjustValueEdit(const int delta) {
   valueEditDraft = static_cast<uint8_t>(std::clamp(next, static_cast<int>(valueEditMin), static_cast<int>(valueEditMax)));
 }
 
+namespace {
+int getValueEditHoldStep(const MappedInputManager& mappedInput) {
+  return mappedInput.getHeldTime() >= 1200 ? 5 : 1;
+}
+}
+
 void SettingsActivity::applyValueEdit() {
   if (!valueEditMode) {
     return;
@@ -216,7 +239,6 @@ void SettingsActivity::onEnter() {
   systemSettings.push_back(SettingInfo::Action(StrId::STR_OPDS_BROWSER, SettingAction::OPDSBrowser));
   systemSettings.push_back(SettingInfo::Action(StrId::STR_CLEAR_READING_CACHE, SettingAction::ClearCache));
   systemSettings.push_back(SettingInfo::Action(StrId::STR_CHECK_UPDATES, SettingAction::CheckForUpdates));
-  systemSettings.push_back(SettingInfo::Action(StrId::STR_LANGUAGE, SettingAction::Language));
   systemSettings.push_back(SettingInfo::Action(StrId::STR_REFRESH_HOME_STATS, SettingAction::RefreshHomeStats));
 
   categoryHeaderRowIndices.resize(categoryCount, 0);
@@ -302,12 +324,12 @@ void SettingsActivity::loop() {
     });
 
     buttonNavigator.onNextContinuous([this] {
-      adjustValueEdit(+1);
+      adjustValueEdit(+getValueEditHoldStep(mappedInput));
       requestUpdate();
     });
 
     buttonNavigator.onPreviousContinuous([this] {
-      adjustValueEdit(-1);
+      adjustValueEdit(-getValueEditHoldStep(mappedInput));
       requestUpdate();
     });
     return;
@@ -383,7 +405,11 @@ void SettingsActivity::toggleCurrentSetting() {
     SETTINGS.*(setting.valuePtr) = !currentValue;
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
-    SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
+    if (setting.valuePtr == &CrossPointSettings::fontSize) {
+      SETTINGS.fontSize = (currentValue + 1) % static_cast<uint8_t>(CrossPointSettings::FONT_SIZE_COUNT);
+    } else {
+      SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
+    }
   } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
     if (isPopupValueSetting(setting)) {
       startValueEdit(setting, row.categoryIndex, row.settingIndex);
@@ -441,9 +467,6 @@ void SettingsActivity::toggleCurrentSetting() {
         break;
       case SettingAction::CheckForUpdates:
         enterSubActivity(new OtaUpdateActivity(renderer, mappedInput, onComplete));
-        break;
-      case SettingAction::Language:
-        enterSubActivity(new LanguageSelectActivity(renderer, mappedInput, onComplete));
         break;
       case SettingAction::RandomizeSleepImages:
         randomizePopupSuccess = SleepActivity::randomizeSleepImagePlaylist();
@@ -506,13 +529,13 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     const int rowFont = UI_10_FONT_ID;
     const bool isSelected = (i == selectedRowIndex);
     const char* settingName = I18N.get(setting.nameId);
-    constexpr int kSelectPad = 1;
-    constexpr int kSelectRightEdgeFix = 1;
-    const int textHeight = renderer.getLineHeight(rowFont);
-    const int nameWidth = renderer.getTextWidth(rowFont, settingName);
+    constexpr int kChipPadX = 2;
+    constexpr int kChipRightEdgeFix = 1;
+
     if (isSelected) {
-      renderer.fillRect(metrics.contentSidePadding - kSelectPad, rowY - kSelectPad,
-                        nameWidth + kSelectPad * 2 + kSelectRightEdgeFix, textHeight + kSelectPad * 2, true);
+      const int nameWidth = renderer.getTextWidth(rowFont, settingName);
+      renderer.fillRect(metrics.contentSidePadding - kChipPadX, rowY,
+                        nameWidth + kChipPadX * 2 + kChipRightEdgeFix, rowHeight, true);
     }
     renderer.drawText(rowFont, metrics.contentSidePadding, rowY, settingName, !isSelected);
 
@@ -520,7 +543,11 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
       valueText = (SETTINGS.*(setting.valuePtr)) ? tr(STR_STATE_ON) : tr(STR_STATE_OFF);
     } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
-      valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
+      if (setting.valuePtr == &CrossPointSettings::fontSize) {
+        valueText = fontSizeValueLabel(SETTINGS.fontSize);
+      } else {
+        valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
+      }
     } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
       const uint8_t valueToShow =
           (valueEditMode && row.categoryIndex == valueEditCategoryIndex && row.settingIndex == valueEditSettingIndex)
@@ -536,8 +563,7 @@ void SettingsActivity::render(Activity::RenderLock&&) {
       const int valueW = renderer.getTextWidth(rowFont, valueText.c_str());
       const int valueX = pageWidth - metrics.contentSidePadding - valueW;
       if (isSelected) {
-        renderer.fillRect(valueX - kSelectPad, rowY - kSelectPad, valueW + kSelectPad * 2 + kSelectRightEdgeFix,
-                          textHeight + kSelectPad * 2, true);
+        renderer.fillRect(valueX - kChipPadX, rowY, valueW + kChipPadX * 2 + kChipRightEdgeFix, rowHeight, true);
       }
       renderer.drawText(rowFont, valueX, rowY, valueText.c_str(), !isSelected);
     }
