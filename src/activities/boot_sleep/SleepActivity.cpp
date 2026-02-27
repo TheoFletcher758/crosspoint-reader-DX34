@@ -81,9 +81,18 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
     return;
   }
 
-  if (forceReshuffle || playlist.empty()) {
+  if (forceReshuffle) {
     playlist = files;
     shuffleSleepPlaylist(playlist);
+    APP_STATE.lastSleepImage = 0;
+    APP_STATE.saveToFile();
+    return;
+  }
+
+  if (playlist.empty()) {
+    // Default behavior: follow stable filename order from /sleep directory.
+    playlist = files;
+    APP_STATE.lastSleepImage = 0;
     APP_STATE.saveToFile();
     return;
   }
@@ -110,7 +119,7 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
 
   if (playlist.empty()) {
     playlist = files;
-    shuffleSleepPlaylist(playlist);
+    APP_STATE.lastSleepImage = 0;
     changed = true;
   }
 
@@ -174,10 +183,24 @@ void SleepActivity::renderCustomSleepScreen() const {
     syncSleepPlaylistWithFiles(files, false);
     auto &playlist = APP_STATE.sleepImagePlaylist;
     if (!playlist.empty()) {
-      const auto selectedImage = playlist.back();
-      playlist.pop_back();
-      playlist.insert(playlist.begin(), selectedImage);
-      APP_STATE.saveToFile();
+      bool changed = false;
+      // Advance to the next image only after the first custom sleep render.
+      // This keeps playlist[0] as the image just shown and playlist[1] as next.
+      if (APP_STATE.lastSleepImage != 0 && playlist.size() > 1) {
+        const auto first = playlist.front();
+        playlist.erase(playlist.begin());
+        playlist.push_back(first);
+        changed = true;
+      }
+
+      const auto selectedImage = playlist.front();
+      if (APP_STATE.lastSleepImage != 1) {
+        APP_STATE.lastSleepImage = 1;
+        changed = true;
+      }
+      if (changed) {
+        APP_STATE.saveToFile();
+      }
 
       const auto filename = "/sleep/" + selectedImage;
       FsFile file;
