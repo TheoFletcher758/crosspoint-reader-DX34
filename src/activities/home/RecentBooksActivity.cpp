@@ -68,7 +68,7 @@ void RecentBooksActivity::loadRecentBooks() {
     const std::string initials = buildAuthorInitials(book.author);
     const std::string titleWithAuthor =
         initials.empty() ? book.title : (book.title + " by " + initials);
-    decorated.title = std::to_string(percent.value()) + "%> " + titleWithAuthor;
+    decorated.title = std::to_string(percent.value()) + "%  " + titleWithAuthor;
     recentBooks.push_back(std::move(decorated));
   }
 }

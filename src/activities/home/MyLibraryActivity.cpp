@@ -33,9 +33,9 @@ std::string rtrimSpaces(std::string text) {
 
 std::string formatLibraryProgressPrefix(const std::optional<int>& percent) {
   if (!percent.has_value() || percent.value() <= 1) {
-    return "->";
+    return "-";
   }
-  return std::to_string(percent.value()) + "%>";
+  return std::to_string(percent.value()) + "%";
 }
 
 std::vector<std::string> wrapTextToWidth(const GfxRenderer& renderer, const int fontId, const std::string& text,
@@ -691,7 +691,7 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
         if (cached == progressPrefixCache.end()) {
           cached = progressPrefixCache.emplace(fullPath, formatLibraryProgressPrefix(BookProgress::getPercent(fullPath))).first;
         }
-        rowText = cached->second + " " + name;
+        rowText = cached->second + "  " + name;
       }
 
       wrappedRows[i] = wrapTextToWidth(renderer, UI_10_FONT_ID, rowText, textW);

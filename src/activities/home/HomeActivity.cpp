@@ -84,7 +84,7 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
       RecentBook bookWithoutCover = book;
       bookWithoutCover.title =
           (percent.has_value() ? std::to_string(percent.value()) : "0") +
-          "%> " + book.title;
+          "%  " + book.title;
       // Home screen should never attempt to load/render cover images.
       bookWithoutCover.coverBmpPath.clear();
       recentBooks.push_back(bookWithoutCover);
