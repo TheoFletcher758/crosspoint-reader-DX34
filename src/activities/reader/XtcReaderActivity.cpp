@@ -153,6 +153,9 @@ void XtcReaderActivity::loop() {
         (SETTINGS.orientation == CrossPointSettings::ORIENTATION::LANDSCAPE_CCW)
             ? CrossPointSettings::ORIENTATION::PORTRAIT
             : CrossPointSettings::ORIENTATION::LANDSCAPE_CCW;
+    if (!SETTINGS.saveToFile()) {
+      LOG_ERR("XRS", "Failed to save settings after orientation change");
+    }
     renderer.setOrientation(
         SETTINGS.orientation == CrossPointSettings::ORIENTATION::LANDSCAPE_CCW
             ? GfxRenderer::Orientation::LandscapeCounterClockwise

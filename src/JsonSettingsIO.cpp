@@ -67,14 +67,95 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
 // 3. Rename current to .bak
 // 4. Rename .tmp to current
 static bool safeWriteFile(const char *path, const String &json) {
+  auto ensureParentDirectory = [](const char *targetPath) -> bool {
+    const char *slash = strrchr(targetPath, '/');
+    if (!slash || slash == targetPath) {
+      return true;
+    }
+
+    char parentPath[128];
+    const size_t parentLen = static_cast<size_t>(slash - targetPath);
+    if (parentLen >= sizeof(parentPath)) {
+      LOG_ERR("JSN", "safeWriteFile: parent path too long for %s", targetPath);
+      return false;
+    }
+
+    memcpy(parentPath, targetPath, parentLen);
+    parentPath[parentLen] = '\0';
+
+    if (Storage.exists(parentPath)) {
+      FsFile entry = Storage.open(parentPath, O_RDONLY);
+      if (entry) {
+        const bool isDirectory = entry.isDirectory();
+        entry.close();
+        if (isDirectory) {
+          return true;
+        }
+      }
+
+      char quarantinePath[160];
+      snprintf(quarantinePath, sizeof(quarantinePath), "%s.corrupt", parentPath);
+      if (Storage.exists(quarantinePath)) {
+        if (!Storage.remove(quarantinePath)) {
+          Storage.removeDir(quarantinePath);
+        }
+      }
+
+      if (!Storage.rename(parentPath, quarantinePath)) {
+        if (!Storage.remove(parentPath)) {
+          LOG_ERR("JSN",
+                  "safeWriteFile: failed to quarantine invalid parent %s",
+                  parentPath);
+          return false;
+        }
+      } else {
+        LOG_ERR("JSN", "safeWriteFile: quarantined invalid parent %s",
+                parentPath);
+      }
+    }
+
+    if (!Storage.mkdir(parentPath)) {
+      FsFile dir = Storage.open(parentPath, O_RDONLY);
+      if (!dir || !dir.isDirectory()) {
+        if (dir) {
+          dir.close();
+        }
+        LOG_ERR("JSN", "safeWriteFile: failed to create parent %s", parentPath);
+        return false;
+      }
+      dir.close();
+    }
+
+    return true;
+  };
+
+  if (!ensureParentDirectory(path)) {
+    return false;
+  }
+
   char tmpPath[128];
   char bakPath[128];
   snprintf(tmpPath, sizeof(tmpPath), "%s.tmp", path);
   snprintf(bakPath, sizeof(bakPath), "%s.bak", path);
 
-  // 1. Write to temp file
-  if (!Storage.writeFile(tmpPath, json)) {
-    LOG_ERR("JSN", "safeWriteFile: failed to write tmp %s", tmpPath);
+  // 1. Write to temp file.
+  // Explicitly remove any stale .tmp from a previous interrupted write.
+  // If the entry is so corrupted it can't even be deleted, fall back to an
+  // alternate temp name so saves keep working.
+  const char *activeTmp = tmpPath;
+  char altTmpPath[128];
+  if (Storage.exists(tmpPath)) {
+    if (!Storage.remove(tmpPath)) {
+      LOG_ERR("JSN",
+              "safeWriteFile: stale tmp %s stuck (cannot remove); "
+              "falling back to alternate tmp name",
+              tmpPath);
+      snprintf(altTmpPath, sizeof(altTmpPath), "%s.tmp2", path);
+      activeTmp = altTmpPath;
+    }
+  }
+  if (!Storage.writeFile(activeTmp, json)) {
+    LOG_ERR("JSN", "safeWriteFile: failed to write tmp %s", activeTmp);
     return false;
   }
 
@@ -89,14 +170,14 @@ static bool safeWriteFile(const char *path, const String &json) {
   if (Storage.exists(path)) {
     if (!Storage.rename(path, bakPath)) {
       LOG_ERR("JSN", "safeWriteFile: failed to rotate %s to %s", path, bakPath);
-      Storage.remove(tmpPath);
+      Storage.remove(activeTmp);
       return false;
     }
   }
 
   // 4. Promote tmp to current
-  if (!Storage.rename(tmpPath, path)) {
-    LOG_ERR("JSN", "safeWriteFile: failed to promote %s", tmpPath);
+  if (!Storage.rename(activeTmp, path)) {
+    LOG_ERR("JSN", "safeWriteFile: failed to promote %s", activeTmp);
     if (Storage.exists(bakPath)) {
       if (Storage.exists(path)) {
         Storage.remove(path);

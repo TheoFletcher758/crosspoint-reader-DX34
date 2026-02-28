@@ -223,6 +223,53 @@ void setupDisplayAndFonts() {
   LOG_DBG("MAIN", "Fonts setup");
 }
 
+bool ensureCrosspointDataDir() {
+  constexpr const char* dataDir = "/.crosspoint";
+  constexpr const char* quarantinePath = "/.crosspoint.corrupt";
+
+  if (Storage.exists(dataDir)) {
+    FsFile entry = Storage.open(dataDir, O_RDONLY);
+    if (!entry) {
+      LOG_ERR("MAIN", "Failed to inspect %s", dataDir);
+      return false;
+    }
+
+    const bool isDirectory = entry.isDirectory();
+    entry.close();
+    if (!isDirectory) {
+      if (Storage.exists(quarantinePath)) {
+        if (!Storage.remove(quarantinePath)) {
+          Storage.removeDir(quarantinePath);
+        }
+      }
+
+      if (!Storage.rename(dataDir, quarantinePath)) {
+        LOG_ERR("MAIN", "Failed to quarantine invalid %s", dataDir);
+        if (!Storage.remove(dataDir)) {
+          return false;
+        }
+      } else {
+        LOG_ERR("MAIN", "Quarantined invalid %s to %s", dataDir,
+                quarantinePath);
+      }
+    }
+  }
+
+  if (!Storage.mkdir(dataDir)) {
+    FsFile dir = Storage.open(dataDir, O_RDONLY);
+    if (!dir || !dir.isDirectory()) {
+      if (dir) {
+        dir.close();
+      }
+      LOG_ERR("MAIN", "Failed to ensure %s directory", dataDir);
+      return false;
+    }
+    dir.close();
+  }
+
+  return true;
+}
+
 void setup() {
   t1 = millis();
 
@@ -247,6 +294,10 @@ void setup() {
     exitActivity();
     enterNewActivity(new FullScreenMessageActivity(renderer, mappedInputManager, "SD card error", EpdFontFamily::REGULAR));
     return;
+  }
+
+  if (!ensureCrosspointDataDir()) {
+    LOG_ERR("MAIN", "Storage layout error: cannot access /.crosspoint");
   }
 
   SETTINGS.loadFromFile();
