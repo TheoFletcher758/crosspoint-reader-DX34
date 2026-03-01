@@ -108,12 +108,23 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
     changed = true;
   }
 
-  // Add newly discovered files to the end so they appear on next sleep screens.
+  // Collect newly discovered files in sorted order (files is already sorted).
+  std::vector<std::string> newFiles;
   for (const auto &file : files) {
     if (std::find(playlist.begin(), playlist.end(), file) == playlist.end()) {
-      playlist.push_back(file);
-      changed = true;
+      newFiles.push_back(file);
     }
+  }
+
+  // Insert new files right after the current head so they show immediately.
+  // When lastSleepImage == 0 nothing has been shown yet, so insert at 0.
+  // When lastSleepImage == 1 the head (playlist[0]) is the last-shown image
+  // and will be rotated to the back before the next render, so insert at 1.
+  if (!newFiles.empty()) {
+    const size_t insertPos =
+        (APP_STATE.lastSleepImage == 0) ? 0 : std::min<size_t>(1, playlist.size());
+    playlist.insert(playlist.begin() + insertPos, newFiles.begin(), newFiles.end());
+    changed = true;
   }
 
   if (playlist.empty()) {
