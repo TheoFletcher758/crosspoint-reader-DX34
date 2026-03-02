@@ -21,7 +21,7 @@
 namespace {
 constexpr unsigned long GO_HOME_MS = 1000;
 
-const char* const FILE_ACTION_LABELS[] = {"Open", "Move File", "Delete File", "Cancel"};
+const char* const FILE_ACTION_LABELS[] = {"Open", "Move File", "Move to Sleep", "Delete File", "Cancel"};
 constexpr int FILE_ACTION_COUNT = sizeof(FILE_ACTION_LABELS) / sizeof(FILE_ACTION_LABELS[0]);
 
 std::string rtrimSpaces(std::string text) {
@@ -482,6 +482,13 @@ void MyLibraryActivity::loop() {
           enterFileMoveBrowser();
           break;
         case 2:
+          if (moveSelectedFileTo("/sleep")) {
+            mode = Mode::BROWSE;
+            loadFiles();
+            selectorIndex = 0;
+          }
+          break;
+        case 3:
           deleteSelectedFile();
           mode = Mode::BROWSE;
           loadFiles();
