@@ -893,6 +893,7 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
 
     if (!section->loadSectionFile(
             SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
+            SETTINGS.wordSpacingPercent,
             SETTINGS.extraParagraphSpacingLevel, SETTINGS.paragraphAlignment,
             viewportWidth, viewportHeight, false,
             SETTINGS.embeddedStyle, SETTINGS.readerBoldSwap != 0)) {
@@ -904,6 +905,7 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
 
       if (!section->createSectionFile(
               SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
+              SETTINGS.wordSpacingPercent,
               SETTINGS.extraParagraphSpacingLevel, SETTINGS.paragraphAlignment,
               viewportWidth, viewportHeight, false,
               SETTINGS.embeddedStyle, SETTINGS.readerBoldSwap != 0, popupFn)) {

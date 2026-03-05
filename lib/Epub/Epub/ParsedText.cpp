@@ -73,7 +73,7 @@ void ParsedText::addWord(std::string word, const EpdFontFamily::Style fontStyle,
 void ParsedText::layoutAndExtractLines(
     const GfxRenderer &renderer, const int fontId, const uint16_t viewportWidth,
     const std::function<void(std::shared_ptr<TextBlock>)> &processLine,
-    const bool includeLastLine) {
+    const bool includeLastLine, const uint8_t wordSpacingPercent) {
   if (words.empty()) {
     return;
   }
@@ -82,7 +82,7 @@ void ParsedText::layoutAndExtractLines(
   applyParagraphIndent();
 
   const int pageWidth = viewportWidth;
-  const int spaceWidth = renderer.getSpaceWidth(fontId);
+  const int spaceWidth = renderer.getSpaceWidth(fontId) * wordSpacingPercent / 100;
   auto wordWidths = calculateWordWidths(renderer, fontId);
 
   std::vector<size_t> lineBreakIndices = computeLineBreaks(renderer, fontId, pageWidth, spaceWidth, wordWidths, wordContinues);

@@ -45,6 +45,8 @@ inline std::vector<SettingInfo> getSettingsList() {
                         StrId::STR_CAT_READER),
       SettingInfo::Value(StrId::STR_LINE_SPACING, &CrossPointSettings::lineSpacingPercent, {65, 150, 5},
                          "lineSpacingPercent", StrId::STR_CAT_READER),
+      SettingInfo::Value(StrId::STR_WORD_SPACING, &CrossPointSettings::wordSpacingPercent, {50, 200, 5},
+                         "wordSpacingPercent", StrId::STR_CAT_READER),
       SettingInfo::Value(StrId::STR_SCREEN_MARGIN_HORIZONTAL, &CrossPointSettings::screenMarginHorizontal, {0, 55, 5},
                          "screenMarginHorizontal", StrId::STR_CAT_READER),
       SettingInfo::Value(StrId::STR_SCREEN_MARGIN_TOP, &CrossPointSettings::screenMarginTop, {0, 55, 5},

@@ -311,6 +311,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["fontSize"] = s.fontSize;
   doc["lineSpacing"] = s.lineSpacing;
   doc["lineSpacingPercent"] = s.lineSpacingPercent;
+  doc["wordSpacingPercent"] = s.wordSpacingPercent;
   doc["paragraphAlignment"] = s.paragraphAlignment;
   doc["sleepTimeout"] = s.sleepTimeout;
   doc["refreshFrequency"] = s.refreshFrequency;
@@ -430,6 +431,10 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
                      S::MEDIUM);
   s.lineSpacing = clamp(doc["lineSpacing"] | (uint8_t)S::NORMAL,
                         S::LINE_COMPRESSION_COUNT, S::NORMAL);
+  {
+    const uint8_t v = doc["wordSpacingPercent"] | (uint8_t)100;
+    s.wordSpacingPercent = (v < 50) ? 50 : (v > 200 ? 200 : v);
+  }
   if (!doc["lineSpacingPercent"].isNull()) {
     const uint8_t parsed = doc["lineSpacingPercent"] | (uint8_t)110;
     if (parsed < 65) {
