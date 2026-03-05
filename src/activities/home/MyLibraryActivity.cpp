@@ -192,6 +192,7 @@ void MyLibraryActivity::loadFiles() {
 
   root.rewindDirectory();
 
+  constexpr size_t MAX_LIBRARY_FILES = 200;
   char name[500];
   for (auto file = root.openNextFile(); file; file = root.openNextFile()) {
     file.getName(name, sizeof(name));
@@ -209,22 +210,12 @@ void MyLibraryActivity::loadFiles() {
       }
     }
     file.close();
+    if (files.size() >= MAX_LIBRARY_FILES) break;
   }
   root.close();
   sortFileList(files);
   if (basepath == "/sleep") {
     orderSleepFolderByPlaylist(files);
-  }
-
-  for (const auto& name : files) {
-    if (!name.empty() && name.back() == '/') {
-      continue;
-    }
-    if (!isBookFile(name)) {
-      continue;
-    }
-    const std::string fullPath = makeAbsolutePath(name);
-    progressPrefixCache.emplace(fullPath, formatLibraryProgressPrefix(BookProgress::getPercent(fullPath)));
   }
 }
 
@@ -686,34 +677,16 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
     const int textX = listX + metrics.contentSidePadding;
     const int textW = listW - metrics.contentSidePadding * 2 - 3;
 
-    std::vector<std::vector<std::string>> wrappedRows(files.size());
-    std::vector<int> rowHeights(files.size(), oneLineRowHeight);
-    for (size_t i = 0; i < files.size(); i++) {
-      const std::string& name = files[i];
-      std::string rowText = getDisplayNameForEntry(i);
-
-      if (!name.empty() && name.back() != '/' && isBookFile(name)) {
-        const std::string fullPath = makeAbsolutePath(name);
-        auto cached = progressPrefixCache.find(fullPath);
-        if (cached == progressPrefixCache.end()) {
-          cached = progressPrefixCache.emplace(fullPath, formatLibraryProgressPrefix(BookProgress::getPercent(fullPath))).first;
-        }
-        rowText = cached->second + "  " + name;
-      }
-
-      wrappedRows[i] = wrapTextToWidth(renderer, UI_10_FONT_ID, rowText, textW);
-      rowHeights[i] = static_cast<int>(wrappedRows[i].size()) * lineHeight + rowPadY * 2;
-    }
-
     if (selectorIndex >= files.size()) {
       selectorIndex = files.empty() ? 0 : files.size() - 1;
     }
     const int selected = static_cast<int>(selectorIndex);
 
+    // Use oneLineRowHeight as conservative estimate to find visible window
     int startIndex = selected;
     int usedHeight = 0;
     while (startIndex >= 0) {
-      const int blockHeight = rowHeights[static_cast<size_t>(startIndex)] + (usedHeight > 0 ? rowGap : 0);
+      const int blockHeight = oneLineRowHeight + (usedHeight > 0 ? rowGap : 0);
       if (usedHeight + blockHeight > listHeight) break;
       usedHeight += blockHeight;
       startIndex--;
@@ -723,16 +696,26 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
     int y = listTop;
     int lastVisibleIndex = startIndex - 1;
     for (int i = startIndex; i < static_cast<int>(files.size()); i++) {
-      const int rowHeight = rowHeights[static_cast<size_t>(i)];
+      std::string rowText = getDisplayNameForEntry(i);
+      const std::string& name = files[i];
+      if (!name.empty() && name.back() != '/' && isBookFile(name)) {
+        const std::string fullPath = makeAbsolutePath(name);
+        auto cached = progressPrefixCache.find(fullPath);
+        if (cached == progressPrefixCache.end()) {
+          cached = progressPrefixCache.emplace(
+            fullPath, formatLibraryProgressPrefix(BookProgress::getPercent(fullPath))).first;
+        }
+        rowText = cached->second + "  " + name;
+      }
+      const auto wrappedLines = wrapTextToWidth(renderer, UI_10_FONT_ID, rowText, textW);
+      const int rowHeight = static_cast<int>(wrappedLines.size()) * lineHeight + rowPadY * 2;
+
       if (y + rowHeight > listTop + listHeight) break;
 
       const bool isSelected = i == selected;
-      if (isSelected) {
-        renderer.fillRect(listX, y, listW, rowHeight, true);
-      }
-
+      if (isSelected) renderer.fillRect(listX, y, listW, rowHeight, true);
       int lineY = y + rowPadY;
-      for (const auto& line : wrappedRows[static_cast<size_t>(i)]) {
+      for (const auto& line : wrappedLines) {
         renderer.drawText(UI_10_FONT_ID, textX, lineY, line.c_str(), !isSelected);
         lineY += lineHeight;
       }
