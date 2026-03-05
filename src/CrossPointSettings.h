@@ -102,6 +102,7 @@ public:
   // Font family options
   enum FONT_FAMILY {
     CHAREINK = 0,
+    LITERATA = 1,
     FONT_FAMILY_COUNT
   };
   // Font size options.

@@ -358,6 +358,7 @@ enum class StrId : uint16_t {
   STR_STATUS_CHAPTER_TITLE,
   STR_STATUS_TOP_LINE,
   STR_DEBUG_BORDERS,
+  STR_LITERATA,
   // Sentinel - must be last
   _COUNT
 };

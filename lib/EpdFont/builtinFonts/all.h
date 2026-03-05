@@ -22,6 +22,10 @@
 #include <builtinFonts/chareink_20_bold.h>
 #include <builtinFonts/chareink_20_italic.h>
 
+#include <builtinFonts/literata_15_regular.h>
+#include <builtinFonts/literata_15_bold.h>
+#include <builtinFonts/literata_15_italic.h>
+
 #include <builtinFonts/unifont_14_regular.h>
 #include <builtinFonts/unifont_18_regular.h>
 

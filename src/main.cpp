@@ -64,6 +64,11 @@ EpdFont chareink19BoldFont(&chareink_19_bold);
 EpdFont chareink19ItalicFont(&chareink_19_italic);
 EpdFontFamily chareink19FontFamily(&chareink19RegularFont, &chareink19BoldFont, &chareink19ItalicFont, nullptr);
 
+EpdFont literata15RegularFont(&literata_15_regular);
+EpdFont literata15BoldFont(&literata_15_bold);
+EpdFont literata15ItalicFont(&literata_15_italic);
+EpdFontFamily literata15FontFamily(&literata15RegularFont, &literata15BoldFont, &literata15ItalicFont, nullptr);
+
 EpdFont unifont14RegularFont(&unifont_14_regular);
 EpdFontFamily unifont14FontFamily(&unifont14RegularFont, nullptr, nullptr, nullptr, 1, 0, false);
 EpdFont unifont18RegularFont(&unifont_18_regular);
@@ -215,6 +220,7 @@ void setupDisplayAndFonts() {
   renderer.insertFont(CHAREINK_17_FONT_ID, chareink17FontFamily);
   renderer.insertFont(CHAREINK_18_FONT_ID, chareink18FontFamily);
   renderer.insertFont(CHAREINK_19_FONT_ID, chareink19FontFamily);
+  renderer.insertFont(LITERATA_15_FONT_ID, literata15FontFamily);
   renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
   renderer.insertFont(UNIFONT_18_FONT_ID, unifont18FontFamily);
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);

@@ -174,6 +174,7 @@ class SettingsActivity final : public ActivityWithSubactivity {
   const std::vector<SettingInfo>* settingsForCategory(int categoryIndex) const;
   int findNextEditableRow(int startIndex, int direction) const;
   void jumpCategory(int direction);
+  void buildSettingsList();
   bool isPopupValueSetting(const SettingInfo& setting) const;
   bool isEditingCurrentSetting() const;
   void startValueEdit(const SettingInfo& setting, int categoryIndex, int settingIndex);

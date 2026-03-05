@@ -119,7 +119,8 @@ bool SettingsActivity::isPopupValueSetting(const SettingInfo& setting) const {
   }
   return setting.valuePtr == &CrossPointSettings::lineSpacingPercent ||
          setting.valuePtr == &CrossPointSettings::screenMarginHorizontal ||
-         setting.valuePtr == &CrossPointSettings::screenMarginTop;
+         setting.valuePtr == &CrossPointSettings::screenMarginTop ||
+         setting.valuePtr == &CrossPointSettings::screenMarginBottom;
 }
 
 bool SettingsActivity::isEditingCurrentSetting() const {
@@ -165,13 +166,7 @@ void SettingsActivity::applyValueEdit() {
   }
 
   const auto& setting = (*settings)[valueEditSettingIndex];
-  if (setting.valuePtr == &CrossPointSettings::screenMarginTop ||
-      setting.valuePtr == &CrossPointSettings::screenMarginBottom) {
-    SETTINGS.screenMarginTop = valueEditDraft;
-    SETTINGS.screenMarginBottom = valueEditDraft;
-  } else {
-    SETTINGS.*(setting.valuePtr) = valueEditDraft;
-  }
+  SETTINGS.*(setting.valuePtr) = valueEditDraft;
 
   persistSettingsWithLog("settings value confirm");
   valueEditMode = false;
@@ -201,10 +196,7 @@ std::string SettingsActivity::currentValueEditText() const {
   return v;
 }
 
-void SettingsActivity::onEnter() {
-  Activity::onEnter();
-
-  // Build per-category vectors from the shared settings list
+void SettingsActivity::buildSettingsList() {
   displaySettings.clear();
   readerSettings.clear();
   statusBarSettings.clear();
@@ -229,6 +221,14 @@ void SettingsActivity::onEnter() {
     // Web-only categories (KOReader Sync, OPDS Browser) are skipped for device UI
   }
 
+  // Hide font size when a single-size font family is selected
+  if (SETTINGS.fontFamily == CrossPointSettings::LITERATA) {
+    readerSettings.erase(
+        std::remove_if(readerSettings.begin(), readerSettings.end(),
+                       [](const SettingInfo& s) { return s.valuePtr == &CrossPointSettings::fontSize; }),
+        readerSettings.end());
+  }
+
   displaySettings.push_back(SettingInfo::Action(StrId::STR_RANDOMIZE_SLEEP_IMAGES, SettingAction::RandomizeSleepImages));
 
   // Append device-only ACTION items
@@ -250,6 +250,12 @@ void SettingsActivity::onEnter() {
       flatRows.push_back(FlatSettingRow{.isHeader = false, .categoryIndex = c, .settingIndex = static_cast<int>(i)});
     }
   }
+}
+
+void SettingsActivity::onEnter() {
+  Activity::onEnter();
+
+  buildSettingsList();
   selectedRowIndex = findNextEditableRow(0, +1);
   lastNextTapMs = 0;
   lastPreviousTapMs = 0;
@@ -410,6 +416,10 @@ void SettingsActivity::toggleCurrentSetting() {
     } else {
       SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
     }
+    if (setting.valuePtr == &CrossPointSettings::fontFamily) {
+      buildSettingsList();
+      selectedRowIndex = std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
+    }
   } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
     if (isPopupValueSetting(setting)) {
       startValueEdit(setting, row.categoryIndex, row.settingIndex);
@@ -417,11 +427,6 @@ void SettingsActivity::toggleCurrentSetting() {
     }
     if (setting.valuePtr == &CrossPointSettings::screenMarginHorizontal) {
       SETTINGS.*(setting.valuePtr) = nextReaderMarginValue(SETTINGS.*(setting.valuePtr));
-    } else if (setting.valuePtr == &CrossPointSettings::screenMarginTop ||
-               setting.valuePtr == &CrossPointSettings::screenMarginBottom) {
-      const uint8_t next = nextReaderMarginValue(SETTINGS.*(setting.valuePtr));
-      SETTINGS.screenMarginTop = next;
-      SETTINGS.screenMarginBottom = next;
     } else {
       const int currentValue = SETTINGS.*(setting.valuePtr);
       if (currentValue < setting.valueRange.min ||

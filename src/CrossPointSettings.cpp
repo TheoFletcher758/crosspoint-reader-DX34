@@ -474,7 +474,9 @@ int CrossPointSettings::getRefreshFrequency() const {
 }
 
 int CrossPointSettings::getReaderFontId() const {
-  (void)fontFamily;
+  if (fontFamily == LITERATA) {
+    return LITERATA_15_FONT_ID;
+  }
   switch (fontSize) {
   case SIZE_14:
     return CHAREINK_14_FONT_ID;
