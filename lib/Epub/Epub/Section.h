@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <memory>
+#include <vector>
 
 #include "Epub.h"
 
@@ -13,6 +14,7 @@ class Section {
   GfxRenderer& renderer;
   std::string filePath;
   FsFile file;
+  std::vector<uint32_t> pageLut;
 
   void writeSectionFileHeader(int fontId, float lineCompression, uint8_t wordSpacingPercent,
                               uint8_t extraParagraphSpacingLevel, uint8_t paragraphAlignment,

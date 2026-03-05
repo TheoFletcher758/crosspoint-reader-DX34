@@ -117,6 +117,14 @@ bool Section::loadSectionFile(const int fontId, const float lineCompression,
   }
 
   serialization::readPod(file, pageCount);
+  uint32_t lutOffset;
+  file.seek(HEADER_SIZE - sizeof(uint32_t));
+  serialization::readPod(file, lutOffset);
+  pageLut.resize(pageCount);
+  file.seek(lutOffset);
+  for (uint16_t i = 0; i < pageCount; i++) {
+    serialization::readPod(file, pageLut[i]);
+  }
   file.close();
   LOG_DBG("SCT", "Deserialization succeeded: %d pages", pageCount);
   return true;
@@ -259,18 +267,12 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
 }
 
 std::unique_ptr<Page> Section::loadPageFromSectionFile() {
+  if (currentPage < 0 || static_cast<size_t>(currentPage) >= pageLut.size()) return nullptr;
   if (!Storage.openFileForRead("SCT", filePath, file)) {
     return nullptr;
   }
 
-  file.seek(HEADER_SIZE - sizeof(uint32_t));
-  uint32_t lutOffset;
-  serialization::readPod(file, lutOffset);
-  file.seek(lutOffset + sizeof(uint32_t) * currentPage);
-  uint32_t pagePos;
-  serialization::readPod(file, pagePos);
-  file.seek(pagePos);
-
+  file.seek(pageLut[currentPage]);
   auto page = Page::deserialize(file);
   file.close();
   return page;

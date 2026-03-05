@@ -182,7 +182,6 @@ void orderSleepFolderByPlaylist(std::vector<std::string>& entries) {
 
 void MyLibraryActivity::loadFiles() {
   files.clear();
-  progressPrefixCache.clear();
 
   auto root = Storage.open(basepath.c_str());
   if (!root || !root.isDirectory()) {
