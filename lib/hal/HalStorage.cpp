@@ -64,6 +64,22 @@ bool HalStorage::ensureDirectoryExists(const char *path) {
   HAL_STORAGE_WRAPPED_CALL(ensureDirectoryExists, path);
 }
 
+class HalFile::Impl {
+public:
+  Impl(FsFile &&fsFile) : file(std::move(fsFile)) {}
+  FsFile file;
+};
+
+HalFile::HalFile() = default;
+
+HalFile::HalFile(std::unique_ptr<HalFile::Impl> impl) : impl(std::move(impl)) {}
+
+HalFile::~HalFile() = default;
+
+HalFile::HalFile(HalFile &&) = default;
+
+HalFile &HalFile::operator=(HalFile &&) = default;
+
 HalFile HalStorage::open(const char *path, const oflag_t oflag) {
   StorageLock lock; // ensure thread safety for the duration of this function
   return HalFile(std::make_unique<HalFile::Impl>(SDCard.open(path, oflag)));
@@ -184,7 +200,7 @@ bool HalFile::close() { HAL_FILE_WRAPPED_CALL(close, ); }
 HalFile HalFile::openNextFile() {
   HalStorage::StorageLock lock;
   assert(impl != nullptr);
-  return HalFile(std::make_unique<Impl>(impl->file.openNextFile()));
+  return HalFile(std::make_unique<HalFile::Impl>(impl->file.openNextFile()));
 }
 bool HalFile::isOpen() const {
   return impl != nullptr && impl->file.isOpen();

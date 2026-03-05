@@ -2,8 +2,7 @@
 
 #include <GfxRenderer.h>
 #include <Logging.h>
-#include <SDCardManager.h>
-#include <SdFat.h>
+#include <HalStorage.h>
 #include <picojpeg.h>
 
 #include <cstdio>

@@ -3,8 +3,7 @@
 #include <GfxRenderer.h>
 #include <Logging.h>
 #include <PNGdec.h>
-#include <SDCardManager.h>
-#include <SdFat.h>
+#include <HalStorage.h>
 
 #include <cstdlib>
 #include <new>
