@@ -8,8 +8,8 @@
 #include "parsers/ChapterHtmlSlimParser.h"
 
 namespace {
-constexpr uint8_t SECTION_FILE_VERSION = 15;
-constexpr uint32_t HEADER_SIZE = sizeof(uint8_t) + sizeof(int) + sizeof(float) + sizeof(uint8_t) + sizeof(uint8_t) +
+constexpr uint8_t SECTION_FILE_VERSION = 14;
+constexpr uint32_t HEADER_SIZE = sizeof(uint8_t) + sizeof(int) + sizeof(float) + sizeof(uint8_t) +
                                  sizeof(uint8_t) + sizeof(uint16_t) + sizeof(uint16_t) + sizeof(bool) + sizeof(bool) +
                                  sizeof(bool) + sizeof(uint16_t) + sizeof(uint32_t);
 }  // namespace
@@ -32,7 +32,6 @@ uint32_t Section::onPageComplete(std::unique_ptr<Page> page) {
 }
 
 void Section::writeSectionFileHeader(const int fontId, const float lineCompression,
-                                     const uint8_t wordSpacingPercent,
                                      const uint8_t extraParagraphSpacingLevel,
                                      const uint8_t paragraphAlignment, const uint16_t viewportWidth,
                                      const uint16_t viewportHeight, const bool hyphenationEnabled,
@@ -42,7 +41,7 @@ void Section::writeSectionFileHeader(const int fontId, const float lineCompressi
     return;
   }
   static_assert(HEADER_SIZE == sizeof(SECTION_FILE_VERSION) + sizeof(fontId) + sizeof(lineCompression) +
-                                   sizeof(wordSpacingPercent) + sizeof(extraParagraphSpacingLevel) +
+                                   sizeof(extraParagraphSpacingLevel) +
                                    sizeof(paragraphAlignment) + sizeof(viewportWidth) +
                                    sizeof(viewportHeight) + sizeof(pageCount) + sizeof(hyphenationEnabled) +
                                    sizeof(embeddedStyle) + sizeof(readerBoldSwap) + sizeof(uint32_t),
@@ -50,7 +49,6 @@ void Section::writeSectionFileHeader(const int fontId, const float lineCompressi
   serialization::writePod(file, SECTION_FILE_VERSION);
   serialization::writePod(file, fontId);
   serialization::writePod(file, lineCompression);
-  serialization::writePod(file, wordSpacingPercent);
   serialization::writePod(file, extraParagraphSpacingLevel);
   serialization::writePod(file, paragraphAlignment);
   serialization::writePod(file, viewportWidth);
@@ -63,7 +61,6 @@ void Section::writeSectionFileHeader(const int fontId, const float lineCompressi
 }
 
 bool Section::loadSectionFile(const int fontId, const float lineCompression,
-                              const uint8_t wordSpacingPercent,
                               const uint8_t extraParagraphSpacingLevel,
                               const uint8_t paragraphAlignment, const uint16_t viewportWidth,
                               const uint16_t viewportHeight, const bool hyphenationEnabled, const bool embeddedStyle,
@@ -86,7 +83,6 @@ bool Section::loadSectionFile(const int fontId, const float lineCompression,
     int fileFontId;
     uint16_t fileViewportWidth, fileViewportHeight;
     float fileLineCompression;
-    uint8_t fileWordSpacingPercent;
     uint8_t fileExtraParagraphSpacingLevel;
     uint8_t fileParagraphAlignment;
     bool fileHyphenationEnabled;
@@ -94,7 +90,6 @@ bool Section::loadSectionFile(const int fontId, const float lineCompression,
     bool fileReaderBoldSwap;
     serialization::readPod(file, fileFontId);
     serialization::readPod(file, fileLineCompression);
-    serialization::readPod(file, fileWordSpacingPercent);
     serialization::readPod(file, fileExtraParagraphSpacingLevel);
     serialization::readPod(file, fileParagraphAlignment);
     serialization::readPod(file, fileViewportWidth);
@@ -104,7 +99,6 @@ bool Section::loadSectionFile(const int fontId, const float lineCompression,
     serialization::readPod(file, fileReaderBoldSwap);
 
     if (fontId != fileFontId || lineCompression != fileLineCompression ||
-        wordSpacingPercent != fileWordSpacingPercent ||
         extraParagraphSpacingLevel != fileExtraParagraphSpacingLevel || paragraphAlignment != fileParagraphAlignment ||
         viewportWidth != fileViewportWidth || viewportHeight != fileViewportHeight ||
         hyphenationEnabled != fileHyphenationEnabled || embeddedStyle != fileEmbeddedStyle ||
@@ -147,7 +141,6 @@ bool Section::clearCache() const {
 }
 
 bool Section::createSectionFile(const int fontId, const float lineCompression,
-                                const uint8_t wordSpacingPercent,
                                 const uint8_t extraParagraphSpacingLevel,
                                 const uint8_t paragraphAlignment, const uint16_t viewportWidth,
                                 const uint16_t viewportHeight, const bool hyphenationEnabled, const bool embeddedStyle,
@@ -200,7 +193,7 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
   if (!Storage.openFileForWrite("SCT", filePath, file)) {
     return false;
   }
-  writeSectionFileHeader(fontId, lineCompression, wordSpacingPercent, extraParagraphSpacingLevel, paragraphAlignment,
+  writeSectionFileHeader(fontId, lineCompression, extraParagraphSpacingLevel, paragraphAlignment,
                          viewportWidth, viewportHeight, hyphenationEnabled, embeddedStyle, readerBoldSwap);
   std::vector<uint32_t> lut = {};
 
@@ -220,7 +213,7 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
   }
 
   ChapterHtmlSlimParser visitor(
-      epub, tmpHtmlPath, renderer, fontId, lineCompression, wordSpacingPercent, extraParagraphSpacingLevel,
+      epub, tmpHtmlPath, renderer, fontId, lineCompression, extraParagraphSpacingLevel,
       paragraphAlignment, viewportWidth, viewportHeight, hyphenationEnabled,
       [this, &lut](std::unique_ptr<Page> page) { lut.emplace_back(this->onPageComplete(std::move(page))); },
       embeddedStyle, contentBase, imageBasePath, popupFn, cssParser);
@@ -259,6 +252,7 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
   file.seek(HEADER_SIZE - sizeof(uint32_t) - sizeof(pageCount));
   serialization::writePod(file, pageCount);
   serialization::writePod(file, lutOffset);
+  pageLut = lut;
   file.close();
   if (cssParser) {
     cssParser->clear();

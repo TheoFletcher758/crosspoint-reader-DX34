@@ -222,8 +222,6 @@ public:
   uint8_t lineSpacing = NORMAL;
   // Reader line spacing percentage (65..150)
   uint8_t lineSpacingPercent = 110;
-  // Word spacing as percentage of normal space width (50..200, default 100)
-  uint8_t wordSpacingPercent = 100;
   uint8_t paragraphAlignment = JUSTIFIED;
   // Reader-only style swap: Regular <-> Bold (italics unchanged)
   uint8_t readerBoldSwap = 0;

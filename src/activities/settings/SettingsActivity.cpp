@@ -118,7 +118,6 @@ bool SettingsActivity::isPopupValueSetting(const SettingInfo& setting) const {
     return false;
   }
   return setting.valuePtr == &CrossPointSettings::lineSpacingPercent ||
-         setting.valuePtr == &CrossPointSettings::wordSpacingPercent ||
          setting.valuePtr == &CrossPointSettings::screenMarginHorizontal ||
          setting.valuePtr == &CrossPointSettings::screenMarginTop;
 }
@@ -196,8 +195,7 @@ std::string SettingsActivity::currentValueEditText() const {
   }
   const auto& setting = (*settings)[valueEditSettingIndex];
   std::string v = std::to_string(valueEditDraft);
-  if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent ||
-      setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
+  if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
     v += "%";
   }
   return v;
