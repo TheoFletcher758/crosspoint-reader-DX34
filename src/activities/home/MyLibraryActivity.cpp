@@ -475,15 +475,18 @@ void MyLibraryActivity::loop() {
         case 2:
           if (moveSelectedFileTo("/sleep")) {
             mode = Mode::BROWSE;
-            loadFiles();
-            selectorIndex = 0;
+            progressPrefixCache.erase(selectedFilePath);
+            if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
+            if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
           }
           break;
         case 3:
-          deleteSelectedFile();
+          if (deleteSelectedFile()) {
+            progressPrefixCache.erase(selectedFilePath);
+            if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
+            if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
+          }
           mode = Mode::BROWSE;
-          loadFiles();
-          selectorIndex = 0;
           break;
         default:
           mode = Mode::BROWSE;
@@ -528,8 +531,9 @@ void MyLibraryActivity::loop() {
       if (entry.isMoveHere) {
         if (moveSelectedFileTo(entry.path)) {
           mode = Mode::BROWSE;
-          loadFiles();
-          selectorIndex = 0;
+          progressPrefixCache.erase(selectedFilePath);
+          if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
+          if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
         } else {
           // Keep browsing destination after a failed move (existing file/same path).
           loadMoveBrowseEntries();
@@ -682,16 +686,28 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
     }
     const int selected = static_cast<int>(selectorIndex);
 
-    // Use oneLineRowHeight as conservative estimate to find visible window
+    // Walk backward from selected using actual row heights to ensure selected is always visible
     int startIndex = selected;
     int usedHeight = 0;
-    while (startIndex >= 0) {
-      const int blockHeight = oneLineRowHeight + (usedHeight > 0 ? rowGap : 0);
+    for (int i = selected; i >= 0; i--) {
+      std::string bwText = getDisplayNameForEntry(i);
+      const std::string& bwName = files[i];
+      if (!bwName.empty() && bwName.back() != '/' && isBookFile(bwName)) {
+        const std::string fullPath = makeAbsolutePath(bwName);
+        auto cached = progressPrefixCache.find(fullPath);
+        if (cached == progressPrefixCache.end()) {
+          cached = progressPrefixCache.emplace(
+            fullPath, formatLibraryProgressPrefix(BookProgress::getPercent(fullPath))).first;
+        }
+        bwText = cached->second + "  " + bwName;
+      }
+      const auto bwLines = wrapTextToWidth(renderer, UI_10_FONT_ID, bwText, textW);
+      const int bwHeight = static_cast<int>(bwLines.size()) * lineHeight + rowPadY * 2;
+      const int blockHeight = bwHeight + (usedHeight > 0 ? rowGap : 0);
       if (usedHeight + blockHeight > listHeight) break;
       usedHeight += blockHeight;
-      startIndex--;
+      startIndex = i;
     }
-    startIndex = std::max(0, startIndex + 1);
 
     int y = listTop;
     int lastVisibleIndex = startIndex - 1;
