@@ -133,6 +133,12 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
     changed = true;
   }
 
+  // Final safety: strictly cap playlist size to avoid serialization OOM.
+  if (playlist.size() > CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) {
+    playlist.erase(playlist.begin() + CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST, playlist.end());
+    changed = true;
+  }
+
   if (playlist.empty()) {
     playlist = files;
     APP_STATE.lastSleepImage = 0;
@@ -317,32 +323,55 @@ bool SleepActivity::randomizeSleepImagePlaylist() {
 
 void SleepActivity::trimSleepFolderToLimit() {
   const size_t kLimit = CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST;
+  const size_t kScanCap = kLimit + 500; // Hard cap on scanning to avoid OOM
 
-  // Scan ALL .bmp files in /sleep with no cap — we need the full count to detect overflow.
-  std::vector<std::string> allFiles;
+  // Count .bmp files in /sleep first to avoid allocating the vector if not needed.
+  size_t count = 0;
   auto dir = Storage.open("/sleep");
   if (!dir || !dir.isDirectory()) {
     if (dir) dir.close();
     return;
   }
-  char name[500];
+  char name[256]; // Reduced from 500 to save stack
   for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
     if (file.isDirectory()) { file.close(); continue; }
     file.getName(name, sizeof(name));
     std::string filename(name);
-    if (filename.empty() || filename[0] == '.') { file.close(); continue; }
-    if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".bmp") {
+    if (!filename.empty() && filename[0] != '.' &&
+        filename.size() >= 4 && filename.substr(filename.size() - 4) == ".bmp") {
+      count++;
+      if (count > kScanCap) break; // Optimization: we already know we're over limit
+    }
+    file.close();
+  }
+  dir.rewind();
+
+  if (count <= kLimit) {
+    dir.close();
+    return; // Under limit — nothing to do.
+  }
+
+  LOG_INF("SLP", "Trim: /sleep has %zu images (limit %zu), starting prune...", count, kLimit);
+
+  // Now scan and collect files up to cap
+  std::vector<std::string> allFiles;
+  allFiles.reserve(std::min(count, kScanCap));
+  for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
+    if (file.isDirectory()) { file.close(); continue; }
+    file.getName(name, sizeof(name));
+    std::string filename(name);
+    if (!filename.empty() && filename[0] != '.' &&
+        filename.size() >= 4 && filename.substr(filename.size() - 4) == ".bmp") {
       allFiles.emplace_back(std::move(filename));
+      if (allFiles.size() >= kScanCap) { file.close(); break; }
     }
     file.close();
   }
   dir.close();
 
-  if (allFiles.size() <= kLimit) return;  // Under limit — nothing to do.
-
   std::sort(allFiles.begin(), allFiles.end());
 
-  // Sync the playlist against all on-disk files: new files are inserted at the
+  // Sync the playlist against on-disk files: new files are inserted at the
   // front (shown first), deleted files are pruned. May grow playlist above kLimit.
   syncSleepPlaylistWithFiles(allFiles, false);
 
@@ -363,8 +392,6 @@ void SleepActivity::trimSleepFolderToLimit() {
       LOG_INF("SLP", "Trim: moved %s to /sleep pause", filename.c_str());
     }
   }
-
-  APP_STATE.saveToFile();
 }
 
 void SleepActivity::renderDefaultSleepScreen() const {

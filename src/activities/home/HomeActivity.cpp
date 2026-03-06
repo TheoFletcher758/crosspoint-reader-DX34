@@ -1,4 +1,5 @@
 #include "HomeActivity.h"
+#include "activities/boot_sleep/SleepActivity.h"
 
 #include <Bitmap.h>
 #include <Epub.h>
@@ -168,6 +169,9 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
 
 void HomeActivity::onEnter() {
   Activity::onEnter();
+
+  // Trim sleep folder once we reach home to avoid delays during boot/sleep entry
+  SleepActivity::trimSleepFolderToLimit();
 
   // Check if OPDS browser URL is configured
   hasOpdsUrl = strlen(SETTINGS.opdsServerUrl) > 0;

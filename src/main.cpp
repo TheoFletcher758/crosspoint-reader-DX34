@@ -337,13 +337,17 @@ void setup() {
   enterNewActivity(new BootActivity(renderer, mappedInputManager));
 
   APP_STATE.loadFromFile();
+  // FORCE trimming early if we were already in an OOM situation from a large playlist
   SleepActivity::trimSleepFolderToLimit();
   RECENT_BOOKS.loadFromFile();
+
+  LOG_INF("MAIN", "Booting complete, checking initial activity");
 
   // Boot to home screen if no book is open, last sleep was not from reader, back button is held, or reader activity
   // crashed (indicated by readerActivityLoadCount > 0)
   if (APP_STATE.openEpubPath.empty() || !APP_STATE.lastSleepFromReader ||
       mappedInputManager.isPressed(MappedInputManager::Button::Back) || APP_STATE.readerActivityLoadCount > 0) {
+    SleepActivity::trimSleepFolderToLimit();
     onGoHome();
   } else {
     // Clear app state to avoid getting into a boot loop if the epub doesn't load

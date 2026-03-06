@@ -3,6 +3,7 @@
 #include <Logging.h>
 #include <WiFi.h>
 #include <esp_sleep.h>
+#include <driver/gpio.h>
 
 #include <cassert>
 
@@ -58,8 +59,22 @@ void HalPowerManager::startDeepSleep(HalGPIO& gpio) const {
     delay(50);
     gpio.update();
   }
-  // Arm the wakeup trigger *after* the button is released
+  // Extra delay and update to ensure debouncing has fully settled after release
+  delay(100);
+  gpio.update();
+
+  // Arm the wakeup trigger *after* the button is released.
+  // On ESP32-C3, we also need to ensure the pull-up is enabled during sleep.
+  gpio_config_t config = {
+      .pin_bit_mask = 1ULL << InputManager::POWER_BUTTON_PIN,
+      .mode = GPIO_MODE_INPUT,
+      .pull_up_en = GPIO_PULLUP_ENABLE,
+      .pull_down_en = GPIO_PULLDOWN_DISABLE,
+      .intr_type = GPIO_INTR_DISABLE
+  };
+  gpio_config(&config);
   esp_deep_sleep_enable_gpio_wakeup(1ULL << InputManager::POWER_BUTTON_PIN, ESP_GPIO_WAKEUP_GPIO_LOW);
+
   // Enter Deep Sleep
   esp_deep_sleep_start();
 }
