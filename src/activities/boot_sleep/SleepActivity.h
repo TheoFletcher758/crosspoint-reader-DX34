@@ -9,6 +9,8 @@ class SleepActivity final : public Activity {
       : Activity("Sleep", renderer, mappedInput) {}
   void onEnter() override;
   static bool randomizeSleepImagePlaylist();
+  // Called once on boot: moves overflow images beyond the playlist limit to /sleep pause.
+  static void trimSleepFolderToLimit();
 
  private:
   void renderDefaultSleepScreen() const;

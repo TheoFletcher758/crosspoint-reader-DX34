@@ -10,7 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <unordered_set>
+#include <esp_task_wdt.h>
 
 #include "CrossPointState.h"
 #include "MappedInputManager.h"
@@ -140,47 +140,6 @@ void sortFileList(std::vector<std::string>& strs) {
   });
 }
 
-void orderSleepFolderByPlaylist(std::vector<std::string>& entries) {
-  // In /sleep, prioritize BMP files by the persisted sleep playlist order.
-  // The playlist stores the most recently displayed image at index 0.
-  if (APP_STATE.sleepImagePlaylist.empty()) {
-    return;
-  }
-
-  std::vector<std::string> directories;
-  std::vector<std::string> orderedBmps;
-
-  for (const auto& name : entries) {
-    if (!name.empty() && name.back() == '/') {
-      directories.push_back(name);
-    }
-  }
-
-  // Build a hash set of entries for O(1) lookup when walking the playlist.
-  const std::unordered_set<std::string> entrySet(entries.begin(), entries.end());
-  for (const auto& playlistName : APP_STATE.sleepImagePlaylist) {
-    if (entrySet.count(playlistName)) {
-      orderedBmps.push_back(playlistName);
-    }
-  }
-
-  // Collect files not in the playlist using a hash set for O(1) membership.
-  const std::unordered_set<std::string> orderedSet(orderedBmps.begin(),
-                                                   orderedBmps.end());
-  std::vector<std::string> remaining;
-  for (const auto& name : entries) {
-    if (!name.empty() && name.back() == '/') continue;
-    if (orderedSet.count(name) == 0) {
-      remaining.push_back(name);
-    }
-  }
-
-  entries.clear();
-  entries.reserve(directories.size() + orderedBmps.size() + remaining.size());
-  entries.insert(entries.end(), directories.begin(), directories.end());
-  entries.insert(entries.end(), orderedBmps.begin(), orderedBmps.end());
-  entries.insert(entries.end(), remaining.begin(), remaining.end());
-}
 
 void MyLibraryActivity::loadFiles() {
   files.clear();
@@ -213,13 +172,11 @@ void MyLibraryActivity::loadFiles() {
       }
     }
     file.close();
+    esp_task_wdt_reset();
     if (files.size() >= MAX_LIBRARY_FILES) break;
   }
   root.close();
   sortFileList(files);
-  if (basepath == "/sleep") {
-    orderSleepFolderByPlaylist(files);
-  }
 }
 
 std::string MyLibraryActivity::makeAbsolutePath(const std::string& name) const {

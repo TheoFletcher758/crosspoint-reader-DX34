@@ -337,6 +337,7 @@ void setup() {
   enterNewActivity(new BootActivity(renderer, mappedInputManager));
 
   APP_STATE.loadFromFile();
+  SleepActivity::trimSleepFolderToLimit();
   RECENT_BOOKS.loadFromFile();
 
   // Boot to home screen if no book is open, last sleep was not from reader, back button is held, or reader activity

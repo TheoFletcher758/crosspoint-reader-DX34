@@ -7,7 +7,7 @@
 #include <Txt.h>
 #include <Xtc.h>
 #include <algorithm>
-#include <unordered_set>
+#include <string_view>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
@@ -45,6 +45,7 @@ std::vector<std::string> getValidSleepBitmaps() {
       files.emplace_back(std::move(filename));
     }
     file.close();
+    if (files.size() >= CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) break;
   }
   dir.close();
 
@@ -90,15 +91,15 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
     return;
   }
 
-  // Build a hash set of on-disk files for O(1) lookup.
-  const std::unordered_set<std::string> fileSet(files.begin(), files.end());
+  // files is already sorted; use binary_search for O(log n) membership checks
+  // without copying any strings.
 
   // Remove entries that no longer exist on disk.
   const auto oldSize = playlist.size();
   playlist.erase(
       std::remove_if(playlist.begin(), playlist.end(),
-                     [&fileSet](const std::string &e) {
-                       return fileSet.count(e) == 0;
+                     [&files](const std::string &e) {
+                       return !std::binary_search(files.begin(), files.end(), e);
                      }),
       playlist.end());
   if (playlist.size() != oldSize) {
@@ -106,11 +107,16 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
   }
 
   // Find newly-added files not yet in the playlist.
-  const std::unordered_set<std::string> playlistSet(playlist.begin(),
-                                                    playlist.end());
+  // Build a sorted vector of string_views (no string copies) for O(log n) lookup.
+  std::vector<std::string_view> sortedPlaylist;
+  sortedPlaylist.reserve(playlist.size());
+  for (const auto &s : playlist) sortedPlaylist.emplace_back(s);
+  std::sort(sortedPlaylist.begin(), sortedPlaylist.end());
+
   std::vector<std::string> newFiles;
   for (const auto &file : files) {
-    if (playlistSet.count(file) == 0) {
+    if (!std::binary_search(sortedPlaylist.begin(), sortedPlaylist.end(),
+                             std::string_view(file))) {
       newFiles.push_back(file);
     }
   }
@@ -307,6 +313,58 @@ bool SleepActivity::randomizeSleepImagePlaylist() {
 
   syncSleepPlaylistWithFiles(files, true);
   return true;
+}
+
+void SleepActivity::trimSleepFolderToLimit() {
+  const size_t kLimit = CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST;
+
+  // Scan ALL .bmp files in /sleep with no cap — we need the full count to detect overflow.
+  std::vector<std::string> allFiles;
+  auto dir = Storage.open("/sleep");
+  if (!dir || !dir.isDirectory()) {
+    if (dir) dir.close();
+    return;
+  }
+  char name[500];
+  for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
+    if (file.isDirectory()) { file.close(); continue; }
+    file.getName(name, sizeof(name));
+    std::string filename(name);
+    if (filename.empty() || filename[0] == '.') { file.close(); continue; }
+    if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".bmp") {
+      allFiles.emplace_back(std::move(filename));
+    }
+    file.close();
+  }
+  dir.close();
+
+  if (allFiles.size() <= kLimit) return;  // Under limit — nothing to do.
+
+  std::sort(allFiles.begin(), allFiles.end());
+
+  // Sync the playlist against all on-disk files: new files are inserted at the
+  // front (shown first), deleted files are pruned. May grow playlist above kLimit.
+  syncSleepPlaylistWithFiles(allFiles, false);
+
+  auto& playlist = APP_STATE.sleepImagePlaylist;
+  if (playlist.size() <= kLimit) return;  // Sync brought it into range.
+
+  // Tail entries beyond kLimit are the oldest images — move them to /sleep pause.
+  const std::vector<std::string> overflow(playlist.begin() + kLimit, playlist.end());
+  playlist.erase(playlist.begin() + kLimit, playlist.end());
+
+  Storage.mkdir("/sleep pause");
+  for (const auto& filename : overflow) {
+    const std::string src = std::string("/sleep/") + filename;
+    const std::string dst = std::string("/sleep pause/") + filename;
+    if (!Storage.rename(src.c_str(), dst.c_str())) {
+      LOG_ERR("SLP", "Trim: failed to move %s to sleep pause", filename.c_str());
+    } else {
+      LOG_INF("SLP", "Trim: moved %s to /sleep pause", filename.c_str());
+    }
+  }
+
+  APP_STATE.saveToFile();
 }
 
 void SleepActivity::renderDefaultSleepScreen() const {

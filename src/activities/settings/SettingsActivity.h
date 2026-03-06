@@ -22,6 +22,7 @@ enum class SettingAction {
   CheckForUpdates,
   RandomizeSleepImages,
   RefreshHomeStats,
+  LastSleepWallpaper,
 };
 
 struct SettingInfo {
@@ -149,6 +150,8 @@ class SettingsActivity final : public ActivityWithSubactivity {
   bool homeStatsPopupOpen = false;
   bool randomizePopupOpen = false;
   bool randomizePopupSuccess = false;
+  bool sleepWallpaperPopupOpen = false;
+  int sleepWallpaperOptionIndex = 0;
   bool valueEditMode = false;
   int valueEditCategoryIndex = -1;
   int valueEditSettingIndex = -1;

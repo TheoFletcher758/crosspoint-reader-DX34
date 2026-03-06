@@ -4,10 +4,13 @@
 #include <GfxRenderer.h>
 #include <Logging.h>
 
+#include <HalStorage.h>
+
 #include "ButtonRemapActivity.h"
 #include "CalibreSettingsActivity.h"
 #include "ClearCacheActivity.h"
 #include "CrossPointSettings.h"
+#include "CrossPointState.h"
 #include "KOReaderSettingsActivity.h"
 #include "MappedInputManager.h"
 #include "OtaUpdateActivity.h"
@@ -230,6 +233,7 @@ void SettingsActivity::buildSettingsList() {
   }
 
   displaySettings.push_back(SettingInfo::Action(StrId::STR_RANDOMIZE_SLEEP_IMAGES, SettingAction::RandomizeSleepImages));
+  displaySettings.push_back(SettingInfo::Action(StrId::STR_LAST_SLEEP_WALLPAPER, SettingAction::LastSleepWallpaper));
 
   // Append device-only ACTION items
   controlsSettings.insert(controlsSettings.begin(),
@@ -301,6 +305,64 @@ void SettingsActivity::loop() {
                           mappedInput.wasPressed(MappedInputManager::Button::Power);
     if (anyPress) {
       randomizePopupOpen = false;
+      requestUpdate();
+    }
+    return;
+  }
+
+  if (sleepWallpaperPopupOpen) {
+    constexpr int optionCount = 3;  // Move to sleep pause, Delete, Cancel
+    if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
+      sleepWallpaperPopupOpen = false;
+      requestUpdate();
+      return;
+    }
+    buttonNavigator.onNextRelease([this] {
+      sleepWallpaperOptionIndex = (sleepWallpaperOptionIndex + 1) % 3;
+      requestUpdate();
+    });
+    buttonNavigator.onPreviousRelease([this] {
+      sleepWallpaperOptionIndex = (sleepWallpaperOptionIndex + 2) % 3;
+      requestUpdate();
+    });
+    if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
+      const std::string& last = APP_STATE.lastShownSleepFilename;
+      if (sleepWallpaperOptionIndex == 1 && !last.empty()) {
+        // Move to /sleep pause — create folder if needed, then copy+delete
+        const std::string destDir = "/sleep pause";
+        Storage.mkdir(destDir.c_str());
+        const std::string srcPath = std::string("/sleep/") + last;
+        const std::string dstPath = destDir + "/" + last;
+        FsFile src, dst;
+        bool ok = false;
+        if (Storage.openFileForRead("SET", srcPath, src) && Storage.openFileForWrite("SET", dstPath, dst)) {
+          uint8_t buf[512];
+          ok = true;
+          while (src.available()) {
+            const int n = src.read(buf, sizeof(buf));
+            if (n <= 0 || dst.write(buf, n) != n) { ok = false; break; }
+          }
+          src.close();
+          dst.close();
+          if (ok) {
+            Storage.remove(srcPath.c_str());
+            APP_STATE.lastShownSleepFilename.clear();
+            APP_STATE.saveToFile();
+          } else {
+            Storage.remove(dstPath.c_str());
+          }
+        } else {
+          if (src) src.close();
+          if (dst) dst.close();
+        }
+      } else if (sleepWallpaperOptionIndex == 2 && !last.empty()) {
+        // Delete
+        Storage.remove((std::string("/sleep/") + last).c_str());
+        APP_STATE.lastShownSleepFilename.clear();
+        APP_STATE.saveToFile();
+      }
+      // Option 0 = Cancel — just close
+      sleepWallpaperPopupOpen = false;
       requestUpdate();
     }
     return;
@@ -478,6 +540,11 @@ void SettingsActivity::toggleCurrentSetting() {
         randomizePopupOpen = true;
         requestUpdate();
         break;
+      case SettingAction::LastSleepWallpaper:
+        sleepWallpaperOptionIndex = 0;
+        sleepWallpaperPopupOpen = true;
+        requestUpdate();
+        return;
       case SettingAction::RefreshHomeStats: {
         homeStatsPopupOpen = true;
         requestUpdate();
@@ -586,6 +653,27 @@ void SettingsActivity::render(Activity::RenderLock&&) {
   if (randomizePopupOpen) {
     const char* msg = randomizePopupSuccess ? tr(STR_DONE) : tr(STR_NO_ENTRIES);
     GUI.drawPopup(renderer, msg);
+  }
+
+  if (sleepWallpaperPopupOpen) {
+    const char* const options[] = {tr(STR_CANCEL), tr(STR_MOVE_TO_SLEEP_PAUSE), "Delete"};
+    constexpr int kOptionCount = 3;
+    const int rowH = 26;
+    const int popupW = pageWidth - 48;
+    const int popupH = 36 + kOptionCount * rowH;
+    const int popupX = (pageWidth - popupW) / 2;
+    const int popupY = (pageHeight - popupH) / 2;
+    renderer.fillRect(popupX - 2, popupY - 2, popupW + 4, popupH + 4, true);
+    renderer.fillRect(popupX, popupY, popupW, popupH, false);
+    const char* title = tr(STR_LAST_SLEEP_WALLPAPER);
+    const int titleW = renderer.getTextWidth(UI_10_FONT_ID, title);
+    renderer.drawText(UI_10_FONT_ID, popupX + (popupW - titleW) / 2, popupY + 8, title, true);
+    for (int i = 0; i < kOptionCount; i++) {
+      const int rowY = popupY + 32 + i * rowH;
+      const bool sel = (i == sleepWallpaperOptionIndex);
+      if (sel) renderer.fillRect(popupX + 6, rowY - 1, popupW - 12, rowH, true);
+      renderer.drawText(UI_10_FONT_ID, popupX + 12, rowY, options[i], !sel);
+    }
   }
 
   if (valueEditMode) {
