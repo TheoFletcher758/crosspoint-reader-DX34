@@ -8,9 +8,14 @@ class CrossPointState {
   static CrossPointState instance;
 
  public:
+  // Collections larger than this threshold are handled without a full in-memory
+  // playlist; only the last-shown filename is persisted in that case.
+  static constexpr size_t SLEEP_PLAYLIST_MAX_PERSIST = 200;
+
   std::string openEpubPath;
-  uint8_t lastSleepImage;
+  uint8_t lastSleepImage = 0;
   std::vector<std::string> sleepImagePlaylist;
+  std::string lastShownSleepFilename;
   uint8_t readerActivityLoadCount = 0;
   bool lastSleepFromReader = false;
   ~CrossPointState() = default;

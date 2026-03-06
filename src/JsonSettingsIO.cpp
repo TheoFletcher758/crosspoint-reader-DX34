@@ -237,11 +237,16 @@ bool JsonSettingsIO::saveState(const CrossPointState &s, const char *path) {
   JsonDocument doc;
   doc["openEpubPath"] = s.openEpubPath;
   doc["lastSleepImage"] = s.lastSleepImage;
+  doc["lastShownSleepFilename"] = s.lastShownSleepFilename;
   doc["readerActivityLoadCount"] = s.readerActivityLoadCount;
   doc["lastSleepFromReader"] = s.lastSleepFromReader;
-  JsonArray sleepImagePlaylist = doc["sleepImagePlaylist"].to<JsonArray>();
-  for (const auto &entry : s.sleepImagePlaylist) {
-    sleepImagePlaylist.add(entry);
+  // Only persist the playlist for small collections. Large collections track
+  // position by filename alone to avoid heap exhaustion and huge state files.
+  if (s.sleepImagePlaylist.size() <= CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) {
+    JsonArray sleepImagePlaylist = doc["sleepImagePlaylist"].to<JsonArray>();
+    for (const auto &entry : s.sleepImagePlaylist) {
+      sleepImagePlaylist.add(entry);
+    }
   }
 
   String json;
@@ -259,6 +264,7 @@ bool JsonSettingsIO::loadState(CrossPointState &s, const char *json) {
 
   s.openEpubPath = doc["openEpubPath"] | std::string("");
   s.lastSleepImage = doc["lastSleepImage"] | (uint8_t)0;
+  s.lastShownSleepFilename = doc["lastShownSleepFilename"] | std::string("");
   s.readerActivityLoadCount = doc["readerActivityLoadCount"] | (uint8_t)0;
   s.lastSleepFromReader = doc["lastSleepFromReader"] | false;
   s.sleepImagePlaylist.clear();
@@ -267,6 +273,10 @@ bool JsonSettingsIO::loadState(CrossPointState &s, const char *json) {
       const char *entry = value.as<const char *>();
       if (entry != nullptr && entry[0] != '\0') {
         s.sleepImagePlaylist.emplace_back(entry);
+        // Cap on load to protect against legacy large playlists causing OOM.
+        if (s.sleepImagePlaylist.size() >= CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) {
+          break;
+        }
       }
     }
   }

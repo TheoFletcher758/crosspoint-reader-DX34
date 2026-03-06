@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_set>
 
 #include "CrossPointState.h"
 #include "MappedInputManager.h"
@@ -148,7 +149,6 @@ void orderSleepFolderByPlaylist(std::vector<std::string>& entries) {
 
   std::vector<std::string> directories;
   std::vector<std::string> orderedBmps;
-  std::vector<std::string> remaining;
 
   for (const auto& name : entries) {
     if (!name.empty() && name.back() == '/') {
@@ -156,21 +156,23 @@ void orderSleepFolderByPlaylist(std::vector<std::string>& entries) {
     }
   }
 
+  // Build a hash set of entries for O(1) lookup when walking the playlist.
+  const std::unordered_set<std::string> entrySet(entries.begin(), entries.end());
   for (const auto& playlistName : APP_STATE.sleepImagePlaylist) {
-    const auto it = std::find(entries.begin(), entries.end(), playlistName);
-    if (it != entries.end()) {
-      orderedBmps.push_back(*it);
+    if (entrySet.count(playlistName)) {
+      orderedBmps.push_back(playlistName);
     }
   }
 
+  // Collect files not in the playlist using a hash set for O(1) membership.
+  const std::unordered_set<std::string> orderedSet(orderedBmps.begin(),
+                                                   orderedBmps.end());
+  std::vector<std::string> remaining;
   for (const auto& name : entries) {
-    if (!name.empty() && name.back() == '/') {
-      continue;
+    if (!name.empty() && name.back() == '/') continue;
+    if (orderedSet.count(name) == 0) {
+      remaining.push_back(name);
     }
-    if (std::find(orderedBmps.begin(), orderedBmps.end(), name) != orderedBmps.end()) {
-      continue;
-    }
-    remaining.push_back(name);
   }
 
   entries.clear();
@@ -191,7 +193,9 @@ void MyLibraryActivity::loadFiles() {
 
   root.rewindDirectory();
 
-  constexpr size_t MAX_LIBRARY_FILES = 200;
+  // Allow more entries when browsing /sleep so large image collections are
+  // fully navigable. Other folders keep the lower cap for UI responsiveness.
+  const size_t MAX_LIBRARY_FILES = (basepath == "/sleep") ? 1000 : 300;
   char name[500];
   for (auto file = root.openNextFile(); file; file = root.openNextFile()) {
     file.getName(name, sizeof(name));

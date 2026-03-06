@@ -7,6 +7,7 @@
 #include <Txt.h>
 #include <Xtc.h>
 #include <algorithm>
+#include <unordered_set>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
@@ -15,6 +16,8 @@
 #include "util/StringUtils.h"
 
 namespace {
+// Returns all .bmp filenames from /sleep in sorted order.
+// Does NOT open/validate each file — invalid BMPs are skipped at render time.
 std::vector<std::string> getValidSleepBitmaps() {
   std::vector<std::string> files;
   auto dir = Storage.open("/sleep");
@@ -38,18 +41,9 @@ std::vector<std::string> getValidSleepBitmaps() {
       continue;
     }
 
-    if (filename.size() < 4 || filename.substr(filename.size() - 4) != ".bmp") {
-      file.close();
-      continue;
+    if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".bmp") {
+      files.emplace_back(std::move(filename));
     }
-
-    Bitmap bitmap(file);
-    if (bitmap.parseHeaders() != BmpReaderError::Ok) {
-      file.close();
-      continue;
-    }
-
-    files.emplace_back(std::move(filename));
     file.close();
   }
   dir.close();
@@ -96,22 +90,27 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
     return;
   }
 
-  // Remove entries that no longer exist.
+  // Build a hash set of on-disk files for O(1) lookup.
+  const std::unordered_set<std::string> fileSet(files.begin(), files.end());
+
+  // Remove entries that no longer exist on disk.
   const auto oldSize = playlist.size();
-  playlist.erase(std::remove_if(playlist.begin(), playlist.end(),
-                                [&files](const std::string &entry) {
-                                  return std::find(files.begin(), files.end(),
-                                                   entry) == files.end();
-                                }),
-                 playlist.end());
+  playlist.erase(
+      std::remove_if(playlist.begin(), playlist.end(),
+                     [&fileSet](const std::string &e) {
+                       return fileSet.count(e) == 0;
+                     }),
+      playlist.end());
   if (playlist.size() != oldSize) {
     changed = true;
   }
 
-  // Collect newly discovered files in sorted order (files is already sorted).
+  // Find newly-added files not yet in the playlist.
+  const std::unordered_set<std::string> playlistSet(playlist.begin(),
+                                                    playlist.end());
   std::vector<std::string> newFiles;
   for (const auto &file : files) {
-    if (std::find(playlist.begin(), playlist.end(), file) == playlist.end()) {
+    if (playlistSet.count(file) == 0) {
       newFiles.push_back(file);
     }
   }
@@ -123,7 +122,8 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
   if (!newFiles.empty()) {
     const size_t insertPos =
         (APP_STATE.lastSleepImage == 0) ? 0 : std::min<size_t>(1, playlist.size());
-    playlist.insert(playlist.begin() + insertPos, newFiles.begin(), newFiles.end());
+    playlist.insert(playlist.begin() + insertPos, newFiles.begin(),
+                    newFiles.end());
     changed = true;
   }
 
@@ -136,6 +136,35 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
   if (changed) {
     APP_STATE.saveToFile();
   }
+}
+
+// For large collections (> SLEEP_PLAYLIST_MAX_PERSIST) we do not maintain the
+// full playlist in memory. Instead we find the next file after the last-shown
+// one using a binary search on the already-sorted files list.
+std::string nextSleepImageLargeCollection(const std::vector<std::string> &files) {
+  const auto &last = APP_STATE.lastShownSleepFilename;
+  std::string next;
+
+  if (last.empty()) {
+    // No prior context: start from the beginning.
+    next = files.front();
+  } else if (APP_STATE.lastSleepImage == 0) {
+    // randomizeSleepImagePlaylist() set a starting file but nothing rendered
+    // yet — show it now without advancing past it.
+    next = last;
+  } else {
+    // Find the last-shown file and advance to the next one, wrapping around.
+    auto it = std::lower_bound(files.begin(), files.end(), last);
+    if (it != files.end() && *it == last) {
+      ++it;
+    }
+    next = (it != files.end()) ? *it : files.front();
+  }
+
+  APP_STATE.lastShownSleepFilename = next;
+  APP_STATE.lastSleepImage = 1;
+  APP_STATE.saveToFile();
+  return next;
 }
 
 void drawSleepFilenameLabel(GfxRenderer &renderer, const char *filename) {
@@ -190,32 +219,42 @@ void SleepActivity::onEnter() {
 void SleepActivity::renderCustomSleepScreen() const {
   const auto files = getValidSleepBitmaps();
   if (!files.empty()) {
-    syncSleepPlaylistWithFiles(files, false);
-    auto &playlist = APP_STATE.sleepImagePlaylist;
-    if (!playlist.empty()) {
-      bool changed = false;
-      // Advance to the next image only after the first custom sleep render.
-      // This keeps playlist[0] as the image just shown and playlist[1] as next.
-      if (APP_STATE.lastSleepImage != 0 && playlist.size() > 1) {
-        const auto first = playlist.front();
-        playlist.erase(playlist.begin());
-        playlist.push_back(first);
-        changed = true;
-      }
+    std::string selectedImage;
 
-      const auto selectedImage = playlist.front();
-      if (APP_STATE.lastSleepImage != 1) {
-        APP_STATE.lastSleepImage = 1;
-        changed = true;
+    if (files.size() > CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) {
+      // Large collection: skip the full in-memory playlist to avoid heap
+      // exhaustion. Advance sequentially by filename using a binary search.
+      selectedImage = nextSleepImageLargeCollection(files);
+    } else {
+      // Small collection: maintain the full shuffleable playlist.
+      syncSleepPlaylistWithFiles(files, false);
+      auto &playlist = APP_STATE.sleepImagePlaylist;
+      if (!playlist.empty()) {
+        bool changed = false;
+        // Advance to the next image only after the first custom sleep render.
+        // This keeps playlist[0] as the image just shown and playlist[1] as next.
+        if (APP_STATE.lastSleepImage != 0 && playlist.size() > 1) {
+          const auto first = playlist.front();
+          playlist.erase(playlist.begin());
+          playlist.push_back(first);
+          changed = true;
+        }
+        selectedImage = playlist.front();
+        if (APP_STATE.lastSleepImage != 1) {
+          APP_STATE.lastSleepImage = 1;
+          changed = true;
+        }
+        if (changed) {
+          APP_STATE.saveToFile();
+        }
       }
-      if (changed) {
-        APP_STATE.saveToFile();
-      }
+    }
 
+    if (!selectedImage.empty()) {
       const auto filename = "/sleep/" + selectedImage;
       FsFile file;
       if (Storage.openFileForRead("SLP", filename, file)) {
-        LOG_DBG("SLP", "Playlist loading: %s", filename.c_str());
+        LOG_DBG("SLP", "Loading: %s", filename.c_str());
         delay(100);
         Bitmap bitmap(file, true);
         if (bitmap.parseHeaders() == BmpReaderError::Ok) {
@@ -253,6 +292,17 @@ bool SleepActivity::randomizeSleepImagePlaylist() {
       APP_STATE.saveToFile();
     }
     return false;
+  }
+
+  if (files.size() > CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) {
+    // Large collection: pick a random starting file; sequential advance
+    // resumes from there on the next sleep.
+    const auto idx = static_cast<size_t>(random(static_cast<long>(files.size())));
+    APP_STATE.sleepImagePlaylist.clear();
+    APP_STATE.lastShownSleepFilename = files[idx];
+    APP_STATE.lastSleepImage = 0;
+    APP_STATE.saveToFile();
+    return true;
   }
 
   syncSleepPlaylistWithFiles(files, true);
