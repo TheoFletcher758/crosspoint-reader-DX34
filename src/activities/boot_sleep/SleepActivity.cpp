@@ -344,7 +344,7 @@ void SleepActivity::trimSleepFolderToLimit() {
     }
     file.close();
   }
-  dir.rewind();
+  dir.rewindDirectory();
 
   if (count <= kLimit) {
     dir.close();
