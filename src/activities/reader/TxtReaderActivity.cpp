@@ -664,27 +664,13 @@ void TxtReaderActivity::renderPage() {
 
   const int lineHeight = renderer.getLineHeight(cachedFontId);
   const int contentWidth = viewportWidth;
-  const int statusBarReserved =
-      SETTINGS.statusBarEnabled
-          ? computeStatusBarReservedHeight(renderer,
-                                           SETTINGS.statusBarShowBookBar,
-                                           SETTINGS.statusBarShowChapterBar,
-                                           SETTINGS.statusBarShowChapterTitle)
-          : 0;
   if (SETTINGS.statusBarEnabled) {
     orientedMarginBottom =
         getStatusBottomInset(renderer) + cachedScreenMarginBottom;
   }
-  const int viewportHeight = renderer.getScreenHeight() - orientedMarginTop -
-                             orientedMarginBottom - statusBarReserved;
-  const int usedContentHeight =
-      static_cast<int>(currentPageLines.size()) * lineHeight;
-  const int verticalCenterOffset =
-      std::max(0, (viewportHeight - usedContentHeight) / 2);
-
   // Render text lines with alignment
   auto renderLines = [&]() {
-    int y = orientedMarginTop + verticalCenterOffset;
+    int y = orientedMarginTop;
     for (const auto &line : currentPageLines) {
       if (!line.empty()) {
         int x = orientedMarginLeft;

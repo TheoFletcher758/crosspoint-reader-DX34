@@ -125,45 +125,6 @@ int computeStatusBarReservedHeight(const GfxRenderer &renderer,
          barsHeight;
 }
 
-int computeEpubPageVerticalOffset(const Page &page, const GfxRenderer &renderer,
-                                  const int fontId, const int viewportHeight) {
-  if (page.elements.empty() || viewportHeight <= 0) {
-    return 0;
-  }
-
-  const int lineHeight = renderer.getLineHeight(fontId);
-  int minY = INT_MAX;
-  int maxY = INT_MIN;
-
-  for (const auto &element : page.elements) {
-    if (!element) {
-      continue;
-    }
-
-    const int yTop = element->yPos;
-    int yBottom = yTop + lineHeight;
-    if (element->getTag() == TAG_PageImage) {
-      const auto *image = static_cast<PageImage *>(element.get());
-      yBottom = yTop + image->getHeight();
-    }
-
-    minY = std::min(minY, yTop);
-    maxY = std::max(maxY, yBottom);
-  }
-
-  if (minY == INT_MAX || maxY <= minY) {
-    return 0;
-  }
-
-  const int contentHeight = maxY - minY;
-  if (contentHeight >= viewportHeight) {
-    return 0;
-  }
-
-  const int desiredTop = (viewportHeight - contentHeight) / 2;
-  return desiredTop - minY;
-}
-
 // Apply the logical reader orientation to the renderer.
 // This centralizes orientation mapping so we don't duplicate switch logic
 // elsewhere.
@@ -1100,9 +1061,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page,
           : 0;
   const int viewportHeight = renderer.getScreenHeight() - orientedMarginTop -
                              orientedMarginBottom - statusBarReserved;
-  const int verticalOffset = computeEpubPageVerticalOffset(
-      *page, renderer, SETTINGS.getReaderFontId(), viewportHeight);
-  const int contentY = orientedMarginTop + verticalOffset;
+  const int contentY = orientedMarginTop;
 
   page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft,
                contentY);
