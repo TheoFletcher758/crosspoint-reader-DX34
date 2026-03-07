@@ -55,6 +55,88 @@ void Page::render(GfxRenderer& renderer, const int fontId, const int xOffset, co
   }
 }
 
+bool Page::isTextOnly() const {
+  if (elements.empty()) {
+    return false;
+  }
+
+  return std::all_of(elements.begin(), elements.end(),
+                     [](const std::shared_ptr<PageElement>& element) {
+                       return element->getTag() == TAG_PageLine;
+                     });
+}
+
+int Page::getTextLineCount() const {
+  return static_cast<int>(std::count_if(
+      elements.begin(), elements.end(),
+      [](const std::shared_ptr<PageElement>& element) {
+        return element->getTag() == TAG_PageLine;
+      }));
+}
+
+int Page::getFirstLineY() const {
+  int firstY = INT16_MAX;
+  for (const auto& element : elements) {
+    if (element->getTag() == TAG_PageLine) {
+      firstY = std::min(firstY, static_cast<int>(element->yPos));
+    }
+  }
+  return firstY == INT16_MAX ? -1 : firstY;
+}
+
+int Page::getUsedHeight(const int lineHeight) const {
+  if (lineHeight <= 0) {
+    return 0;
+  }
+
+  int usedHeight = 0;
+  for (const auto& element : elements) {
+    if (element->getTag() == TAG_PageLine) {
+      usedHeight = std::max(usedHeight,
+                            static_cast<int>(element->yPos) + lineHeight);
+    }
+  }
+  return usedHeight;
+}
+
+bool Page::applyDensePageVerticalFit(const int lineHeight,
+                                     const int viewportHeight,
+                                     const int minDenseLines,
+                                     const int maxFirstLineY) {
+  if (lineHeight <= 0 || viewportHeight <= 0 || !isTextOnly()) {
+    return false;
+  }
+
+  const int lineCount = getTextLineCount();
+  if (lineCount < 2 || lineCount < minDenseLines) {
+    return false;
+  }
+
+  const int firstLineY = getFirstLineY();
+  if (firstLineY < 0 || firstLineY > maxFirstLineY) {
+    return false;
+  }
+
+  const int usedHeight = getUsedHeight(lineHeight);
+  if (usedHeight <= 0 || usedHeight >= viewportHeight) {
+    return false;
+  }
+
+  const int slack = viewportHeight - usedHeight;
+  if (slack <= 0 || slack >= lineHeight) {
+    return false;
+  }
+
+  const int gapCount = lineCount - 1;
+  int lineIndex = 0;
+  for (const auto& element : elements) {
+    const int extraOffset = (lineIndex * slack) / gapCount;
+    element->yPos = static_cast<int16_t>(element->yPos + extraOffset);
+    lineIndex++;
+  }
+  return true;
+}
+
 bool Page::serialize(FsFile& file) const {
   const uint16_t count = elements.size();
   serialization::writePod(file, count);

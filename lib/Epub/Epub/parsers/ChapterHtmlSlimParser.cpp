@@ -17,6 +17,8 @@ constexpr int NUM_HEADER_TAGS = sizeof(HEADER_TAGS) / sizeof(HEADER_TAGS[0]);
 
 // Minimum file size (in bytes) to show indexing popup - smaller chapters don't benefit from it
 constexpr size_t MIN_SIZE_FOR_POPUP = 10 * 1024;  // 10KB
+constexpr int MIN_DENSE_PAGE_LINES = 6;
+constexpr int DENSE_PAGE_THRESHOLD_PERCENT = 80;
 
 const char* BLOCK_TAGS[] = {"p", "li", "div", "br", "blockquote"};
 constexpr int NUM_BLOCK_TAGS = sizeof(BLOCK_TAGS) / sizeof(BLOCK_TAGS[0]);
@@ -104,6 +106,18 @@ void ChapterHtmlSlimParser::completeCurrentPage() {
   if (!currentPage) {
     return;
   }
+
+  const int lineHeight =
+      static_cast<int>(renderer.getLineHeight(fontId) * lineCompression);
+  if (lineHeight > 0 && viewportHeight > 0) {
+    const int maxPossibleLines = viewportHeight / lineHeight;
+    const int minDenseLines =
+        std::max(MIN_DENSE_PAGE_LINES,
+                 (maxPossibleLines * DENSE_PAGE_THRESHOLD_PERCENT) / 100);
+    currentPage->applyDensePageVerticalFit(lineHeight, viewportHeight,
+                                           minDenseLines, lineHeight / 2);
+  }
+
   completePageFn(std::move(currentPage));
   completedPageCount++;
 }

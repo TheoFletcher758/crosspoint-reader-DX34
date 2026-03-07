@@ -24,9 +24,9 @@ constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int progressBarMarginTop = 1;
 constexpr int recentSwitcherRows = 8;
 constexpr size_t CHUNK_SIZE = 8 * 1024; // 8KB chunk for reading
-constexpr int statusTextTopPadding = 4;
-constexpr int statusTextLineGap = 2;
-constexpr int statusTextToBarsGap = 1;
+constexpr int statusTextTopPadding = 2;
+constexpr int statusTextLineGap = 1;
+constexpr int statusTextToBarsGap = 0;
 
 // Cache file magic and version
 constexpr uint32_t CACHE_MAGIC = 0x54585449; // "TXTI"
@@ -210,6 +210,9 @@ void TxtReaderActivity::onEnter() {
   APP_STATE.openEpubPath = filePath;
   APP_STATE.saveToFile();
   RECENT_BOOKS.addBook(filePath, fileName, "", "");
+  cachedTitleUsableWidth = -1;
+  cachedTitleNoTitleTruncation = false;
+  cachedTitleLines.clear();
 
   // Trigger first update
   requestUpdate();
@@ -227,7 +230,88 @@ void TxtReaderActivity::onExit() {
   currentPageLines.clear();
   APP_STATE.readerActivityLoadCount = 0;
   APP_STATE.saveToFile();
+  cachedTitleUsableWidth = -1;
+  cachedTitleNoTitleTruncation = false;
+  cachedTitleLines.clear();
   txt.reset();
+}
+
+const std::vector<std::string>& TxtReaderActivity::getStatusBarTitleLines(
+    const int usableWidth, const bool noTitleTruncation) {
+  if (cachedTitleUsableWidth == usableWidth &&
+      cachedTitleNoTitleTruncation == noTitleTruncation) {
+    return cachedTitleLines;
+  }
+
+  std::string titleText = txt ? txt->getTitle() : "";
+  if (titleText.empty()) {
+    titleText = tr(STR_UNNAMED);
+  }
+
+  if (noTitleTruncation) {
+    cachedTitleLines =
+        wrapStatusText(renderer, SMALL_FONT_ID, titleText, usableWidth);
+  } else {
+    if (renderer.getTextWidth(SMALL_FONT_ID, titleText.c_str()) > usableWidth) {
+      titleText = renderer.truncatedText(SMALL_FONT_ID, titleText.c_str(),
+                                         usableWidth);
+    }
+    cachedTitleLines = {titleText};
+  }
+
+  cachedTitleUsableWidth = usableWidth;
+  cachedTitleNoTitleTruncation = noTitleTruncation;
+  return cachedTitleLines;
+}
+
+int TxtReaderActivity::getStatusBarReserveTitleLineCount(
+    const int usableWidth, const bool noTitleTruncation) {
+  return static_cast<int>(
+      getStatusBarTitleLines(usableWidth, noTitleTruncation).size());
+}
+
+TxtReaderActivity::StatusBarLayout TxtReaderActivity::buildStatusBarLayout(
+    const int usableWidth, const int reservedHeight) {
+  StatusBarLayout layout;
+  layout.usableWidth = std::max(0, usableWidth);
+  layout.reservedHeight = reservedHeight;
+  if (!SETTINGS.statusBarEnabled) {
+    return layout;
+  }
+
+  const bool showPageCounter = SETTINGS.statusBarShowPageCounter;
+  const bool showBookPercentage = SETTINGS.statusBarShowBookPercentage;
+  const bool showChapterPercentage = SETTINGS.statusBarShowChapterPercentage;
+  layout.progress =
+      totalPages > 0 ? (currentPage + 1) * 100.0f / totalPages : 0.0f;
+
+  if (showPageCounter || showBookPercentage || showChapterPercentage) {
+    char progressStr[64] = {0};
+    int offset = 0;
+    if (showPageCounter) {
+      offset += snprintf(progressStr + offset, sizeof(progressStr) - offset,
+                         "%d/%d", currentPage + 1, totalPages);
+    }
+    if (showBookPercentage) {
+      offset += snprintf(progressStr + offset, sizeof(progressStr) - offset,
+                         "%sB:%.0f%%", (offset > 0) ? "  " : "",
+                         layout.progress);
+    }
+    if (showChapterPercentage) {
+      snprintf(progressStr + offset, sizeof(progressStr) - offset, "%sC:%.0f%%",
+               (offset > 0) ? "  " : "", layout.progress);
+    }
+    layout.progressText = progressStr;
+    layout.progressTextWidth =
+        renderer.getTextWidth(SMALL_FONT_ID, layout.progressText.c_str());
+  }
+
+  if (SETTINGS.statusBarShowChapterTitle) {
+    layout.titleLines = getStatusBarTitleLines(
+        layout.usableWidth, SETTINGS.statusBarNoTitleTruncation);
+  }
+
+  return layout;
 }
 
 void TxtReaderActivity::loop() {
@@ -412,9 +496,8 @@ void TxtReaderActivity::initializeReader() {
     const int titleLineCount =
         SETTINGS.statusBarShowChapterTitle
             ? (SETTINGS.statusBarNoTitleTruncation
-                   ? static_cast<int>(wrapStatusText(
-                         renderer, SMALL_FONT_ID, txt->getTitle(),
-                         usableWidth).size())
+                   ? getStatusBarReserveTitleLineCount(
+                         usableWidth, SETTINGS.statusBarNoTitleTruncation)
                    : 1)
             : 0;
     statusBarReserved =
@@ -749,10 +832,27 @@ void TxtReaderActivity::renderPage() {
 
   const int lineHeight = renderer.getLineHeight(cachedFontId);
   const int contentWidth = viewportWidth;
+  const int usableWidth =
+      renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
+  int statusBarReserved = 0;
   if (SETTINGS.statusBarEnabled) {
+    const int titleLineCount =
+        SETTINGS.statusBarShowChapterTitle
+            ? (SETTINGS.statusBarNoTitleTruncation
+                   ? getStatusBarReserveTitleLineCount(
+                         usableWidth, SETTINGS.statusBarNoTitleTruncation)
+                   : 1)
+            : 0;
+    statusBarReserved =
+        computeStatusBarReservedHeight(renderer, SETTINGS.statusBarShowBookBar,
+                                       SETTINGS.statusBarShowChapterBar,
+                                       titleLineCount);
     orientedMarginBottom =
         getStatusBottomInset(renderer) + cachedScreenMarginBottom;
   }
+  const StatusBarLayout statusBarLayout =
+      buildStatusBarLayout(usableWidth, statusBarReserved);
+
   // Render text lines with alignment
   auto renderLines = [&]() {
     int y = orientedMarginTop;
@@ -790,7 +890,7 @@ void TxtReaderActivity::renderPage() {
 
   // First pass: BW rendering
   renderLines();
-  renderStatusBar(orientedMarginRight, orientedMarginBottom,
+  renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
                   orientedMarginLeft);
 
   if (pagesUntilFullRefresh <= 1) {
@@ -824,21 +924,19 @@ void TxtReaderActivity::renderPage() {
   }
 }
 
-void TxtReaderActivity::renderStatusBar(const int orientedMarginRight,
+void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
+                                        const int orientedMarginRight,
                                         const int orientedMarginBottom,
                                         const int orientedMarginLeft) {
+  (void)orientedMarginRight;
   (void)orientedMarginBottom;
   if (!SETTINGS.statusBarEnabled) {
     return;
   }
   const bool showProgressBar = SETTINGS.statusBarShowBookBar;
   const bool showChapterProgressBar = SETTINGS.statusBarShowChapterBar;
-  const bool showPageCounter = SETTINGS.statusBarShowPageCounter;
-  const bool showBookPercentage = SETTINGS.statusBarShowBookPercentage;
-  const bool showChapterPercentage = SETTINGS.statusBarShowChapterPercentage;
   const bool showBattery = SETTINGS.statusBarShowBattery;
   const bool showTitle = SETTINGS.statusBarShowChapterTitle;
-  const bool noTitleTruncation = SETTINGS.statusBarNoTitleTruncation;
   const bool showBatteryPercentage =
       SETTINGS.hideBatteryPercentage ==
       CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_NEVER;
@@ -846,69 +944,13 @@ void TxtReaderActivity::renderStatusBar(const int orientedMarginRight,
 
   auto metrics = UITheme::getInstance().getMetrics();
   const auto screenHeight = renderer.getScreenHeight();
-  const int usableWidth =
-      renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
-  const int titleLineCount =
-      showTitle
-          ? (noTitleTruncation
-                 ? static_cast<int>(wrapStatusText(renderer, SMALL_FONT_ID,
-                                                   txt->getTitle(),
-                                                   usableWidth)
-                                        .size())
-                 : 1)
-          : 0;
-  const int statusBarProgressHeight = SETTINGS.getStatusBarProgressBarHeight();
-  const int barsHeight = computeStatusBarsHeight(
-      showProgressBar, showChapterProgressBar, statusBarProgressHeight);
-  const int statusBarReserved = computeStatusBarReservedHeight(
-      renderer, showProgressBar, showChapterProgressBar, titleLineCount);
+  const int usableWidth = statusBarLayout.usableWidth;
+  const int statusBarReserved = statusBarLayout.reservedHeight;
   const int statusBottomInset = getStatusBottomInset(renderer);
   const int statusTopY = screenHeight - statusBottomInset - statusBarReserved;
   const int textY = statusTopY + statusTextTopPadding;
   const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
   const int titleY = textY + textHeight + statusTextLineGap;
-  std::string progressText;
-  int progressTextWidth = 0;
-
-  const float progress =
-      totalPages > 0 ? (currentPage + 1) * 100.0f / totalPages : 0;
-
-  if (showPageCounter || showBookPercentage || showChapterPercentage) {
-    char progressStr[64] = {0};
-    int offset = 0;
-    if (showPageCounter) {
-      offset += snprintf(progressStr + offset, sizeof(progressStr) - offset,
-                         "%d/%d", currentPage + 1, totalPages);
-    }
-    if (showBookPercentage) {
-      offset += snprintf(progressStr + offset, sizeof(progressStr) - offset,
-                         "%sB:%.0f%%", (offset > 0) ? "  " : "", progress);
-    }
-    if (showChapterPercentage) {
-      snprintf(progressStr + offset, sizeof(progressStr) - offset, "%sC:%.0f%%",
-               (offset > 0) ? "  " : "", progress);
-    }
-    progressText = progressStr;
-    progressTextWidth =
-        renderer.getTextWidth(SMALL_FONT_ID, progressText.c_str());
-  }
-
-  std::string titleText;
-  std::vector<std::string> titleLines;
-  if (showTitle) {
-    titleText = txt->getTitle();
-    if (noTitleTruncation) {
-      titleLines =
-          wrapStatusText(renderer, SMALL_FONT_ID, titleText, usableWidth);
-    } else {
-      if (renderer.getTextWidth(SMALL_FONT_ID, titleText.c_str()) >
-          usableWidth) {
-        titleText = renderer.truncatedText(SMALL_FONT_ID, titleText.c_str(),
-                                           usableWidth);
-      }
-      titleLines = {titleText};
-    }
-  }
 
   const int batteryWidth =
       showBattery ? (metrics.batteryWidth +
@@ -916,10 +958,12 @@ void TxtReaderActivity::renderStatusBar(const int orientedMarginRight,
                           ? (4 + renderer.getTextWidth(SMALL_FONT_ID, "100%"))
                           : 0))
                   : 0;
-  const int progressWidth = progressText.empty() ? 0 : progressTextWidth;
+  const int progressWidth = statusBarLayout.progressText.empty()
+                                ? 0
+                                : statusBarLayout.progressTextWidth;
   int visibleItems = 0;
   visibleItems += showBattery ? 1 : 0;
-  visibleItems += progressText.empty() ? 0 : 1;
+  visibleItems += statusBarLayout.progressText.empty() ? 0 : 1;
   const int groupGaps = std::max(0, visibleItems - 1) * statusItemGap;
 
   const int totalGroupWidth = batteryWidth + progressWidth + groupGaps;
@@ -934,30 +978,33 @@ void TxtReaderActivity::renderStatusBar(const int orientedMarginRight,
     currentX += batteryWidth + statusItemGap;
   }
 
-  if (!progressText.empty()) {
-    renderer.drawText(SMALL_FONT_ID, currentX, textY, progressText.c_str());
+  if (!statusBarLayout.progressText.empty()) {
+    renderer.drawText(SMALL_FONT_ID, currentX, textY,
+                      statusBarLayout.progressText.c_str());
   }
 
-  if (showTitle && !titleLines.empty()) {
+  if (showTitle && !statusBarLayout.titleLines.empty()) {
     const int lineStep = textHeight + statusTextLineGap;
-    for (size_t i = 0; i < titleLines.size(); i++) {
+    for (size_t i = 0; i < statusBarLayout.titleLines.size(); i++) {
       const int titleWidth =
-          renderer.getTextWidth(SMALL_FONT_ID, titleLines[i].c_str());
+          renderer.getTextWidth(SMALL_FONT_ID,
+                                statusBarLayout.titleLines[i].c_str());
       const int titleX =
           orientedMarginLeft + std::max(0, (usableWidth - titleWidth) / 2);
       renderer.drawText(SMALL_FONT_ID, titleX,
                         titleY + static_cast<int>(i) * lineStep,
-                        titleLines[i].c_str());
+                        statusBarLayout.titleLines[i].c_str());
     }
   }
 
   if (showProgressBar) {
-    drawStyledProgressBar(renderer, static_cast<size_t>(progress), 0);
+    drawStyledProgressBar(renderer, static_cast<size_t>(statusBarLayout.progress),
+                          0);
   }
 
   if (showChapterProgressBar) {
     const int chapterLevel = showProgressBar ? 1 : 0;
-    drawStyledProgressBar(renderer, static_cast<size_t>(progress),
+    drawStyledProgressBar(renderer, static_cast<size_t>(statusBarLayout.progress),
                           chapterLevel);
   }
 }

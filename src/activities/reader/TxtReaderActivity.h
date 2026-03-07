@@ -10,6 +10,15 @@
 struct RecentBook;
 
 class TxtReaderActivity final : public ActivityWithSubactivity {
+  struct StatusBarLayout {
+    int reservedHeight = 0;
+    int usableWidth = 0;
+    std::string progressText;
+    int progressTextWidth = 0;
+    std::vector<std::string> titleLines;
+    float progress = 0.0f;
+  };
+
   std::unique_ptr<Txt> txt;
 
   int currentPage = 0;
@@ -44,11 +53,19 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   int cachedScreenMarginTop = 0;
   int cachedScreenMarginBottom = 0;
   uint8_t cachedParagraphAlignment = CrossPointSettings::LEFT_ALIGN;
+  int cachedTitleUsableWidth = -1;
+  bool cachedTitleNoTitleTruncation = false;
+  std::vector<std::string> cachedTitleLines;
 
   void renderPage();
-  void renderStatusBar(int orientedMarginRight, int orientedMarginBottom, int orientedMarginLeft);
+  void renderStatusBar(const StatusBarLayout& statusBarLayout, int orientedMarginRight, int orientedMarginBottom,
+                       int orientedMarginLeft);
   void loadRecentSwitcherBooks();
   void renderRecentSwitcher();
+  const std::vector<std::string>& getStatusBarTitleLines(int usableWidth,
+                                                         bool noTitleTruncation);
+  int getStatusBarReserveTitleLineCount(int usableWidth, bool noTitleTruncation);
+  StatusBarLayout buildStatusBarLayout(int usableWidth, int reservedHeight);
 
   void initializeReader();
   bool loadPageAtOffset(size_t offset, std::vector<std::string>& outLines, size_t& nextOffset);

@@ -808,6 +808,23 @@ int Epub::getSpineIndexForTocIndex(const int tocIndex) const {
 
 int Epub::getTocIndexForSpineIndex(const int spineIndex) const { return getSpineItem(spineIndex).tocIndex; }
 
+std::vector<int> Epub::getTocIndexesForSpineIndex(const int spineIndex) const {
+  std::vector<int> tocIndexes;
+  if (!bookMetadataCache || !bookMetadataCache->isLoaded()) {
+    LOG_ERR("EBP", "getTocIndexesForSpineIndex called but cache not loaded");
+    return tocIndexes;
+  }
+
+  const int tocCount = bookMetadataCache->getTocCount();
+  for (int i = 0; i < tocCount; i++) {
+    if (bookMetadataCache->getTocEntry(i).spineIndex == spineIndex) {
+      tocIndexes.push_back(i);
+    }
+  }
+
+  return tocIndexes;
+}
+
 int Epub::getTocIndexForSpineAndAnchor(const int spineIndex, const std::string& anchor) const {
   if (!bookMetadataCache || !bookMetadataCache->isLoaded()) {
     LOG_ERR("EBP", "getTocIndexForSpineAndAnchor called but cache not loaded");

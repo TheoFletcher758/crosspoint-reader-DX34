@@ -60,6 +60,11 @@ class Page {
   void render(GfxRenderer& renderer, int fontId, int xOffset, int yOffset) const;
   bool serialize(FsFile& file) const;
   static std::unique_ptr<Page> deserialize(FsFile& file);
+  bool isTextOnly() const;
+  int getTextLineCount() const;
+  int getFirstLineY() const;
+  int getUsedHeight(int lineHeight) const;
+  bool applyDensePageVerticalFit(int lineHeight, int viewportHeight, int minDenseLines, int maxFirstLineY);
 
   // Check if page contains any images (used to force full refresh)
   bool hasImages() const {

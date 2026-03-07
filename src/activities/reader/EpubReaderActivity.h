@@ -6,6 +6,16 @@
 #include "activities/ActivityWithSubactivity.h"
 
 class EpubReaderActivity final : public ActivityWithSubactivity {
+  struct StatusBarLayout {
+    int reservedHeight = 0;
+    int usableWidth = 0;
+    std::string progressText;
+    int progressTextWidth = 0;
+    std::vector<std::string> titleLines;
+    float bookProgress = 0.0f;
+    float chapterProgress = 0.0f;
+  };
+
   std::shared_ptr<Epub> epub;
   std::unique_ptr<Section> section = nullptr;
   int currentSpineIndex = 0;
@@ -36,15 +46,28 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   int lastSavedPage = -1;
   int lastSavedPageCount = -1;
   int pageLoadFailCount = 0;  // Tracks consecutive page load failures to prevent infinite retry loops
+  int cachedReserveSpineIndex = -1;
+  int cachedReserveUsableWidth = -1;
+  bool cachedReserveNoTitleTruncation = false;
+  int cachedReserveTitleLineCount = 1;
+  int cachedTitleTocIndex = -2;
+  int cachedTitleUsableWidth = -1;
+  bool cachedTitleNoTitleTruncation = false;
+  std::vector<std::string> cachedTitleLines;
   const std::function<void()> onGoBack;
   const std::function<void()> onGoHome;
   const std::function<void(const std::string&)> onOpenBook;
 
   void renderContents(std::unique_ptr<Page> page, int orientedMarginTop, int orientedMarginRight,
-                      int orientedMarginBottom, int orientedMarginLeft);
-  void renderStatusBar(int orientedMarginRight, int orientedMarginBottom, int orientedMarginLeft);
+                      int orientedMarginBottom, int orientedMarginLeft, const StatusBarLayout& statusBarLayout);
+  void renderStatusBar(const StatusBarLayout& statusBarLayout, int orientedMarginRight, int orientedMarginBottom,
+                       int orientedMarginLeft);
   void saveProgress(int spineIndex, int currentPage, int pageCount);
   void flushProgressIfNeeded(bool force);
+  void invalidateStatusBarCaches();
+  int getWrappedStatusBarReserveLineCount(int usableWidth);
+  const std::vector<std::string>& getStatusBarTitleLines(int tocIndex, int usableWidth, bool noTitleTruncation);
+  StatusBarLayout buildStatusBarLayout(int usableWidth, int reservedHeight);
   // Jump to a percentage of the book (0-100), mapping it to spine and page.
   void jumpToPercent(int percent);
   void onReaderMenuBack(uint8_t orientation);
