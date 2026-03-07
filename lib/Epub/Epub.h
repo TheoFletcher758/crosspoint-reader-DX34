@@ -66,6 +66,9 @@ class Epub {
   int getTocItemsCount() const;
   int getSpineIndexForTocIndex(int tocIndex) const;
   int getTocIndexForSpineIndex(int spineIndex) const;
+  int getTocIndexForSpineAndAnchor(int spineIndex, const std::string& anchor) const;
+  int getParentTocIndex(int tocIndex) const;
+  std::string formatTocDisplayTitle(int tocIndex) const;
   size_t getCumulativeSpineItemSize(int spineIndex) const;
   int getSpineIndexForTextReference() const;
 

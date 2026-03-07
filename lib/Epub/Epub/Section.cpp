@@ -8,7 +8,7 @@
 #include "parsers/ChapterHtmlSlimParser.h"
 
 namespace {
-constexpr uint8_t SECTION_FILE_VERSION = 14;
+constexpr uint8_t SECTION_FILE_VERSION = 15;
 constexpr uint32_t HEADER_SIZE = sizeof(uint8_t) + sizeof(int) + sizeof(float) + sizeof(uint8_t) +
                                  sizeof(uint8_t) + sizeof(uint16_t) + sizeof(uint16_t) + sizeof(bool) + sizeof(bool) +
                                  sizeof(bool) + sizeof(uint16_t) + sizeof(uint32_t);
@@ -115,9 +115,22 @@ bool Section::loadSectionFile(const int fontId, const float lineCompression,
   file.seek(HEADER_SIZE - sizeof(uint32_t));
   serialization::readPod(file, lutOffset);
   pageLut.resize(pageCount);
+  anchorLut.clear();
   file.seek(lutOffset);
   for (uint16_t i = 0; i < pageCount; i++) {
     serialization::readPod(file, pageLut[i]);
+  }
+  if (file.position() < file.size()) {
+    uint16_t anchorCount = 0;
+    serialization::readPod(file, anchorCount);
+    anchorLut.reserve(anchorCount);
+    for (uint16_t i = 0; i < anchorCount; i++) {
+      std::string anchor;
+      uint16_t pageIndex = 0;
+      serialization::readString(file, anchor);
+      serialization::readPod(file, pageIndex);
+      anchorLut.emplace_back(std::move(anchor), pageIndex);
+    }
   }
   file.close();
   LOG_DBG("SCT", "Deserialization succeeded: %d pages", pageCount);
@@ -196,6 +209,7 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
   writeSectionFileHeader(fontId, lineCompression, extraParagraphSpacingLevel, paragraphAlignment,
                          viewportWidth, viewportHeight, hyphenationEnabled, embeddedStyle, readerBoldSwap);
   std::vector<uint32_t> lut = {};
+  std::vector<std::pair<std::string, uint16_t>> anchors = {};
 
   // Derive the content base directory and image cache path prefix for the parser
   size_t lastSlash = localPath.find_last_of('/');
@@ -216,6 +230,9 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
       epub, tmpHtmlPath, renderer, fontId, lineCompression, extraParagraphSpacingLevel,
       paragraphAlignment, viewportWidth, viewportHeight, hyphenationEnabled,
       [this, &lut](std::unique_ptr<Page> page) { lut.emplace_back(this->onPageComplete(std::move(page))); },
+      [&anchors](const std::string& anchor, const uint16_t pageIndex) {
+        anchors.emplace_back(anchor, pageIndex);
+      },
       embeddedStyle, contentBase, imageBasePath, popupFn, cssParser);
   success = visitor.parseAndBuildPages();
 
@@ -241,6 +258,12 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
     serialization::writePod(file, pos);
   }
 
+  serialization::writePod(file, static_cast<uint16_t>(anchors.size()));
+  for (const auto& entry : anchors) {
+    serialization::writeString(file, entry.first);
+    serialization::writePod(file, entry.second);
+  }
+
   if (hasFailedLutRecords) {
     LOG_ERR("SCT", "Failed to write LUT due to invalid page positions");
     file.close();
@@ -253,6 +276,7 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
   serialization::writePod(file, pageCount);
   serialization::writePod(file, lutOffset);
   pageLut = lut;
+  anchorLut = std::move(anchors);
   file.close();
   if (cssParser) {
     cssParser->clear();
@@ -270,4 +294,35 @@ std::unique_ptr<Page> Section::loadPageFromSectionFile() {
   auto page = Page::deserialize(file);
   file.close();
   return page;
+}
+
+int Section::getPageForAnchor(const std::string& anchor) const {
+  if (anchor.empty()) {
+    return -1;
+  }
+
+  for (const auto& entry : anchorLut) {
+    if (entry.first == anchor) {
+      return entry.second;
+    }
+  }
+
+  return -1;
+}
+
+std::string Section::getCurrentAnchorForPage(const int page) const {
+  if (page < 0 || anchorLut.empty()) {
+    return "";
+  }
+
+  std::string bestAnchor;
+  int bestPage = -1;
+  for (const auto& entry : anchorLut) {
+    if (entry.second <= page && entry.second >= bestPage) {
+      bestPage = entry.second;
+      bestAnchor = entry.first;
+    }
+  }
+
+  return bestAnchor;
 }

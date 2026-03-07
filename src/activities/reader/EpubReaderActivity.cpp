@@ -125,6 +125,38 @@ int computeStatusBarReservedHeight(const GfxRenderer &renderer,
          barsHeight;
 }
 
+int resolveCurrentTocIndex(const std::shared_ptr<Epub>& epub,
+                           const Section* section,
+                           const int currentSpineIndex) {
+  if (!epub) {
+    return -1;
+  }
+
+  if (section != nullptr) {
+    int bestTocIndex = -1;
+    int bestPage = -1;
+    const int tocCount = epub->getTocItemsCount();
+    for (int i = 0; i < tocCount; i++) {
+      const auto tocItem = epub->getTocItem(i);
+      if (tocItem.spineIndex != currentSpineIndex || tocItem.anchor.empty()) {
+        continue;
+      }
+
+      const int tocPage = section->getPageForAnchor(tocItem.anchor);
+      if (tocPage >= 0 && tocPage <= section->currentPage && tocPage >= bestPage) {
+        bestPage = tocPage;
+        bestTocIndex = i;
+      }
+    }
+
+    if (bestTocIndex >= 0) {
+      return bestTocIndex;
+    }
+  }
+
+  return epub->getTocIndexForSpineIndex(currentSpineIndex);
+}
+
 // Apply the logical reader orientation to the renderer.
 // This centralizes orientation mapping so we don't duplicate switch logic
 // elsewhere.
@@ -597,9 +629,9 @@ void EpubReaderActivity::onReaderMenuConfirm(
   switch (action) {
   case EpubReaderMenuActivity::MenuAction::SELECT_CHAPTER: {
     // Calculate values BEFORE we start destroying things
-    const int currentP = section ? section->currentPage : 0;
-    const int totalP = section ? section->pageCount : 0;
     const int spineIdx = currentSpineIndex;
+    const int currentTocIndex =
+        resolveCurrentTocIndex(epub, section.get(), currentSpineIndex);
     const std::string path = epub->getPath();
 
     // 1. Close the menu
@@ -607,14 +639,23 @@ void EpubReaderActivity::onReaderMenuConfirm(
 
     // 2. Open the Chapter Selector
     enterNewActivity(new EpubReaderChapterSelectionActivity(
-        this->renderer, this->mappedInput, epub, path, spineIdx, currentP,
-        totalP,
+        this->renderer, this->mappedInput, epub, path, spineIdx,
+        currentTocIndex,
         [this] {
           exitActivity();
           requestUpdate();
         },
-        [this](const int newSpineIndex) {
-          if (currentSpineIndex != newSpineIndex) {
+        [this](const int tocIndex) {
+          const auto tocItem = epub->getTocItem(tocIndex);
+          const int newSpineIndex = tocItem.spineIndex;
+          if (newSpineIndex < 0) {
+            exitActivity();
+            requestUpdate();
+            return;
+          }
+
+          pendingAnchor = tocItem.anchor;
+          if (currentSpineIndex != newSpineIndex || section) {
             currentSpineIndex = newSpineIndex;
             nextPageNumber = 0;
             section.reset();
@@ -908,6 +949,14 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
       section->currentPage = newPage;
       pendingPercentJump = false;
     }
+
+    if (!pendingAnchor.empty()) {
+      const int anchorPage = section->getPageForAnchor(pendingAnchor);
+      if (anchorPage >= 0 && anchorPage < section->pageCount) {
+        section->currentPage = anchorPage;
+      }
+      pendingAnchor.clear();
+    }
   }
 
   renderer.clearScreen();
@@ -1183,11 +1232,15 @@ void EpubReaderActivity::renderStatusBar(const int orientedMarginRight,
   std::string titleText;
   int titleWidth = 0;
   if (showChapterTitle) {
-    const int tocIndex = epub->getTocIndexForSpineIndex(currentSpineIndex);
+    const int tocIndex =
+        resolveCurrentTocIndex(epub, section.get(), currentSpineIndex);
     if (tocIndex == -1) {
       titleText = tr(STR_UNNAMED);
     } else {
-      titleText = epub->getTocItem(tocIndex).title;
+      titleText = epub->formatTocDisplayTitle(tocIndex);
+      if (titleText.empty()) {
+        titleText = tr(STR_UNNAMED);
+      }
     }
     titleWidth = renderer.getTextWidth(SMALL_FONT_ID, titleText.c_str());
   }

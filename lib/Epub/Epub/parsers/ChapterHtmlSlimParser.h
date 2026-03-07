@@ -23,6 +23,7 @@ class ChapterHtmlSlimParser {
   const std::string& filepath;
   GfxRenderer& renderer;
   std::function<void(std::unique_ptr<Page>)> completePageFn;
+  std::function<void(const std::string&, uint16_t)> anchorPageFn;
   std::function<void()> popupFn;  // Popup callback
   int depth = 0;
   int skipUntilDepth = INT_MAX;
@@ -49,6 +50,8 @@ class ChapterHtmlSlimParser {
   std::string contentBase;
   std::string imageBasePath;
   int imageCounter = 0;
+  uint16_t completedPageCount = 0;
+  std::vector<std::string> pendingAnchors;
 
   // Style tracking (replaces depth-based approach)
   struct StyleStackEntry {
@@ -66,6 +69,8 @@ class ChapterHtmlSlimParser {
   void updateEffectiveInlineStyle();
   void startNewTextBlock(const BlockStyle& blockStyle);
   void flushPartWordBuffer();
+  void completeCurrentPage();
+  void bindPendingAnchorsToCurrentPage();
   void makePages();
   // XML callbacks
   static void XMLCALL startElement(void* userData, const XML_Char* name, const XML_Char** atts);
@@ -80,6 +85,7 @@ class ChapterHtmlSlimParser {
                                  const uint8_t paragraphAlignment, const uint16_t viewportWidth,
                                  const uint16_t viewportHeight, const bool hyphenationEnabled,
                                  const std::function<void(std::unique_ptr<Page>)>& completePageFn,
+                                 const std::function<void(const std::string&, uint16_t)>& anchorPageFn,
                                  const bool embeddedStyle, const std::string& contentBase,
                                  const std::string& imageBasePath, const std::function<void()>& popupFn = nullptr,
                                  const CssParser* cssParser = nullptr)
@@ -95,6 +101,7 @@ class ChapterHtmlSlimParser {
         viewportHeight(viewportHeight),
         hyphenationEnabled(hyphenationEnabled),
         completePageFn(completePageFn),
+        anchorPageFn(anchorPageFn),
         popupFn(popupFn),
         cssParser(cssParser),
         embeddedStyle(embeddedStyle),

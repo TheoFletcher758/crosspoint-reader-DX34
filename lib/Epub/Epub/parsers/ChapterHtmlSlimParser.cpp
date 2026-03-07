@@ -100,6 +100,32 @@ void ChapterHtmlSlimParser::flushPartWordBuffer() {
   nextWordContinues = false;
 }
 
+void ChapterHtmlSlimParser::completeCurrentPage() {
+  if (!currentPage) {
+    return;
+  }
+  completePageFn(std::move(currentPage));
+  completedPageCount++;
+}
+
+void ChapterHtmlSlimParser::bindPendingAnchorsToCurrentPage() {
+  if (pendingAnchors.empty()) {
+    return;
+  }
+
+  if (!currentPage) {
+    currentPage.reset(new Page());
+    currentPageNextY = 0;
+  }
+
+  for (const auto& anchor : pendingAnchors) {
+    if (!anchor.empty()) {
+      anchorPageFn(anchor, completedPageCount);
+    }
+  }
+  pendingAnchors.clear();
+}
+
 // start a new text block if needed
 void ChapterHtmlSlimParser::startNewTextBlock(const BlockStyle& blockStyle) {
   nextWordContinues = false;  // New block = new paragraph, no continuation
@@ -130,14 +156,23 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
   // Extract class and style attributes for CSS processing
   std::string classAttr;
   std::string styleAttr;
+  std::vector<std::string> anchors;
   if (atts != nullptr) {
     for (int i = 0; atts[i]; i += 2) {
       if (strcmp(atts[i], "class") == 0) {
         classAttr = atts[i + 1];
       } else if (strcmp(atts[i], "style") == 0) {
         styleAttr = atts[i + 1];
+      } else if ((strcmp(atts[i], "id") == 0 || strcmp(atts[i], "xml:id") == 0 ||
+                  (strcmp(atts[i], "name") == 0 && strcmp(name, "a") == 0)) &&
+                 atts[i + 1] != nullptr && atts[i + 1][0] != '\0') {
+        anchors.emplace_back(atts[i + 1]);
       }
     }
+  }
+
+  if (!anchors.empty()) {
+    self->pendingAnchors.insert(self->pendingAnchors.end(), anchors.begin(), anchors.end());
   }
 
   auto centeredBlockStyle = BlockStyle();
@@ -219,7 +254,7 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
               // Create page for image - only break if image won't fit remaining space
               if (self->currentPage && !self->currentPage->elements.empty() &&
                   (self->currentPageNextY + displayHeight > self->viewportHeight)) {
-                self->completePageFn(std::move(self->currentPage));
+                self->completeCurrentPage();
                 self->currentPage.reset(new Page());
                 if (!self->currentPage) {
                   LOG_ERR("EHP", "Failed to create new page");
@@ -234,6 +269,8 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
                 }
                 self->currentPageNextY = 0;
               }
+
+              self->bindPendingAnchorsToCurrentPage();
 
               // Create ImageBlock and add to page
               auto imageBlock = std::make_shared<ImageBlock>(cachedImagePath, displayWidth, displayHeight);
@@ -685,9 +722,16 @@ bool ChapterHtmlSlimParser::parseAndBuildPages() {
   // Process last page if there is still text
   if (currentTextBlock) {
     makePages();
-    completePageFn(std::move(currentPage));
-    currentPage.reset();
     currentTextBlock.reset();
+  }
+
+  if (!pendingAnchors.empty() && currentPage && !currentPage->elements.empty()) {
+    bindPendingAnchorsToCurrentPage();
+  }
+
+  if (currentPage && !currentPage->elements.empty()) {
+    completeCurrentPage();
+    currentPage.reset();
   }
 
   return true;
@@ -697,10 +741,12 @@ void ChapterHtmlSlimParser::addLineToPage(std::shared_ptr<TextBlock> line) {
   const int lineHeight = renderer.getLineHeight(fontId) * lineCompression;
 
   if (currentPageNextY + lineHeight > viewportHeight) {
-    completePageFn(std::move(currentPage));
+    completeCurrentPage();
     currentPage.reset(new Page());
     currentPageNextY = 0;
   }
+
+  bindPendingAnchorsToCurrentPage();
 
   // Apply horizontal left inset (margin + padding) as x position offset
   const int16_t xOffset = line->getBlockStyle().leftInset();

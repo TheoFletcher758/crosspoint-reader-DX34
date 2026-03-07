@@ -1,6 +1,8 @@
 #pragma once
 #include <functional>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "Epub.h"
@@ -15,6 +17,7 @@ class Section {
   std::string filePath;
   FsFile file;
   std::vector<uint32_t> pageLut;
+  std::vector<std::pair<std::string, uint16_t>> anchorLut;
 
   void writeSectionFileHeader(int fontId, float lineCompression,
                               uint8_t extraParagraphSpacingLevel, uint8_t paragraphAlignment,
@@ -42,4 +45,6 @@ class Section {
                          uint16_t viewportWidth, uint16_t viewportHeight, bool hyphenationEnabled, bool embeddedStyle,
                          bool readerBoldSwap, const std::function<void()>& popupFn = nullptr);
   std::unique_ptr<Page> loadPageFromSectionFile();
+  int getPageForAnchor(const std::string& anchor) const;
+  std::string getCurrentAnchorForPage(int page) const;
 };

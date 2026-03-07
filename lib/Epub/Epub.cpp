@@ -808,6 +808,72 @@ int Epub::getSpineIndexForTocIndex(const int tocIndex) const {
 
 int Epub::getTocIndexForSpineIndex(const int spineIndex) const { return getSpineItem(spineIndex).tocIndex; }
 
+int Epub::getTocIndexForSpineAndAnchor(const int spineIndex, const std::string& anchor) const {
+  if (!bookMetadataCache || !bookMetadataCache->isLoaded()) {
+    LOG_ERR("EBP", "getTocIndexForSpineAndAnchor called but cache not loaded");
+    return -1;
+  }
+
+  const int fallbackIndex = getTocIndexForSpineIndex(spineIndex);
+  if (anchor.empty()) {
+    return fallbackIndex;
+  }
+
+  const int tocCount = bookMetadataCache->getTocCount();
+  for (int i = 0; i < tocCount; i++) {
+    const auto tocEntry = bookMetadataCache->getTocEntry(i);
+    if (tocEntry.spineIndex == spineIndex && tocEntry.anchor == anchor) {
+      return i;
+    }
+  }
+
+  return fallbackIndex;
+}
+
+int Epub::getParentTocIndex(const int tocIndex) const {
+  if (!bookMetadataCache || !bookMetadataCache->isLoaded()) {
+    LOG_ERR("EBP", "getParentTocIndex called but cache not loaded");
+    return -1;
+  }
+
+  if (tocIndex < 0 || tocIndex >= bookMetadataCache->getTocCount()) {
+    return -1;
+  }
+
+  const auto current = bookMetadataCache->getTocEntry(tocIndex);
+  if (current.level <= 1) {
+    return -1;
+  }
+
+  for (int i = tocIndex - 1; i >= 0; i--) {
+    const auto candidate = bookMetadataCache->getTocEntry(i);
+    if (candidate.level < current.level) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+std::string Epub::formatTocDisplayTitle(const int tocIndex) const {
+  const auto current = getTocItem(tocIndex);
+  if (current.title.empty()) {
+    return "";
+  }
+
+  const int parentIndex = getParentTocIndex(tocIndex);
+  if (parentIndex < 0) {
+    return current.title;
+  }
+
+  const auto parent = getTocItem(parentIndex);
+  if (parent.title.empty()) {
+    return current.title;
+  }
+
+  return parent.title + ": " + current.title;
+}
+
 size_t Epub::getBookSize() const {
   if (!bookMetadataCache || !bookMetadataCache->isLoaded() || bookMetadataCache->getSpineCount() == 0) {
     return 0;

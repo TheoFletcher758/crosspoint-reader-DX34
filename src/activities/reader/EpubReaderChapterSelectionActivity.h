@@ -11,12 +11,11 @@ class EpubReaderChapterSelectionActivity final : public ActivityWithSubactivity 
   std::string epubPath;
   ButtonNavigator buttonNavigator;
   int currentSpineIndex = 0;
-  int currentPage = 0;
-  int totalPagesInSpine = 0;
+  int currentTocIndex = 0;
   int selectorIndex = 0;
 
   const std::function<void()> onGoBack;
-  const std::function<void(int newSpineIndex)> onSelectSpineIndex;
+  const std::function<void(int tocIndex)> onSelectTocIndex;
   const std::function<void(int newSpineIndex, int newPage)> onSyncPosition;
 
   // Number of items that fit on a page, derived from logical screen height.
@@ -29,18 +28,17 @@ class EpubReaderChapterSelectionActivity final : public ActivityWithSubactivity 
  public:
   explicit EpubReaderChapterSelectionActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                               const std::shared_ptr<Epub>& epub, const std::string& epubPath,
-                                              const int currentSpineIndex, const int currentPage,
-                                              const int totalPagesInSpine, const std::function<void()>& onGoBack,
-                                              const std::function<void(int newSpineIndex)>& onSelectSpineIndex,
+                                              const int currentSpineIndex, const int currentTocIndex,
+                                              const std::function<void()>& onGoBack,
+                                              const std::function<void(int tocIndex)>& onSelectTocIndex,
                                               const std::function<void(int newSpineIndex, int newPage)>& onSyncPosition)
       : ActivityWithSubactivity("EpubReaderChapterSelection", renderer, mappedInput),
         epub(epub),
         epubPath(epubPath),
         currentSpineIndex(currentSpineIndex),
-        currentPage(currentPage),
-        totalPagesInSpine(totalPagesInSpine),
+        currentTocIndex(currentTocIndex),
         onGoBack(onGoBack),
-        onSelectSpineIndex(onSelectSpineIndex),
+        onSelectTocIndex(onSelectTocIndex),
         onSyncPosition(onSyncPosition) {}
   void onEnter() override;
   void onExit() override;
