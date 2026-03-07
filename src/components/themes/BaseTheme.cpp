@@ -172,8 +172,7 @@ void BaseTheme::drawBatteryLeft(const GfxRenderer& renderer, Rect rect, const bo
   if (showPercentage) {
     const auto percentageText = std::to_string(percentage) + "%";
     const int textX = rect.x + batteryPercentSpacing + BaseMetrics::values.batteryWidth;
-    const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
-    const int textY = y + (rect.height - textHeight) / 2;
+    const int textY = rect.y;
     renderer.drawText(SMALL_FONT_ID, textX, textY, percentageText.c_str());
   }
 
@@ -191,7 +190,7 @@ void BaseTheme::drawBatteryRight(const GfxRenderer& renderer, Rect rect, const b
     const int textWidth = renderer.getTextWidth(SMALL_FONT_ID, percentageText.c_str());
     const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
     const int textX = rect.x - textWidth - batteryPercentSpacing;
-    const int textY = y + (rect.height - textHeight) / 2;
+    const int textY = rect.y;
     // Clear the area where we're going to draw the text to prevent ghosting.
     renderer.fillRect(textX, textY, textWidth, textHeight, false);
     // Draw text to the left of the icon

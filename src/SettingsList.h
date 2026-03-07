@@ -85,6 +85,8 @@ inline std::vector<SettingInfo> getSettingsList() {
                           "statusBarShowChapterBar", StrId::STR_STATUS_BAR),
       SettingInfo::Toggle(StrId::STR_STATUS_CHAPTER_TITLE, &CrossPointSettings::statusBarShowChapterTitle,
                           "statusBarShowChapterTitle", StrId::STR_STATUS_BAR),
+      SettingInfo::Toggle(StrId::STR_STATUS_NO_TITLE_TRUNCATION, &CrossPointSettings::statusBarNoTitleTruncation,
+                          "statusBarNoTitleTruncation", StrId::STR_STATUS_BAR),
 
       // --- Controls ---
       SettingInfo::Enum(StrId::STR_SIDE_BTN_LAYOUT, &CrossPointSettings::sideButtonLayout,

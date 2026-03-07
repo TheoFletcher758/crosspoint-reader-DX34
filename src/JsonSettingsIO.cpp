@@ -302,6 +302,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["statusBarShowBookBar"] = s.statusBarShowBookBar;
   doc["statusBarShowChapterBar"] = s.statusBarShowChapterBar;
   doc["statusBarShowChapterTitle"] = s.statusBarShowChapterTitle;
+  doc["statusBarNoTitleTruncation"] = s.statusBarNoTitleTruncation;
   doc["statusBarTopLine"] = s.statusBarTopLine;
   doc["statusBarTextAlignment"] = s.statusBarTextAlignment;
   doc["statusBarProgressStyle"] = s.statusBarProgressStyle;
@@ -392,6 +393,8 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
     s.statusBarShowBookBar = doc["statusBarShowBookBar"] | (uint8_t)0;
     s.statusBarShowChapterBar = doc["statusBarShowChapterBar"] | (uint8_t)0;
     s.statusBarShowChapterTitle = doc["statusBarShowChapterTitle"] | (uint8_t)1;
+    s.statusBarNoTitleTruncation =
+        doc["statusBarNoTitleTruncation"] | (uint8_t)0;
     s.statusBarTopLine = doc["statusBarTopLine"] | (uint8_t)0;
     s.statusBarTextAlignment =
         clamp(doc["statusBarTextAlignment"] | (uint8_t)S::STATUS_TEXT_RIGHT,

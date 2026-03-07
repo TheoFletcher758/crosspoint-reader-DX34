@@ -91,6 +91,7 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
   settings.statusBarShowBookBar = 0;
   settings.statusBarShowChapterBar = 0;
   settings.statusBarShowChapterTitle = 1;
+  settings.statusBarNoTitleTruncation = 0;
   settings.statusBarTopLine = 0;
   settings.statusBarTextAlignment = CrossPointSettings::STATUS_TEXT_RIGHT;
   settings.statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THICK;
