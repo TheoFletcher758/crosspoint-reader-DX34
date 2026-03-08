@@ -1073,13 +1073,12 @@ void CrossPointWebServer::handleGetSettings() const {
         JsonArray options = doc["options"].to<JsonArray>();
         if (s.valuePtr == &CrossPointSettings::fontSize) {
           if (SETTINGS.fontFamily == CrossPointSettings::GALMURI) {
+            options.add("17");
+          } else if (SETTINGS.fontFamily == CrossPointSettings::BOOKERLY) {
             options.add("16");
             options.add("17");
             options.add("18");
-          } else if (SETTINGS.fontFamily == CrossPointSettings::BOOKERLY) {
-            options.add("14");
-            options.add("15");
-            options.add("17");
+            options.add("19");
           } else {
             options.add("14");
             options.add("15");
