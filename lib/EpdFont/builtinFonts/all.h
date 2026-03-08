@@ -22,9 +22,22 @@
 #include <builtinFonts/chareink_20_bold.h>
 #include <builtinFonts/chareink_20_italic.h>
 
-#include <builtinFonts/literata_15_regular.h>
-#include <builtinFonts/literata_15_bold.h>
-#include <builtinFonts/literata_15_italic.h>
+#include <builtinFonts/galmuri_16_regular.h>
+#include <builtinFonts/galmuri_17_regular.h>
+#include <builtinFonts/galmuri_18_regular.h>
+
+#include <builtinFonts/bookerly_14_regular.h>
+#include <builtinFonts/bookerly_14_bold.h>
+#include <builtinFonts/bookerly_14_italic.h>
+#include <builtinFonts/bookerly_14_bolditalic.h>
+#include <builtinFonts/bookerly_15_regular.h>
+#include <builtinFonts/bookerly_15_bold.h>
+#include <builtinFonts/bookerly_15_italic.h>
+#include <builtinFonts/bookerly_15_bolditalic.h>
+#include <builtinFonts/bookerly_17_regular.h>
+#include <builtinFonts/bookerly_17_bold.h>
+#include <builtinFonts/bookerly_17_italic.h>
+#include <builtinFonts/bookerly_17_bolditalic.h>
 
 #include <builtinFonts/unifont_14_regular.h>
 #include <builtinFonts/unifont_18_regular.h>

@@ -64,10 +64,36 @@ EpdFont chareink19BoldFont(&chareink_19_bold);
 EpdFont chareink19ItalicFont(&chareink_19_italic);
 EpdFontFamily chareink19FontFamily(&chareink19RegularFont, &chareink19BoldFont, &chareink19ItalicFont, nullptr);
 
-EpdFont literata15RegularFont(&literata_15_regular);
-EpdFont literata15BoldFont(&literata_15_bold);
-EpdFont literata15ItalicFont(&literata_15_italic);
-EpdFontFamily literata15FontFamily(&literata15RegularFont, &literata15BoldFont, &literata15ItalicFont, nullptr);
+EpdFont galmuri16RegularFont(&galmuri_16_regular);
+EpdFontFamily galmuri16FontFamily(&galmuri16RegularFont, nullptr, nullptr,
+                                  nullptr, 1, 0, true);
+EpdFont galmuri17RegularFont(&galmuri_17_regular);
+EpdFontFamily galmuri17FontFamily(&galmuri17RegularFont, nullptr, nullptr,
+                                  nullptr, 1, 0, true);
+EpdFont galmuri18RegularFont(&galmuri_18_regular);
+EpdFontFamily galmuri18FontFamily(&galmuri18RegularFont, nullptr, nullptr,
+                                  nullptr, 1, 0, true);
+EpdFont bookerly14RegularFont(&bookerly_14_regular);
+EpdFont bookerly14BoldFont(&bookerly_14_bold);
+EpdFont bookerly14ItalicFont(&bookerly_14_italic);
+EpdFont bookerly14BoldItalicFont(&bookerly_14_bolditalic);
+EpdFontFamily bookerly14FontFamily(&bookerly14RegularFont, &bookerly14BoldFont,
+                                   &bookerly14ItalicFont,
+                                   &bookerly14BoldItalicFont);
+EpdFont bookerly15RegularFont(&bookerly_15_regular);
+EpdFont bookerly15BoldFont(&bookerly_15_bold);
+EpdFont bookerly15ItalicFont(&bookerly_15_italic);
+EpdFont bookerly15BoldItalicFont(&bookerly_15_bolditalic);
+EpdFontFamily bookerly15FontFamily(&bookerly15RegularFont, &bookerly15BoldFont,
+                                   &bookerly15ItalicFont,
+                                   &bookerly15BoldItalicFont);
+EpdFont bookerly17RegularFont(&bookerly_17_regular);
+EpdFont bookerly17BoldFont(&bookerly_17_bold);
+EpdFont bookerly17ItalicFont(&bookerly_17_italic);
+EpdFont bookerly17BoldItalicFont(&bookerly_17_bolditalic);
+EpdFontFamily bookerly17FontFamily(&bookerly17RegularFont, &bookerly17BoldFont,
+                                   &bookerly17ItalicFont,
+                                   &bookerly17BoldItalicFont);
 
 EpdFont unifont14RegularFont(&unifont_14_regular);
 EpdFontFamily unifont14FontFamily(&unifont14RegularFont, nullptr, nullptr, nullptr, 1, 0, false);
@@ -220,7 +246,12 @@ void setupDisplayAndFonts() {
   renderer.insertFont(CHAREINK_17_FONT_ID, chareink17FontFamily);
   renderer.insertFont(CHAREINK_18_FONT_ID, chareink18FontFamily);
   renderer.insertFont(CHAREINK_19_FONT_ID, chareink19FontFamily);
-  renderer.insertFont(LITERATA_15_FONT_ID, literata15FontFamily);
+  renderer.insertFont(GALMURI_16_FONT_ID, galmuri16FontFamily);
+  renderer.insertFont(GALMURI_17_FONT_ID, galmuri17FontFamily);
+  renderer.insertFont(GALMURI_18_FONT_ID, galmuri18FontFamily);
+  renderer.insertFont(BOOKERLY_14_FONT_ID, bookerly14FontFamily);
+  renderer.insertFont(BOOKERLY_15_FONT_ID, bookerly15FontFamily);
+  renderer.insertFont(BOOKERLY_17_FONT_ID, bookerly17FontFamily);
   renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
   renderer.insertFont(UNIFONT_18_FONT_ID, unifont18FontFamily);
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);

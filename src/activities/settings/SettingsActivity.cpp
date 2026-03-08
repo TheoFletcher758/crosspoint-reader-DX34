@@ -48,18 +48,18 @@ void persistSettingsWithLog(const char* context) {
 }
 
 const char* fontSizeValueLabel(const uint8_t fontSize) {
-  switch (fontSize) {
-    case CrossPointSettings::SIZE_14:
+  switch (CrossPointSettings::fontSizeToPointSize(fontSize)) {
+    case 14:
       return "14";
-    case CrossPointSettings::SIZE_16:
+    case 16:
       return "16";
-    case CrossPointSettings::SIZE_18:
-      return "18";
-    case CrossPointSettings::X_LARGE:
-      return "19";
-    case CrossPointSettings::LARGE:
+    case 17:
       return "17";
-    case CrossPointSettings::MEDIUM:
+    case 18:
+      return "18";
+    case 19:
+      return "19";
+    case 15:
     default:
       return "15";
   }
@@ -224,8 +224,8 @@ void SettingsActivity::buildSettingsList() {
     // Web-only categories (KOReader Sync, OPDS Browser) are skipped for device UI
   }
 
-  // Hide font size when a single-size font family is selected
-  if (SETTINGS.fontFamily == CrossPointSettings::LITERATA) {
+  // Hide font size when a single-size font family is selected.
+  if (CrossPointSettings::isSingleSizeFontFamily(SETTINGS.fontFamily)) {
     readerSettings.erase(
         std::remove_if(readerSettings.begin(), readerSettings.end(),
                        [](const SettingInfo& s) { return s.valuePtr == &CrossPointSettings::fontSize; }),
@@ -474,11 +474,14 @@ void SettingsActivity::toggleCurrentSetting() {
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
     if (setting.valuePtr == &CrossPointSettings::fontSize) {
-      SETTINGS.fontSize = (currentValue + 1) % static_cast<uint8_t>(CrossPointSettings::FONT_SIZE_COUNT);
+      SETTINGS.fontSize =
+          CrossPointSettings::nextFontSize(SETTINGS.fontFamily, currentValue);
     } else {
       SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
     }
     if (setting.valuePtr == &CrossPointSettings::fontFamily) {
+      SETTINGS.fontSize = CrossPointSettings::normalizeFontSizeForFamily(
+          SETTINGS.fontFamily, SETTINGS.fontSize);
       buildSettingsList();
       selectedRowIndex = std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
     }

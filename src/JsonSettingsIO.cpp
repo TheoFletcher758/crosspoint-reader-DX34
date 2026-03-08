@@ -437,10 +437,11 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
       clamp(doc["frontButtonRight"] | (uint8_t)S::FRONT_HW_RIGHT,
             S::FRONT_BUTTON_HARDWARE_COUNT, S::FRONT_HW_RIGHT);
   CrossPointSettings::validateFrontButtonMapping(s);
-  // DX34 keeps only ChareInk; migrate any stored value to that.
-  s.fontFamily = S::CHAREINK;
+  s.fontFamily = clamp(doc["fontFamily"] | (uint8_t)S::CHAREINK,
+                       S::FONT_FAMILY_COUNT, S::CHAREINK);
   s.fontSize = clamp(doc["fontSize"] | (uint8_t)S::MEDIUM, S::FONT_SIZE_COUNT,
                      S::MEDIUM);
+  s.fontSize = S::normalizeFontSizeForFamily(s.fontFamily, s.fontSize);
   s.lineSpacing = clamp(doc["lineSpacing"] | (uint8_t)S::NORMAL,
                         S::LINE_COMPRESSION_COUNT, S::NORMAL);
   if (!doc["lineSpacingPercent"].isNull()) {

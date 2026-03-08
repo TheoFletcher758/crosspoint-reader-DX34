@@ -1050,7 +1050,6 @@ void CrossPointWebServer::handleGetSettings() const {
 
   for (const auto& s : settings) {
     if (!s.key) continue;  // Skip ACTION-only entries
-
     doc.clear();
     doc["key"] = s.key;
     doc["name"] = I18N.get(s.nameId);
@@ -1073,12 +1072,25 @@ void CrossPointWebServer::handleGetSettings() const {
         }
         JsonArray options = doc["options"].to<JsonArray>();
         if (s.valuePtr == &CrossPointSettings::fontSize) {
-          options.add("15");
-          options.add("17");
-          options.add("19");
-          options.add("14");
-          options.add("16");
-          options.add("18");
+          if (SETTINGS.fontFamily == CrossPointSettings::GALMURI) {
+            options.add("16");
+            options.add("17");
+            options.add("18");
+          } else if (SETTINGS.fontFamily == CrossPointSettings::BOOKERLY) {
+            options.add("14");
+            options.add("15");
+            options.add("17");
+          } else {
+            options.add("14");
+            options.add("15");
+            options.add("16");
+            options.add("17");
+            options.add("18");
+            options.add("19");
+          }
+          doc["value"] = static_cast<int>(
+              CrossPointSettings::fontSizeToDisplayIndex(SETTINGS.fontFamily,
+                                                         SETTINGS.fontSize));
         } else {
           for (const auto& opt : s.enumValues) {
             options.add(I18N.get(opt));
@@ -1162,11 +1174,23 @@ void CrossPointWebServer::handlePostSettings() {
         const int val = doc[s.key].as<int>();
         const int maxEnumValue =
             (s.valuePtr == &CrossPointSettings::fontSize)
-                ? static_cast<int>(CrossPointSettings::FONT_SIZE_COUNT)
+                ? static_cast<int>(CrossPointSettings::fontSizeOptionCount(
+                      SETTINGS.fontFamily))
                 : static_cast<int>(s.enumValues.size());
         if (val >= 0 && val < maxEnumValue) {
           if (s.valuePtr) {
-            SETTINGS.*(s.valuePtr) = static_cast<uint8_t>(val);
+            if (s.valuePtr == &CrossPointSettings::fontSize) {
+              SETTINGS.fontSize =
+                  CrossPointSettings::displayIndexToFontSize(
+                      SETTINGS.fontFamily, static_cast<uint8_t>(val));
+            } else {
+              SETTINGS.*(s.valuePtr) = static_cast<uint8_t>(val);
+              if (s.valuePtr == &CrossPointSettings::fontFamily) {
+                SETTINGS.fontSize =
+                    CrossPointSettings::normalizeFontSizeForFamily(
+                        SETTINGS.fontFamily, SETTINGS.fontSize);
+              }
+            }
           } else if (s.valueSetter) {
             s.valueSetter(static_cast<uint8_t>(val));
           }

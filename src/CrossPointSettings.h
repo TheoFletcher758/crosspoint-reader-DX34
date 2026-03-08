@@ -102,7 +102,8 @@ public:
   // Font family options
   enum FONT_FAMILY {
     CHAREINK = 0,
-    LITERATA = 1,
+    GALMURI = 1,
+    BOOKERLY = 2,
     FONT_FAMILY_COUNT
   };
   // Font size options.
@@ -264,6 +265,13 @@ public:
   uint16_t getPowerButtonDuration() const {
     return (shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP) ? 10 : 400;
   }
+  static bool isSingleSizeFontFamily(uint8_t family);
+  static uint8_t normalizeFontSizeForFamily(uint8_t family, uint8_t fontSize);
+  static uint8_t nextFontSize(uint8_t family, uint8_t fontSize);
+  static uint8_t fontSizeToPointSize(uint8_t fontSize);
+  static uint8_t fontSizeOptionCount(uint8_t family);
+  static uint8_t fontSizeToDisplayIndex(uint8_t family, uint8_t fontSize);
+  static uint8_t displayIndexToFontSize(uint8_t family, uint8_t displayIndex);
   int getReaderFontId() const;
   int getStatusBarProgressBarHeight() const;
 
