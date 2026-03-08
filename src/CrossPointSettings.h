@@ -102,7 +102,7 @@ public:
   // Font family options
   enum FONT_FAMILY {
     CHAREINK = 0,
-    UNIFONT_LATIN = 1,
+    LEGACY_REMOVED_FAMILY = 1,
     BOOKERLY = 2,
     FONT_FAMILY_COUNT
   };

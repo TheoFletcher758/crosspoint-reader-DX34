@@ -65,24 +65,6 @@ EpdFont bookerly17BoldItalicFont(&bookerly_17_bolditalic);
 EpdFontFamily bookerly17FontFamily(&bookerly17RegularFont, &bookerly17BoldFont,
                                    &bookerly17ItalicFont,
                                    &bookerly17BoldItalicFont);
-EpdFont unifontlatin15RegularFont(&unifontlatin_15_regular);
-EpdFont unifontlatin15BoldFont(&unifontlatin_15_bold);
-EpdFont unifontlatin15ItalicFont(&unifontlatin_15_italic);
-EpdFontFamily unifontlatin15FontFamily(&unifontlatin15RegularFont,
-                                       &unifontlatin15BoldFont,
-                                       &unifontlatin15ItalicFont, nullptr);
-EpdFont unifontlatin16RegularFont(&unifontlatin_16_regular);
-EpdFont unifontlatin16BoldFont(&unifontlatin_16_bold);
-EpdFont unifontlatin16ItalicFont(&unifontlatin_16_italic);
-EpdFontFamily unifontlatin16FontFamily(&unifontlatin16RegularFont,
-                                       &unifontlatin16BoldFont,
-                                       &unifontlatin16ItalicFont, nullptr);
-EpdFont unifontlatin17RegularFont(&unifontlatin_17_regular);
-EpdFont unifontlatin17BoldFont(&unifontlatin_17_bold);
-EpdFont unifontlatin17ItalicFont(&unifontlatin_17_italic);
-EpdFontFamily unifontlatin17FontFamily(&unifontlatin17RegularFont,
-                                       &unifontlatin17BoldFont,
-                                       &unifontlatin17ItalicFont, nullptr);
 
 EpdFont unifont14RegularFont(&unifont_14_regular);
 EpdFontFamily unifont14FontFamily(&unifont14RegularFont, nullptr, nullptr, nullptr, 1, 0, false);
@@ -234,9 +216,6 @@ void setupDisplayAndFonts() {
   renderer.insertFont(CHAREINK_17_FONT_ID, chareink17FontFamily);
   renderer.insertFont(BOOKERLY_16_FONT_ID, bookerly16FontFamily);
   renderer.insertFont(BOOKERLY_17_FONT_ID, bookerly17FontFamily);
-  renderer.insertFont(UNIFONTLATIN_15_FONT_ID, unifontlatin15FontFamily);
-  renderer.insertFont(UNIFONTLATIN_16_FONT_ID, unifontlatin16FontFamily);
-  renderer.insertFont(UNIFONTLATIN_17_FONT_ID, unifontlatin17FontFamily);
   renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
   renderer.insertFont(UNIFONT_18_FONT_ID, unifont18FontFamily);
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);

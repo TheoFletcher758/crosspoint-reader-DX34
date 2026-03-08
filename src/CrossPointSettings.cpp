@@ -477,30 +477,16 @@ bool CrossPointSettings::isSingleSizeFontFamily(uint8_t family) {
 }
 
 uint8_t CrossPointSettings::normalizeFontFamily(const uint8_t family) {
-  if (family == BOOKERLY) {
-    return BOOKERLY;
-  }
-  if (family == UNIFONT_LATIN) {
-    return UNIFONT_LATIN;
-  }
-  return CHAREINK;
+  return family == BOOKERLY ? BOOKERLY : CHAREINK;
 }
 
 uint8_t CrossPointSettings::fontFamilyToDisplayIndex(const uint8_t family) {
-  return normalizeFontFamily(family);
+  return normalizeFontFamily(family) == BOOKERLY ? 1 : 0;
 }
 
 uint8_t CrossPointSettings::displayIndexToFontFamily(
     const uint8_t displayIndex) {
-  switch (displayIndex) {
-  case UNIFONT_LATIN:
-    return UNIFONT_LATIN;
-  case BOOKERLY:
-    return BOOKERLY;
-  case CHAREINK:
-  default:
-    return CHAREINK;
-  }
+  return displayIndex == 1 ? BOOKERLY : CHAREINK;
 }
 
 uint8_t CrossPointSettings::normalizeFontSizeForFamily(const uint8_t family,
@@ -515,22 +501,6 @@ uint8_t CrossPointSettings::normalizeFontSizeForFamily(const uint8_t family,
     case X_LARGE:
     case SIZE_14:
     case MEDIUM:
-    default:
-      return LARGE;
-    }
-  }
-
-  if (family == UNIFONT_LATIN || family == CHAREINK) {
-    switch (fontSize) {
-    case MEDIUM:
-      return MEDIUM;
-    case SIZE_16:
-      return SIZE_16;
-    case LARGE:
-      return LARGE;
-    case SIZE_14:
-    case SIZE_18:
-    case X_LARGE:
     default:
       return LARGE;
     }
@@ -554,10 +524,8 @@ uint8_t CrossPointSettings::defaultLineSpacingPercentForFamily(
   if (normalizedFamily == BOOKERLY) {
     return 80;
   }
-  if (normalizedFamily == CHAREINK) {
-    return 95;
-  }
-  return currentPercent;
+  (void)currentPercent;
+  return 95;
 }
 
 uint8_t CrossPointSettings::nextFontSize(const uint8_t family,
@@ -666,17 +634,6 @@ int CrossPointSettings::getReaderFontId() const {
     case LARGE:
     default:
       return BOOKERLY_17_FONT_ID;
-    }
-  }
-  if (fontFamily == UNIFONT_LATIN) {
-    switch (normalizedFontSize) {
-    case MEDIUM:
-      return UNIFONTLATIN_15_FONT_ID;
-    case SIZE_16:
-      return UNIFONTLATIN_16_FONT_ID;
-    case LARGE:
-    default:
-      return UNIFONTLATIN_17_FONT_ID;
     }
   }
   switch (normalizedFontSize) {
