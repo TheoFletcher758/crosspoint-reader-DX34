@@ -17,7 +17,10 @@
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/BookProgress.h"
+#include "util/StatusPopup.h"
 #include "util/StringUtils.h"
+
+void sortFileList(std::vector<std::string>& strs);
 
 namespace {
 constexpr unsigned long GO_HOME_MS = 1000;
@@ -37,6 +40,66 @@ std::string formatLibraryProgressPrefix(const std::optional<int>& percent) {
     return "-";
   }
   return std::to_string(percent.value()) + "%";
+}
+
+bool equalsIgnoreCaseAscii(const std::string& value, const char* target) {
+  size_t i = 0;
+  for (; i < value.size() && target[i] != '\0'; ++i) {
+    char lhs = value[i];
+    char rhs = target[i];
+    if (lhs >= 'A' && lhs <= 'Z') lhs = static_cast<char>(lhs - 'A' + 'a');
+    if (rhs >= 'A' && rhs <= 'Z') rhs = static_cast<char>(rhs - 'A' + 'a');
+    if (lhs != rhs) return false;
+  }
+  return i == value.size() && target[i] == '\0';
+}
+
+bool shouldCollapseMoveFolder(const std::string& folderName) {
+  return equalsIgnoreCaseAscii(folderName, "book") ||
+         equalsIgnoreCaseAscii(folderName, "books");
+}
+
+std::string joinPath(const std::string& parent, const std::string& child) {
+  if (parent.empty() || parent == "/") {
+    return "/" + child;
+  }
+  return parent + "/" + child;
+}
+
+void collectMoveDestinationPaths(const std::string& basePath,
+                                 std::vector<std::string>& outPaths) {
+  auto dir = Storage.open(basePath.c_str());
+  if (!dir || !dir.isDirectory()) {
+    if (dir) dir.close();
+    return;
+  }
+
+  std::vector<std::string> childDirs;
+  char name[500];
+  for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
+    file.getName(name, sizeof(name));
+    if (name[0] == '.' || strcmp(name, "System Volume Information") == 0) {
+      file.close();
+      continue;
+    }
+    if (file.isDirectory()) {
+      childDirs.emplace_back(std::string(name) + "/");
+    }
+    file.close();
+    esp_task_wdt_reset();
+  }
+  dir.close();
+
+  sortFileList(childDirs);
+
+  for (const auto& childDir : childDirs) {
+    const std::string folderName = childDir.substr(0, childDir.size() - 1);
+    const std::string fullPath = joinPath(basePath, folderName);
+    outPaths.push_back(fullPath);
+    if (!shouldCollapseMoveFolder(folderName)) {
+      collectMoveDestinationPaths(fullPath, outPaths);
+    }
+  }
 }
 
 std::vector<std::string> wrapTextToWidth(const GfxRenderer& renderer, const int fontId, const std::string& text,
@@ -243,10 +306,7 @@ void MyLibraryActivity::enterFileActions(const std::string& filePath) {
 }
 
 void MyLibraryActivity::enterFileMoveBrowser() {
-  moveBrowserPath = basepath.empty() ? "/" : basepath;
-  if (moveBrowserPath.back() == '/' && moveBrowserPath.size() > 1) {
-    moveBrowserPath.pop_back();
-  }
+  moveBrowserPath = "/";
   fileMoveIndex = 0;
   loadMoveBrowseEntries();
   mode = Mode::FILE_MOVE_BROWSER;
@@ -254,41 +314,14 @@ void MyLibraryActivity::enterFileMoveBrowser() {
 
 void MyLibraryActivity::loadMoveBrowseEntries() {
   moveBrowseEntries.clear();
+  moveBrowseEntries.push_back({"[ROOT] /", "/", false, false});
 
-  if (moveBrowserPath != "/") {
-    moveBrowseEntries.push_back({"[..]", getParentPath(moveBrowserPath), true, false});
+  std::vector<std::string> destinationPaths;
+  collectMoveDestinationPaths("/", destinationPaths);
+  for (const auto& path : destinationPaths) {
+    moveBrowseEntries.push_back({path, path, false, false});
   }
 
-  auto dir = Storage.open(moveBrowserPath.c_str());
-  if (dir && dir.isDirectory()) {
-    char name[500];
-    std::vector<std::string> directories;
-    for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
-      file.getName(name, sizeof(name));
-      if (name[0] == '.' || strcmp(name, "System Volume Information") == 0) {
-        file.close();
-        continue;
-      }
-      if (file.isDirectory()) {
-        directories.emplace_back(std::string(name) + "/");
-      }
-      file.close();
-    }
-    dir.close();
-    sortFileList(directories);
-
-    for (const auto& entry : directories) {
-      const std::string dirName = entry.substr(0, entry.size() - 1);
-      std::string path = moveBrowserPath;
-      if (path.empty() || path.back() != '/') path += "/";
-      path += dirName;
-      moveBrowseEntries.push_back({entry, path, false, false});
-    }
-  } else if (dir) {
-    dir.close();
-  }
-
-  moveBrowseEntries.push_back({"[Move Here]", moveBrowserPath, false, true});
   if (fileMoveIndex >= static_cast<int>(moveBrowseEntries.size())) {
     fileMoveIndex = std::max(0, static_cast<int>(moveBrowseEntries.size()) - 1);
   }
@@ -375,6 +408,15 @@ bool MyLibraryActivity::deleteSelectedFile() {
   return deleted;
 }
 
+void MyLibraryActivity::requestCleanRefresh() {
+  nextRefreshMode = HalDisplay::HALF_REFRESH;
+}
+
+void MyLibraryActivity::displayFrame() {
+  renderer.displayBuffer(nextRefreshMode);
+  nextRefreshMode = HalDisplay::FAST_REFRESH;
+}
+
 void MyLibraryActivity::onEnter() {
   Activity::onEnter();
 
@@ -433,39 +475,37 @@ void MyLibraryActivity::loop() {
           enterFileMoveBrowser();
           break;
         case 2:
+          StatusPopup::showBlocking(renderer, "Moving file");
           if (moveSelectedFileTo("/sleep")) {
             mode = Mode::BROWSE;
             progressPrefixCache.erase(selectedFilePath);
             if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
             if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
           }
+          requestCleanRefresh();
           break;
         case 3:
+          StatusPopup::showBlocking(renderer, "Deleting file");
           if (deleteSelectedFile()) {
             progressPrefixCache.erase(selectedFilePath);
             if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
             if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
           }
           mode = Mode::BROWSE;
+          requestCleanRefresh();
           break;
         default:
           mode = Mode::BROWSE;
           break;
       }
-      requestUpdate();
+      requestUpdateAndWait();
     }
     return;
   }
 
   if (mode == Mode::FILE_MOVE_BROWSER) {
     if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-      if (moveBrowserPath != "/") {
-        moveBrowserPath = getParentPath(moveBrowserPath);
-        fileMoveIndex = 0;
-        loadMoveBrowseEntries();
-      } else {
-        mode = Mode::FILE_ACTIONS;
-      }
+      mode = Mode::FILE_ACTIONS;
       requestUpdate();
       return;
     }
@@ -488,26 +528,18 @@ void MyLibraryActivity::loop() {
 
     if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
       const auto& entry = moveBrowseEntries[fileMoveIndex];
-      if (entry.isMoveHere) {
-        if (moveSelectedFileTo(entry.path)) {
-          mode = Mode::BROWSE;
-          progressPrefixCache.erase(selectedFilePath);
-          if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
-          if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
-        } else {
-          // Keep browsing destination after a failed move (existing file/same path).
-          loadMoveBrowseEntries();
-        }
-      } else if (entry.isParent) {
-        moveBrowserPath = entry.path;
-        fileMoveIndex = 0;
-        loadMoveBrowseEntries();
+      StatusPopup::showBlocking(renderer, "Moving file");
+      if (moveSelectedFileTo(entry.path)) {
+        mode = Mode::BROWSE;
+        progressPrefixCache.erase(selectedFilePath);
+        if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
+        if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
       } else {
-        moveBrowserPath = entry.path;
-        fileMoveIndex = 0;
+        // Keep the destination list open after a failed move.
         loadMoveBrowseEntries();
       }
-      requestUpdate();
+      requestCleanRefresh();
+      requestUpdateAndWait();
     }
     return;
   }
@@ -731,7 +763,7 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
                                             tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
-  renderer.displayBuffer();
+  displayFrame();
 }
 
 void MyLibraryActivity::renderBmpView() {
@@ -742,7 +774,7 @@ void MyLibraryActivity::renderBmpView() {
     renderer.drawCenteredText(UI_12_FONT_ID, 80, "Failed to open BMP");
     const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
     GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-    renderer.displayBuffer();
+    displayFrame();
     return;
   }
 
@@ -751,7 +783,7 @@ void MyLibraryActivity::renderBmpView() {
     renderer.drawCenteredText(UI_12_FONT_ID, 80, "Invalid BMP");
     const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
     GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-    renderer.displayBuffer();
+    displayFrame();
     return;
   }
 
@@ -777,7 +809,7 @@ void MyLibraryActivity::renderBmpView() {
 
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), "Actions", "", "");
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-  renderer.displayBuffer();
+  displayFrame();
 }
 
 void MyLibraryActivity::renderFileActions() {
@@ -809,26 +841,29 @@ void MyLibraryActivity::renderFileActions() {
 
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-  renderer.displayBuffer();
+  displayFrame();
 }
 
 void MyLibraryActivity::renderFileMoveBrowser() {
   renderer.clearScreen();
   const int screenW = renderer.getScreenWidth();
   const int screenH = renderer.getScreenHeight();
-  const int popupX = 16;
-  const int popupY = 24;
+  const auto metrics = UITheme::getInstance().getMetrics();
+  const int popupX = 12;
+  const int popupY = 12;
   const int popupW = screenW - popupX * 2;
-  const int popupH = screenH - popupY * 2;
+  const int popupBottom = screenH - metrics.buttonHintsHeight - 6;
+  const int popupH = std::max(80, popupBottom - popupY);
 
   renderer.drawRect(popupX, popupY, popupW, popupH, true);
-  std::string title = "Move To: " + ((moveBrowserPath == "/") ? std::string("/") : getBasename(moveBrowserPath));
+  std::string title = "Move To Folder";
   title = renderer.truncatedText(UI_12_FONT_ID, title.c_str(), popupW - 24);
-  renderer.drawCenteredText(UI_12_FONT_ID, popupY + 10, title.c_str(), true, EpdFontFamily::REGULAR);
+  renderer.drawCenteredText(UI_12_FONT_ID, popupY + 8, title.c_str(), true, EpdFontFamily::REGULAR);
 
-  const int maxRows = 8;
-  const int rowStartY = popupY + 34;
-  const int rowH = 24;
+  const int rowStartY = popupY + 30;
+  const int rowH = renderer.getLineHeight(UI_10_FONT_ID) + 8;
+  const int rowBottomY = popupY + popupH - 8;
+  const int maxRows = std::max(1, (rowBottomY - rowStartY) / rowH);
   int startIndex = 0;
   if (fileMoveIndex >= maxRows) {
     startIndex = fileMoveIndex - maxRows + 1;
@@ -848,7 +883,7 @@ void MyLibraryActivity::renderFileMoveBrowser() {
 
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-  renderer.displayBuffer();
+  displayFrame();
 }
 
 size_t MyLibraryActivity::findEntry(const std::string& name) const {

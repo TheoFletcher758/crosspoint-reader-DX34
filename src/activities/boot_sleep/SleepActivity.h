@@ -2,6 +2,7 @@
 #include "../Activity.h"
 
 class Bitmap;
+class GfxRenderer;
 
 class SleepActivity final : public Activity {
  public:
@@ -10,7 +11,7 @@ class SleepActivity final : public Activity {
   void onEnter() override;
   static bool randomizeSleepImagePlaylist();
   // Called once on boot: moves overflow images beyond the playlist limit to /sleep pause.
-  static void trimSleepFolderToLimit();
+  static void trimSleepFolderToLimit(GfxRenderer* renderer = nullptr);
 
  private:
   void renderDefaultSleepScreen() const;

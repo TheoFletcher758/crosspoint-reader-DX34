@@ -116,6 +116,7 @@ public:
     SIZE_14 = 3,
     SIZE_16 = 4,
     SIZE_18 = 5,
+    SIZE_13 = 6,
     FONT_SIZE_COUNT
   };
   // Legacy line spacing enum (kept for settings migration compatibility)

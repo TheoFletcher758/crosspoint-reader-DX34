@@ -11,6 +11,7 @@
 #include "Xtc.h"
 #include "XtcReaderActivity.h"
 #include "activities/util/FullScreenMessageActivity.h"
+#include "util/StatusPopup.h"
 #include "util/StringUtils.h"
 
 std::string ReaderActivity::extractFolderPath(const std::string& filePath) {
@@ -37,6 +38,9 @@ std::unique_ptr<Epub> ReaderActivity::loadEpub(const std::string& path) {
   }
 
   auto epub = std::unique_ptr<Epub>(new Epub(path, "/.crosspoint"));
+  if (!Storage.exists((epub->getCachePath() + "/book.bin").c_str())) {
+    StatusPopup::showBlocking(renderer, "Indexing book");
+  }
   if (epub->load(true, SETTINGS.embeddedStyle == 0)) {
     return epub;
   }

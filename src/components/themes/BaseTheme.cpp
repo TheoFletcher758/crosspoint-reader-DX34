@@ -687,7 +687,7 @@ Rect BaseTheme::drawPopup(const GfxRenderer& renderer, const char* message) cons
   const int textX = x + (w - textWidth) / 2;
   const int textY = y + margin - 2;
   renderer.drawText(UI_12_FONT_ID, textX, textY, message, true, EpdFontFamily::REGULAR);
-  renderer.displayBuffer();
+  renderer.displayBuffer(HalDisplay::HALF_REFRESH);
   return Rect{x, y, w, h};
 }
 

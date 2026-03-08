@@ -171,7 +171,7 @@ void HomeActivity::onEnter() {
   Activity::onEnter();
 
   // Trim sleep folder once we reach home to avoid delays during boot/sleep entry
-  SleepActivity::trimSleepFolderToLimit();
+  SleepActivity::trimSleepFolderToLimit(&renderer);
 
   // Check if OPDS browser URL is configured
   hasOpdsUrl = strlen(SETTINGS.opdsServerUrl) > 0;

@@ -493,28 +493,40 @@ uint8_t CrossPointSettings::normalizeFontSizeForFamily(const uint8_t family,
                                                        const uint8_t fontSize) {
   if (family == BOOKERLY) {
     switch (fontSize) {
+    case SIZE_14:
+      return SIZE_14;
+    case MEDIUM:
+      return MEDIUM;
     case SIZE_16:
       return SIZE_16;
     case LARGE:
       return LARGE;
     case SIZE_18:
+      return SIZE_18;
     case X_LARGE:
-    case SIZE_14:
-    case MEDIUM:
+      return X_LARGE;
     default:
-      return LARGE;
+      return SIZE_14;
     }
   }
 
   switch (fontSize) {
+  case SIZE_13:
+    return SIZE_13;
+  case SIZE_14:
+    return SIZE_14;
   case MEDIUM:
     return MEDIUM;
   case SIZE_16:
     return SIZE_16;
   case LARGE:
     return LARGE;
+  case SIZE_18:
+    return SIZE_18;
+  case X_LARGE:
+    return X_LARGE;
   default:
-    return LARGE;
+    return MEDIUM;
   }
 }
 
@@ -522,38 +534,23 @@ uint8_t CrossPointSettings::defaultLineSpacingPercentForFamily(
     const uint8_t family, const uint8_t currentPercent) {
   const uint8_t normalizedFamily = normalizeFontFamily(family);
   if (normalizedFamily == BOOKERLY) {
-    return 80;
+    return 85;
   }
   (void)currentPercent;
-  return 95;
+  return 105;
 }
 
 uint8_t CrossPointSettings::nextFontSize(const uint8_t family,
                                          const uint8_t fontSize) {
-  const uint8_t normalized = normalizeFontSizeForFamily(family, fontSize);
-  if (family == BOOKERLY) {
-    switch (normalized) {
-    case SIZE_16:
-      return LARGE;
-    case LARGE:
-    default:
-      return SIZE_16;
-    }
-  }
-
-  switch (normalized) {
-  case MEDIUM:
-    return SIZE_16;
-  case SIZE_16:
-    return LARGE;
-  case LARGE:
-  default:
-    return MEDIUM;
-  }
+  const uint8_t displayIndex = fontSizeToDisplayIndex(family, fontSize);
+  const uint8_t optionCount = fontSizeOptionCount(family);
+  return displayIndexToFontSize(family, (displayIndex + 1) % optionCount);
 }
 
 uint8_t CrossPointSettings::fontSizeToPointSize(uint8_t fontSize) {
   switch (fontSize) {
+  case SIZE_13:
+    return 13;
   case SIZE_14:
     return 14;
   case SIZE_16:
@@ -572,9 +569,9 @@ uint8_t CrossPointSettings::fontSizeToPointSize(uint8_t fontSize) {
 
 uint8_t CrossPointSettings::fontSizeOptionCount(const uint8_t family) {
   if (family == BOOKERLY) {
-    return 2;
+    return 6;
   }
-  return 3;
+  return 7;
 }
 
 uint8_t CrossPointSettings::fontSizeToDisplayIndex(const uint8_t family,
@@ -582,22 +579,38 @@ uint8_t CrossPointSettings::fontSizeToDisplayIndex(const uint8_t family,
   const uint8_t normalized = normalizeFontSizeForFamily(family, fontSize);
   if (family == BOOKERLY) {
     switch (normalized) {
-    case SIZE_16:
+    case SIZE_14:
       return 0;
-    case LARGE:
-    default:
+    case MEDIUM:
       return 1;
+    case SIZE_16:
+      return 2;
+    case LARGE:
+      return 3;
+    case SIZE_18:
+      return 4;
+    case X_LARGE:
+    default:
+      return 5;
     }
   }
 
   switch (normalized) {
-  case MEDIUM:
+  case SIZE_13:
     return 0;
-  case SIZE_16:
+  case SIZE_14:
     return 1;
-  case LARGE:
-  default:
+  case MEDIUM:
     return 2;
+  case SIZE_16:
+    return 3;
+  case LARGE:
+    return 4;
+  case SIZE_18:
+    return 5;
+  case X_LARGE:
+  default:
+    return 6;
   }
 }
 
@@ -606,21 +619,37 @@ uint8_t CrossPointSettings::displayIndexToFontSize(const uint8_t family,
   if (family == BOOKERLY) {
     switch (displayIndex) {
     case 0:
-      return SIZE_16;
+      return SIZE_14;
     case 1:
-    default:
+      return MEDIUM;
+    case 2:
+      return SIZE_16;
+    case 3:
       return LARGE;
+    case 4:
+      return SIZE_18;
+    case 5:
+    default:
+      return X_LARGE;
     }
   }
 
   switch (displayIndex) {
   case 0:
-    return MEDIUM;
+    return SIZE_13;
   case 1:
-    return SIZE_16;
+    return SIZE_14;
   case 2:
-  default:
+    return MEDIUM;
+  case 3:
+    return SIZE_16;
+  case 4:
     return LARGE;
+  case 5:
+    return SIZE_18;
+  case 6:
+  default:
+    return X_LARGE;
   }
 }
 
@@ -629,21 +658,37 @@ int CrossPointSettings::getReaderFontId() const {
       normalizeFontSizeForFamily(fontFamily, fontSize);
   if (fontFamily == BOOKERLY) {
     switch (normalizedFontSize) {
+    case SIZE_14:
+      return BOOKERLY_14_FONT_ID;
+    case MEDIUM:
+      return BOOKERLY_15_FONT_ID;
     case SIZE_16:
       return BOOKERLY_16_FONT_ID;
     case LARGE:
-    default:
       return BOOKERLY_17_FONT_ID;
+    case SIZE_18:
+      return BOOKERLY_18_FONT_ID;
+    case X_LARGE:
+    default:
+      return BOOKERLY_19_FONT_ID;
     }
   }
   switch (normalizedFontSize) {
+  case SIZE_13:
+    return CHAREINK_13_FONT_ID;
+  case SIZE_14:
+    return CHAREINK_14_FONT_ID;
   case MEDIUM:
     return CHAREINK_15_FONT_ID;
   case SIZE_16:
     return CHAREINK_16_FONT_ID;
   case LARGE:
-  default:
     return CHAREINK_17_FONT_ID;
+  case SIZE_18:
+    return CHAREINK_18_FONT_ID;
+  case X_LARGE:
+  default:
+    return CHAREINK_19_FONT_ID;
   }
 }
 

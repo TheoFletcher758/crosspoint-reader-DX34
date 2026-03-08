@@ -13,6 +13,7 @@
 #include "CrossPointState.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/StatusPopup.h"
 #include "util/StringUtils.h"
 
 namespace {
@@ -321,7 +322,7 @@ bool SleepActivity::randomizeSleepImagePlaylist() {
   return true;
 }
 
-void SleepActivity::trimSleepFolderToLimit() {
+void SleepActivity::trimSleepFolderToLimit(GfxRenderer* popupRenderer) {
   const size_t kLimit = CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST;
   const size_t kScanCap = kLimit + 500; // Hard cap on scanning to avoid OOM
 
@@ -381,6 +382,10 @@ void SleepActivity::trimSleepFolderToLimit() {
   // Tail entries beyond kLimit are the oldest images — move them to /sleep pause.
   const std::vector<std::string> overflow(playlist.begin() + kLimit, playlist.end());
   playlist.erase(playlist.begin() + kLimit, playlist.end());
+
+  if (popupRenderer && !overflow.empty()) {
+    StatusPopup::showBlocking(*popupRenderer, "Moving wallpapers");
+  }
 
   Storage.mkdir("/sleep pause");
   for (const auto& filename : overflow) {

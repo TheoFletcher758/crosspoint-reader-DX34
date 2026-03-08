@@ -20,6 +20,7 @@
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/StatusPopup.h"
 
 namespace {
 // pagesPerRefresh now comes from SETTINGS.getRefreshFrequency()
@@ -100,7 +101,8 @@ int getStatusBottomInset(const GfxRenderer &renderer) {
 
 int computeStatusBarsHeight(const bool showBookProgressBar,
                             const bool showChapterProgressBar,
-                            const int statusBarProgressHeight) {
+                            const int statusBarProgressHeight,
+                            const bool includeTopMargin) {
   const int activeBars =
       (showBookProgressBar ? 1 : 0) + (showChapterProgressBar ? 1 : 0);
   if (activeBars == 0) {
@@ -108,7 +110,7 @@ int computeStatusBarsHeight(const bool showBookProgressBar,
   }
   constexpr int barGap = 0;
   return activeBars * statusBarProgressHeight + (activeBars - 1) * barGap +
-         progressBarMarginTop;
+         (includeTopMargin ? progressBarMarginTop : 0);
 }
 
 std::vector<std::string> wrapStatusText(const GfxRenderer &renderer,
@@ -182,22 +184,38 @@ std::vector<std::string> wrapStatusText(const GfxRenderer &renderer,
 }
 
 int computeStatusBarReservedHeight(const GfxRenderer &renderer,
+                                   const bool showStatusTextRow,
                                    const bool showBookProgressBar,
                                    const bool showChapterProgressBar,
                                    const int titleLineCount) {
   const int statusTextHeight = renderer.getTextHeight(SMALL_FONT_ID);
-  const int textBlockHeight =
-      statusTextHeight +
-      (titleLineCount > 0
-           ? (statusTextLineGap +
-              titleLineCount * statusTextHeight +
-              (titleLineCount - 1) * statusTextLineGap)
-           : 0);
+  int textBlockHeight = 0;
+  if (showStatusTextRow) {
+    textBlockHeight += statusTextHeight;
+  }
+  if (titleLineCount > 0) {
+    if (textBlockHeight > 0) {
+      textBlockHeight += statusTextLineGap;
+    }
+    textBlockHeight +=
+        titleLineCount * statusTextHeight +
+        (titleLineCount - 1) * statusTextLineGap;
+  }
   const int barsHeight =
       computeStatusBarsHeight(showBookProgressBar, showChapterProgressBar,
-                              SETTINGS.getStatusBarProgressBarHeight());
-  return statusTextTopPadding + textBlockHeight + statusTextToBarsGap +
-         barsHeight;
+                              SETTINGS.getStatusBarProgressBarHeight(),
+                              textBlockHeight > 0);
+  int reservedHeight = 0;
+  if (textBlockHeight > 0) {
+    reservedHeight += statusTextTopPadding + textBlockHeight;
+  }
+  if (barsHeight > 0) {
+    if (textBlockHeight > 0) {
+      reservedHeight += statusTextToBarsGap;
+    }
+    reservedHeight += barsHeight;
+  }
+  return reservedHeight;
 }
 
 int resolveCurrentTocIndex(const std::shared_ptr<Epub>& epub,
@@ -925,6 +943,7 @@ void EpubReaderActivity::onReaderMenuConfirm(
     break;
   }
   case EpubReaderMenuActivity::MenuAction::DELETE_CACHE: {
+    StatusPopup::showBlocking(renderer, "Clearing book cache");
     {
       RenderLock lock(*this);
       if (epub) {
@@ -982,6 +1001,7 @@ void EpubReaderActivity::onReaderMenuConfirm(
   }
   case EpubReaderMenuActivity::MenuAction::DELETE_BOOK: {
     std::string deletingPath;
+    StatusPopup::showBlocking(renderer, "Deleting book");
     {
       RenderLock lock(*this);
       if (epub) {
@@ -1088,15 +1108,18 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
       renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
   int statusBarReserved = 0;
   if (SETTINGS.statusBarEnabled) {
+    const bool showStatusTextRow =
+        SETTINGS.statusBarShowBattery || SETTINGS.statusBarShowPageCounter ||
+        SETTINGS.statusBarShowBookPercentage ||
+        SETTINGS.statusBarShowChapterPercentage;
     int titleLineCount = SETTINGS.statusBarShowChapterTitle ? 1 : 0;
     if (SETTINGS.statusBarShowChapterTitle &&
         SETTINGS.statusBarNoTitleTruncation) {
       titleLineCount = getWrappedStatusBarReserveLineCount(usableWidth);
     }
-    statusBarReserved =
-        computeStatusBarReservedHeight(renderer, SETTINGS.statusBarShowBookBar,
-                                       SETTINGS.statusBarShowChapterBar,
-                                       titleLineCount);
+    statusBarReserved = computeStatusBarReservedHeight(
+        renderer, showStatusTextRow, SETTINGS.statusBarShowBookBar,
+        SETTINGS.statusBarShowChapterBar, titleLineCount);
     // When the status bar is present it handles the display bottom inset
     // itself. Use only the display inset + user margin so the gap equals
     // exactly screenMarginBottom (0 = text flush against the status bar).
@@ -1125,7 +1148,7 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
       LOG_DBG("ERS", "Cache not found, building...");
 
       const auto popupFn = [this]() {
-        GUI.drawPopup(renderer, tr(STR_INDEXING_CHAPTER));
+        StatusPopup::showBlocking(renderer, tr(STR_INDEXING_CHAPTER));
       };
 
       if (!section->createSectionFile(
@@ -1398,9 +1421,7 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
   const int statusBarReserved = statusBarLayout.reservedHeight;
   const int statusBottomInset = getStatusBottomInset(renderer);
   const int statusTopY = screenHeight - statusBottomInset - statusBarReserved;
-  const int textY = statusTopY + statusTextTopPadding;
   const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
-  const int titleY = textY + textHeight + statusTextLineGap;
   if (SETTINGS.debugBorders) {
     drawDottedRect(renderer, orientedMarginLeft, statusTopY,
                    renderer.getScreenWidth() - orientedMarginLeft -
@@ -1424,20 +1445,30 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
   const int totalGroupWidth = batteryWidth + progressWidth + groupGaps;
   int currentX =
       orientedMarginLeft + std::max(0, (usableWidth - totalGroupWidth) / 2);
+  const bool showStatusTextRow =
+      showBattery || !statusBarLayout.progressText.empty();
+  int currentTextY = statusTopY;
+  if (showStatusTextRow || (showChapterTitle && !statusBarLayout.titleLines.empty())) {
+    currentTextY += statusTextTopPadding;
+  }
 
   if (showBattery) {
     GUI.drawBatteryLeft(
         renderer,
-        Rect{currentX, textY, metrics.batteryWidth, metrics.batteryHeight},
+        Rect{currentX, currentTextY, metrics.batteryWidth, metrics.batteryHeight},
         showBatteryPercentage);
     currentX += batteryWidth + statusItemGap;
   }
 
   if (!statusBarLayout.progressText.empty()) {
-    renderer.drawText(SMALL_FONT_ID, currentX, textY,
+    renderer.drawText(SMALL_FONT_ID, currentX, currentTextY,
                       statusBarLayout.progressText.c_str());
   }
 
+  int titleY = currentTextY;
+  if (showStatusTextRow) {
+    titleY += textHeight + statusTextLineGap;
+  }
   if (showChapterTitle && !statusBarLayout.titleLines.empty()) {
     const int lineStep = textHeight + statusTextLineGap;
     for (size_t i = 0; i < statusBarLayout.titleLines.size(); i++) {

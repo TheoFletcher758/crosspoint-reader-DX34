@@ -11,6 +11,7 @@
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/StatusPopup.h"
 
 void ClearCacheActivity::onEnter() {
   ActivityWithSubactivity::onEnter();
@@ -172,8 +173,7 @@ void ClearCacheActivity::loop() {
         RenderLock lock(*this);
         state = CLEARING;
       }
-      requestUpdateAndWait();
-
+      StatusPopup::showBlocking(renderer, tr(STR_CLEARING_CACHE));
       clearCache();
     }
 
