@@ -102,7 +102,7 @@ public:
   // Font family options
   enum FONT_FAMILY {
     CHAREINK = 0,
-    GALMURI = 1,
+    UNIFONT_LATIN = 1,
     BOOKERLY = 2,
     FONT_FAMILY_COUNT
   };
@@ -265,8 +265,13 @@ public:
   uint16_t getPowerButtonDuration() const {
     return (shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP) ? 10 : 400;
   }
+  static uint8_t normalizeFontFamily(uint8_t family);
+  static uint8_t fontFamilyToDisplayIndex(uint8_t family);
+  static uint8_t displayIndexToFontFamily(uint8_t displayIndex);
   static bool isSingleSizeFontFamily(uint8_t family);
   static uint8_t normalizeFontSizeForFamily(uint8_t family, uint8_t fontSize);
+  static uint8_t defaultLineSpacingPercentForFamily(uint8_t family,
+                                                    uint8_t currentPercent);
   static uint8_t nextFontSize(uint8_t family, uint8_t fontSize);
   static uint8_t fontSizeToPointSize(uint8_t fontSize);
   static uint8_t fontSizeOptionCount(uint8_t family);

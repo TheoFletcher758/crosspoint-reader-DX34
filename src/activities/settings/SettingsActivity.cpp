@@ -476,12 +476,22 @@ void SettingsActivity::toggleCurrentSetting() {
     if (setting.valuePtr == &CrossPointSettings::fontSize) {
       SETTINGS.fontSize =
           CrossPointSettings::nextFontSize(SETTINGS.fontFamily, currentValue);
+    } else if (setting.valuePtr == &CrossPointSettings::fontFamily) {
+      const uint8_t currentIndex =
+          CrossPointSettings::fontFamilyToDisplayIndex(SETTINGS.fontFamily);
+      SETTINGS.fontFamily = CrossPointSettings::displayIndexToFontFamily(
+          (currentIndex + 1) % static_cast<uint8_t>(setting.enumValues.size()));
     } else {
       SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
     }
     if (setting.valuePtr == &CrossPointSettings::fontFamily) {
+      SETTINGS.fontFamily =
+          CrossPointSettings::normalizeFontFamily(SETTINGS.fontFamily);
       SETTINGS.fontSize = CrossPointSettings::normalizeFontSizeForFamily(
           SETTINGS.fontFamily, SETTINGS.fontSize);
+      SETTINGS.lineSpacingPercent =
+          CrossPointSettings::defaultLineSpacingPercentForFamily(
+              SETTINGS.fontFamily, SETTINGS.lineSpacingPercent);
       buildSettingsList();
       selectedRowIndex = std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
     }
@@ -620,6 +630,9 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
       if (setting.valuePtr == &CrossPointSettings::fontSize) {
         valueText = fontSizeValueLabel(SETTINGS.fontSize);
+      } else if (setting.valuePtr == &CrossPointSettings::fontFamily) {
+        valueText = I18N.get(setting.enumValues[CrossPointSettings::fontFamilyToDisplayIndex(
+            SETTINGS.fontFamily)]);
       } else {
         valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
       }

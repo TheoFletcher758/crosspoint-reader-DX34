@@ -439,6 +439,7 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
   CrossPointSettings::validateFrontButtonMapping(s);
   s.fontFamily = clamp(doc["fontFamily"] | (uint8_t)S::CHAREINK,
                        S::FONT_FAMILY_COUNT, S::CHAREINK);
+  s.fontFamily = S::normalizeFontFamily(s.fontFamily);
   s.fontSize = clamp(doc["fontSize"] | (uint8_t)S::MEDIUM, S::FONT_SIZE_COUNT,
                      S::MEDIUM);
   s.fontSize = S::normalizeFontSizeForFamily(s.fontFamily, s.fontSize);

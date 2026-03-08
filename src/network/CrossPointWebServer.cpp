@@ -1066,26 +1066,26 @@ void CrossPointWebServer::handleGetSettings() const {
       case SettingType::ENUM: {
         doc["type"] = "enum";
         if (s.valuePtr) {
-          doc["value"] = static_cast<int>(SETTINGS.*(s.valuePtr));
+          if (s.valuePtr == &CrossPointSettings::fontFamily) {
+            doc["value"] = static_cast<int>(
+                CrossPointSettings::fontFamilyToDisplayIndex(
+                    SETTINGS.fontFamily));
+          } else {
+            doc["value"] = static_cast<int>(SETTINGS.*(s.valuePtr));
+          }
         } else if (s.valueGetter) {
           doc["value"] = static_cast<int>(s.valueGetter());
         }
         JsonArray options = doc["options"].to<JsonArray>();
         if (s.valuePtr == &CrossPointSettings::fontSize) {
-          if (SETTINGS.fontFamily == CrossPointSettings::GALMURI) {
-            options.add("17");
-          } else if (SETTINGS.fontFamily == CrossPointSettings::BOOKERLY) {
+          if (CrossPointSettings::normalizeFontFamily(SETTINGS.fontFamily) ==
+              CrossPointSettings::BOOKERLY) {
             options.add("16");
             options.add("17");
-            options.add("18");
-            options.add("19");
           } else {
-            options.add("14");
             options.add("15");
             options.add("16");
             options.add("17");
-            options.add("18");
-            options.add("19");
           }
           doc["value"] = static_cast<int>(
               CrossPointSettings::fontSizeToDisplayIndex(SETTINGS.fontFamily,
@@ -1182,13 +1182,18 @@ void CrossPointWebServer::handlePostSettings() {
               SETTINGS.fontSize =
                   CrossPointSettings::displayIndexToFontSize(
                       SETTINGS.fontFamily, static_cast<uint8_t>(val));
+            } else if (s.valuePtr == &CrossPointSettings::fontFamily) {
+              SETTINGS.fontFamily =
+                  CrossPointSettings::displayIndexToFontFamily(
+                      static_cast<uint8_t>(val));
+              SETTINGS.fontSize =
+                  CrossPointSettings::normalizeFontSizeForFamily(
+                      SETTINGS.fontFamily, SETTINGS.fontSize);
+              SETTINGS.lineSpacingPercent =
+                  CrossPointSettings::defaultLineSpacingPercentForFamily(
+                      SETTINGS.fontFamily, SETTINGS.lineSpacingPercent);
             } else {
               SETTINGS.*(s.valuePtr) = static_cast<uint8_t>(val);
-              if (s.valuePtr == &CrossPointSettings::fontFamily) {
-                SETTINGS.fontSize =
-                    CrossPointSettings::normalizeFontSizeForFamily(
-                        SETTINGS.fontFamily, SETTINGS.fontSize);
-              }
             }
           } else if (s.valueSetter) {
             s.valueSetter(static_cast<uint8_t>(val));
