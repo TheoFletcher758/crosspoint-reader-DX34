@@ -21,6 +21,7 @@ Highlights:
 - EPUB parsing and rendering (EPUB 2/3)
 - Saved reading position
 - File browser with nested folder support
+- Favorite BMP wallpapers with protected `/sleep` retention
 - Wi-Fi transfer and OTA update support
 - Configurable reader layout/font/margins/spacing
 - Screen rotation

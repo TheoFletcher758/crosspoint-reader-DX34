@@ -1,5 +1,25 @@
 # File Formats
 
+## `/.crosspoint/state.json`
+
+Persisted UI/runtime state currently includes:
+
+- `openEpubPath`
+- `lastSleepImage`
+- `lastShownSleepFilename`
+- `lastSleepWallpaperPath`
+- `sleepImagePlaylist`
+- `favoriteBmpPaths`
+- `readerActivityLoadCount`
+- `lastSleepFromReader`
+
+Notes:
+
+- `sleepImagePlaylist` persists only for small `/sleep` collections, capped at
+  `200` entries.
+- Favorited BMPs are tracked by path in `favoriteBmpPaths` and mirrored in the
+  filename using an `_F` suffix for SD-card visibility.
+
 ## `book.bin`
 
 ### Version 3

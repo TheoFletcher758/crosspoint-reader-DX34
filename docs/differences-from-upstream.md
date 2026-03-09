@@ -19,6 +19,8 @@ This repository is **CrossPoint-Mod-DX34**, a DX34-focused fork. It is intention
   - `Off`, `S`, `M`, `L`
 - Current releases are English-first in shipped UI behavior.
 - Hyphenation is **not treated as a supported user-facing DX34 feature**.
+- Custom BMP sleep wallpapers can be favorited, shown as `[F]` in the browser,
+  and protected from `/sleep` overflow trimming.
 
 ## Planned Follow-Up (Deferred Phase B)
 
