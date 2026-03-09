@@ -56,6 +56,9 @@ Upon turning the device on for the first time, you will be placed on the **[Home
 > [!NOTE]
 > On subsequent restarts, the firmware will automatically reopen the last book you were reading.
 
+> [!TIP]
+> You can customize the boot screen by placing a file named `boot.bmp` in the root of the SD card. For best results, use an uncompressed BMP sized around 480x800 pixels or smaller.
+
 ---
 
 ## 3. Screens
