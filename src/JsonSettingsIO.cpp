@@ -238,6 +238,7 @@ bool JsonSettingsIO::saveState(const CrossPointState &s, const char *path) {
   doc["openEpubPath"] = s.openEpubPath;
   doc["lastSleepImage"] = s.lastSleepImage;
   doc["lastShownSleepFilename"] = s.lastShownSleepFilename;
+  doc["lastSleepWallpaperPath"] = s.lastSleepWallpaperPath;
   doc["readerActivityLoadCount"] = s.readerActivityLoadCount;
   doc["lastSleepFromReader"] = s.lastSleepFromReader;
   // Only persist the playlist for small collections. Large collections track
@@ -247,6 +248,10 @@ bool JsonSettingsIO::saveState(const CrossPointState &s, const char *path) {
     for (const auto &entry : s.sleepImagePlaylist) {
       sleepImagePlaylist.add(entry);
     }
+  }
+  JsonArray favoriteBmpPaths = doc["favoriteBmpPaths"].to<JsonArray>();
+  for (const auto &entry : s.favoriteBmpPaths) {
+    favoriteBmpPaths.add(entry);
   }
 
   String json;
@@ -265,6 +270,7 @@ bool JsonSettingsIO::loadState(CrossPointState &s, const char *json) {
   s.openEpubPath = doc["openEpubPath"] | std::string("");
   s.lastSleepImage = doc["lastSleepImage"] | (uint8_t)0;
   s.lastShownSleepFilename = doc["lastShownSleepFilename"] | std::string("");
+  s.lastSleepWallpaperPath = doc["lastSleepWallpaperPath"] | std::string("");
   s.readerActivityLoadCount = doc["readerActivityLoadCount"] | (uint8_t)0;
   s.lastSleepFromReader = doc["lastSleepFromReader"] | false;
   s.sleepImagePlaylist.clear();
@@ -277,6 +283,15 @@ bool JsonSettingsIO::loadState(CrossPointState &s, const char *json) {
         if (s.sleepImagePlaylist.size() >= CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) {
           break;
         }
+      }
+    }
+  }
+  s.favoriteBmpPaths.clear();
+  if (doc["favoriteBmpPaths"].is<JsonArray>()) {
+    for (const JsonVariant value : doc["favoriteBmpPaths"].as<JsonArray>()) {
+      const char *entry = value.as<const char *>();
+      if (entry != nullptr && entry[0] != '\0') {
+        s.favoriteBmpPaths.emplace_back(entry);
       }
     }
   }

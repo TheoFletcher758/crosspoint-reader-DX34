@@ -20,6 +20,7 @@
 #include "components/UITheme.h"
 #include "components/themes/BaseTheme.h"
 #include "fontIds.h"
+#include "util/FavoriteBmp.h"
 
 const StrId SettingsActivity::categoryNames[categoryCount] = {StrId::STR_CAT_DISPLAY, StrId::STR_CAT_READER,
                                                               StrId::STR_STATUS_BAR, StrId::STR_CAT_CONTROLS,
@@ -196,6 +197,12 @@ std::string SettingsActivity::currentValueEditText() const {
   return v;
 }
 
+void SettingsActivity::showMessagePopup(const std::string& message) {
+  messagePopupText = message;
+  messagePopupOpen = !message.empty();
+  requestUpdate();
+}
+
 void SettingsActivity::buildSettingsList() {
   displaySettings.clear();
   readerSettings.clear();
@@ -277,7 +284,7 @@ void SettingsActivity::loop() {
     return;
   }
 
-  if (homeStatsPopupOpen) {
+  const auto dismissPopupOnAnyPress = [this](bool& popupOpen) {
     const bool anyPress = mappedInput.wasPressed(MappedInputManager::Button::Confirm) ||
                           mappedInput.wasPressed(MappedInputManager::Button::Back) ||
                           mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
@@ -286,53 +293,70 @@ void SettingsActivity::loop() {
                           mappedInput.wasPressed(MappedInputManager::Button::Right) ||
                           mappedInput.wasPressed(MappedInputManager::Button::Power);
     if (anyPress) {
-      homeStatsPopupOpen = false;
+      popupOpen = false;
       requestUpdate();
+      return true;
     }
+    return false;
+  };
+
+  if (messagePopupOpen) {
+    if (dismissPopupOnAnyPress(messagePopupOpen)) {
+      messagePopupText.clear();
+    }
+    return;
+  }
+
+  if (homeStatsPopupOpen) {
+    dismissPopupOnAnyPress(homeStatsPopupOpen);
     return;
   }
 
   if (randomizePopupOpen) {
-    const bool anyPress = mappedInput.wasPressed(MappedInputManager::Button::Confirm) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::Back) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::PageForward) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::Left) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::Right) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::Power);
-    if (anyPress) {
-      randomizePopupOpen = false;
-      requestUpdate();
-    }
+    dismissPopupOnAnyPress(randomizePopupOpen);
     return;
   }
 
   if (sleepWallpaperPopupOpen) {
-    constexpr int optionCount = 3;  // Move to sleep pause, Delete, Cancel
+    constexpr int optionCount = 4;  // Cancel, Move, Favorite, Delete
     if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
       sleepWallpaperPopupOpen = false;
       requestUpdate();
       return;
     }
     buttonNavigator.onNextRelease([this] {
-      sleepWallpaperOptionIndex = (sleepWallpaperOptionIndex + 1) % 3;
+      sleepWallpaperOptionIndex = (sleepWallpaperOptionIndex + 1) % optionCount;
       requestUpdate();
     });
     buttonNavigator.onPreviousRelease([this] {
-      sleepWallpaperOptionIndex = (sleepWallpaperOptionIndex + 2) % 3;
+      sleepWallpaperOptionIndex = (sleepWallpaperOptionIndex + optionCount - 1) % optionCount;
       requestUpdate();
     });
     if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
-      const std::string& last = APP_STATE.lastShownSleepFilename;
-      if (sleepWallpaperOptionIndex == 1 && !last.empty()) {
-        // Move to /sleep pause — create folder if needed, then copy+delete
+      const std::string lastPath = APP_STATE.lastSleepWallpaperPath;
+      if (lastPath.empty() || !Storage.exists(lastPath.c_str())) {
+        sleepWallpaperPopupOpen = false;
+        showMessagePopup("No last sleep wallpaper");
+        return;
+      }
+
+      if (sleepWallpaperOptionIndex == 1) {
+        if (lastPath.rfind("/sleep pause/", 0) == 0) {
+          sleepWallpaperPopupOpen = false;
+          showMessagePopup("Already in sleep pause");
+          return;
+        }
+
         const std::string destDir = "/sleep pause";
         Storage.mkdir(destDir.c_str());
-        const std::string srcPath = std::string("/sleep/") + last;
-        const std::string dstPath = destDir + "/" + last;
+        const auto slashPos = lastPath.find_last_of('/');
+        const std::string filename =
+            (slashPos == std::string::npos) ? lastPath : lastPath.substr(slashPos + 1);
+        const std::string dstPath = destDir + "/" + filename;
         FsFile src, dst;
         bool ok = false;
-        if (Storage.openFileForRead("SET", srcPath, src) && Storage.openFileForWrite("SET", dstPath, dst)) {
+        if (Storage.openFileForRead("SET", lastPath.c_str(), src) &&
+            Storage.openFileForWrite("SET", dstPath.c_str(), dst)) {
           uint8_t buf[512];
           ok = true;
           while (src.available()) {
@@ -342,8 +366,8 @@ void SettingsActivity::loop() {
           src.close();
           dst.close();
           if (ok) {
-            Storage.remove(srcPath.c_str());
-            APP_STATE.lastShownSleepFilename.clear();
+            Storage.remove(lastPath.c_str());
+            FavoriteBmp::replacePathReferences(lastPath, dstPath);
             APP_STATE.saveToFile();
           } else {
             Storage.remove(dstPath.c_str());
@@ -352,10 +376,38 @@ void SettingsActivity::loop() {
           if (src) src.close();
           if (dst) dst.close();
         }
-      } else if (sleepWallpaperOptionIndex == 2 && !last.empty()) {
-        // Delete
-        Storage.remove((std::string("/sleep/") + last).c_str());
-        APP_STATE.lastShownSleepFilename.clear();
+        if (!ok) {
+          sleepWallpaperPopupOpen = false;
+          showMessagePopup("Move failed");
+          return;
+        }
+      } else if (sleepWallpaperOptionIndex == 2) {
+        std::string updatedPath;
+        const bool makeFavorite = !FavoriteBmp::isFavoritePath(lastPath);
+        const auto result =
+            FavoriteBmp::setFavorite(lastPath, makeFavorite, &updatedPath);
+        if (result == FavoriteBmp::SetFavoriteResult::LimitReached) {
+          sleepWallpaperPopupOpen = false;
+          showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
+          return;
+        }
+        if (result == FavoriteBmp::SetFavoriteResult::RenameConflict) {
+          sleepWallpaperPopupOpen = false;
+          showMessagePopup("Favorite name already exists");
+          return;
+        }
+        if (result != FavoriteBmp::SetFavoriteResult::Success) {
+          sleepWallpaperPopupOpen = false;
+          showMessagePopup("Favorite failed");
+          return;
+        }
+      } else if (sleepWallpaperOptionIndex == 3) {
+        if (!Storage.remove(lastPath.c_str())) {
+          sleepWallpaperPopupOpen = false;
+          showMessagePopup("Delete failed");
+          return;
+        }
+        FavoriteBmp::removePathReferences(lastPath);
         APP_STATE.saveToFile();
       }
       // Option 0 = Cancel — just close
@@ -551,6 +603,10 @@ void SettingsActivity::toggleCurrentSetting() {
         requestUpdate();
         break;
       case SettingAction::LastSleepWallpaper:
+        if (APP_STATE.lastSleepWallpaperPath.empty()) {
+          showMessagePopup("No last sleep wallpaper");
+          return;
+        }
         sleepWallpaperOptionIndex = 0;
         sleepWallpaperPopupOpen = true;
         requestUpdate();
@@ -669,8 +725,11 @@ void SettingsActivity::render(Activity::RenderLock&&) {
   }
 
   if (sleepWallpaperPopupOpen) {
-    const char* const options[] = {tr(STR_CANCEL), tr(STR_MOVE_TO_SLEEP_PAUSE), "Delete"};
-    constexpr int kOptionCount = 3;
+    const std::string favoriteLabel =
+        FavoriteBmp::isFavoritePath(APP_STATE.lastSleepWallpaperPath) ? "Unfavorite" : "Favorite";
+    const char* const options[] = {tr(STR_CANCEL), tr(STR_MOVE_TO_SLEEP_PAUSE),
+                                   favoriteLabel.c_str(), "Delete"};
+    constexpr int kOptionCount = 4;
     const int rowH = 26;
     const int popupW = pageWidth - 48;
     const int popupH = 36 + kOptionCount * rowH;
@@ -687,6 +746,10 @@ void SettingsActivity::render(Activity::RenderLock&&) {
       if (sel) renderer.fillRect(popupX + 6, rowY - 1, popupW - 12, rowH, true);
       renderer.drawText(UI_10_FONT_ID, popupX + 12, rowY, options[i], !sel);
     }
+  }
+
+  if (messagePopupOpen) {
+    GUI.drawPopup(renderer, messagePopupText.c_str());
   }
 
   if (valueEditMode) {

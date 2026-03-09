@@ -27,6 +27,8 @@ class MyLibraryActivity final : public Activity {
   int fileMoveIndex = 0;
   std::string selectedFilePath;
   std::string moveBrowserPath = "/";
+  bool messagePopupOpen = false;
+  std::string messagePopupText;
   std::vector<MoveBrowseEntry> moveBrowseEntries;
   HalDisplay::RefreshMode nextRefreshMode = HalDisplay::FAST_REFRESH;
 
@@ -52,8 +54,11 @@ class MyLibraryActivity final : public Activity {
   void enterFileActions(const std::string& filePath);
   void enterFileMoveBrowser();
   void loadMoveBrowseEntries();
+  int getFileActionCount() const;
+  std::string getFileActionLabel(int index) const;
+  void showMessagePopup(const std::string& message);
   bool copyFile(const std::string& srcPath, const std::string& dstPath) const;
-  bool moveSelectedFileTo(const std::string& targetDir) const;
+  bool moveSelectedFileTo(const std::string& targetDir, std::string* destinationPath = nullptr) const;
   bool deleteSelectedFile();
   void requestCleanRefresh();
   void displayFrame();

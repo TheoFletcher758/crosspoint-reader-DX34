@@ -15,8 +15,33 @@
 #include "fontIds.h"
 #include "util/StatusPopup.h"
 #include "util/StringUtils.h"
+#include "util/FavoriteBmp.h"
 
 namespace {
+void clearLastSleepWallpaperPath() {
+  if (!APP_STATE.lastSleepWallpaperPath.empty()) {
+    APP_STATE.lastSleepWallpaperPath.clear();
+    APP_STATE.saveToFile();
+  }
+}
+
+void rememberLastRenderedSleepBitmap(const std::string& path,
+                                     const std::string& sequenceFilename = {}) {
+  bool changed = false;
+  if (APP_STATE.lastSleepWallpaperPath != path) {
+    APP_STATE.lastSleepWallpaperPath = path;
+    changed = true;
+  }
+  if (!sequenceFilename.empty() &&
+      APP_STATE.lastShownSleepFilename != sequenceFilename) {
+    APP_STATE.lastShownSleepFilename = sequenceFilename;
+    changed = true;
+  }
+  if (changed) {
+    APP_STATE.saveToFile();
+  }
+}
+
 // Returns all .bmp filenames from /sleep in sorted order.
 // Does NOT open/validate each file — invalid BMPs are skipped at render time.
 std::vector<std::string> getValidSleepBitmaps() {
@@ -46,7 +71,7 @@ std::vector<std::string> getValidSleepBitmaps() {
       files.emplace_back(std::move(filename));
     }
     file.close();
-    if (files.size() >= CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) break;
+    if (files.size() > CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) break;
   }
   dir.close();
 
@@ -64,7 +89,8 @@ void shuffleSleepPlaylist(std::vector<std::string> &files) {
 }
 
 void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
-                                bool forceReshuffle) {
+                                bool forceReshuffle,
+                                size_t maxEntries = CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) {
   auto &playlist = APP_STATE.sleepImagePlaylist;
   bool changed = false;
 
@@ -135,8 +161,8 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
   }
 
   // Final safety: strictly cap playlist size to avoid serialization OOM.
-  if (playlist.size() > CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) {
-    playlist.erase(playlist.begin() + CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST, playlist.end());
+  if (maxEntries > 0 && playlist.size() > maxEntries) {
+    playlist.erase(playlist.begin() + maxEntries, playlist.end());
     changed = true;
   }
 
@@ -271,7 +297,9 @@ void SleepActivity::renderCustomSleepScreen() const {
         delay(100);
         Bitmap bitmap(file, true);
         if (bitmap.parseHeaders() == BmpReaderError::Ok) {
-          renderBitmapSleepScreen(bitmap, selectedImage.c_str());
+          const std::string displayName = FavoriteBmp::displayNameForPath(filename);
+          rememberLastRenderedSleepBitmap(filename, selectedImage);
+          renderBitmapSleepScreen(bitmap, displayName.c_str());
           file.close();
           return;
         }
@@ -283,15 +311,20 @@ void SleepActivity::renderCustomSleepScreen() const {
   // Look for sleep.bmp on the root of the sd card to determine if we should
   // render a custom sleep screen instead of the default.
   FsFile file;
-  if (Storage.openFileForRead("SLP", "/sleep.bmp", file)) {
-    Bitmap bitmap(file, true);
-    if (bitmap.parseHeaders() == BmpReaderError::Ok) {
-      LOG_DBG("SLP", "Loading: /sleep.bmp");
-      renderBitmapSleepScreen(bitmap, "sleep.bmp");
+  for (const char* fallbackPath : {"/sleep_F.bmp", "/sleep.bmp"}) {
+    if (Storage.openFileForRead("SLP", fallbackPath, file)) {
+      Bitmap bitmap(file, true);
+      if (bitmap.parseHeaders() == BmpReaderError::Ok) {
+        const std::string displayName =
+            FavoriteBmp::displayNameForPath(fallbackPath);
+        LOG_DBG("SLP", "Loading: %s", fallbackPath);
+        rememberLastRenderedSleepBitmap(fallbackPath);
+        renderBitmapSleepScreen(bitmap, displayName.c_str());
+        file.close();
+        return;
+      }
       file.close();
-      return;
     }
-    file.close();
   }
 
   renderDefaultSleepScreen();
@@ -373,33 +406,80 @@ void SleepActivity::trimSleepFolderToLimit(GfxRenderer* popupRenderer) {
   std::sort(allFiles.begin(), allFiles.end());
 
   // Sync the playlist against on-disk files: new files are inserted at the
-  // front (shown first), deleted files are pruned. May grow playlist above kLimit.
-  syncSleepPlaylistWithFiles(allFiles, false);
+  // front (shown first), deleted files are pruned. Do not cap yet; trim picks
+  // the protected favorites to keep first.
+  syncSleepPlaylistWithFiles(allFiles, false, 0);
 
   auto& playlist = APP_STATE.sleepImagePlaylist;
-  if (playlist.size() <= kLimit) return;  // Sync brought it into range.
+  if (playlist.size() <= kLimit) {
+    return;
+  }
 
-  // Tail entries beyond kLimit are the oldest images — move them to /sleep pause.
-  const std::vector<std::string> overflow(playlist.begin() + kLimit, playlist.end());
-  playlist.erase(playlist.begin() + kLimit, playlist.end());
+  size_t favoriteCount = 0;
+  for (const std::string& filename : playlist) {
+    if (FavoriteBmp::isFavoritePath("/sleep/" + filename)) {
+      ++favoriteCount;
+    }
+  }
+  if (favoriteCount > kLimit) {
+    LOG_ERR("SLP", "Trim: %zu favorites in /sleep exceed limit %zu", favoriteCount, kLimit);
+    return;
+  }
+
+  const size_t nonFavoriteBudget = kLimit - favoriteCount;
+  size_t keptNonFavorites = 0;
+  std::vector<std::string> keep;
+  std::vector<std::string> overflow;
+  keep.reserve(kLimit);
+  overflow.reserve(playlist.size() - kLimit);
+
+  for (const std::string& filename : playlist) {
+    const bool isFavorite = FavoriteBmp::isFavoritePath("/sleep/" + filename);
+    if (isFavorite) {
+      keep.push_back(filename);
+      continue;
+    }
+    if (keptNonFavorites < nonFavoriteBudget) {
+      keep.push_back(filename);
+      ++keptNonFavorites;
+    } else {
+      overflow.push_back(filename);
+    }
+  }
+
+  if (overflow.empty()) {
+    if (keep.size() < playlist.size()) {
+      playlist = keep;
+      APP_STATE.saveToFile();
+    }
+    return;
+  }
+
+  playlist = keep;
 
   if (popupRenderer && !overflow.empty()) {
     StatusPopup::showBlocking(*popupRenderer, "Moving wallpapers");
   }
 
   Storage.mkdir("/sleep pause");
+  bool changed = true;
   for (const auto& filename : overflow) {
     const std::string src = std::string("/sleep/") + filename;
     const std::string dst = std::string("/sleep pause/") + filename;
     if (!Storage.rename(src.c_str(), dst.c_str())) {
       LOG_ERR("SLP", "Trim: failed to move %s to sleep pause", filename.c_str());
     } else {
+      FavoriteBmp::replacePathReferences(src, dst);
       LOG_INF("SLP", "Trim: moved %s to /sleep pause", filename.c_str());
     }
+  }
+  if (changed) {
+    APP_STATE.saveToFile();
   }
 }
 
 void SleepActivity::renderDefaultSleepScreen() const {
+  clearLastSleepWallpaperPath();
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
 
@@ -583,6 +663,7 @@ void SleepActivity::renderCoverSleepScreen() const {
     Bitmap bitmap(file);
     if (bitmap.parseHeaders() == BmpReaderError::Ok) {
       LOG_DBG("SLP", "Rendering sleep cover: %s", coverBmpPath.c_str());
+      clearLastSleepWallpaperPath();
       renderBitmapSleepScreen(bitmap);
       file.close();
       return;
@@ -594,6 +675,7 @@ void SleepActivity::renderCoverSleepScreen() const {
 }
 
 void SleepActivity::renderBlankSleepScreen() const {
+  clearLastSleepWallpaperPath();
   renderer.clearScreen();
   renderer.displayBuffer(HalDisplay::HALF_REFRESH);
 }

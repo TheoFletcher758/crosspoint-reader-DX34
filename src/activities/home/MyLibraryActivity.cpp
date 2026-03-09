@@ -14,9 +14,11 @@
 
 #include "CrossPointState.h"
 #include "MappedInputManager.h"
+#include "activities/boot_sleep/SleepActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/BookProgress.h"
+#include "util/FavoriteBmp.h"
 #include "util/StatusPopup.h"
 #include "util/StringUtils.h"
 
@@ -24,9 +26,6 @@ void sortFileList(std::vector<std::string>& strs);
 
 namespace {
 constexpr unsigned long GO_HOME_MS = 1000;
-
-const char* const FILE_ACTION_LABELS[] = {"Open", "Move File", "Move to Sleep", "Delete File", "Cancel"};
-constexpr int FILE_ACTION_COUNT = sizeof(FILE_ACTION_LABELS) / sizeof(FILE_ACTION_LABELS[0]);
 
 std::string rtrimSpaces(std::string text) {
   while (!text.empty() && text.back() == ' ') {
@@ -286,6 +285,10 @@ std::string MyLibraryActivity::getDisplayNameForEntry(const size_t index) {
     return name;
   }
 
+  if (isBmpFile(name)) {
+    return FavoriteBmp::displayNameForPath(makeAbsolutePath(name));
+  }
+
   if (!isBookFile(name)) {
     return name;
   }
@@ -310,6 +313,49 @@ void MyLibraryActivity::enterFileMoveBrowser() {
   fileMoveIndex = 0;
   loadMoveBrowseEntries();
   mode = Mode::FILE_MOVE_BROWSER;
+}
+
+int MyLibraryActivity::getFileActionCount() const {
+  return isBmpFile(selectedFilePath) ? 6 : 4;
+}
+
+std::string MyLibraryActivity::getFileActionLabel(const int index) const {
+  if (isBmpFile(selectedFilePath)) {
+    switch (index) {
+      case 0:
+        return "Open Image";
+      case 1:
+        return "Move File";
+      case 2:
+        return "Move to Sleep";
+      case 3:
+        return FavoriteBmp::isFavoritePath(selectedFilePath) ? "Unfavorite" : "Favorite";
+      case 4:
+        return "Delete File";
+      default:
+        return "Cancel";
+    }
+  }
+
+  switch (index) {
+    case 0:
+      return "Open Book";
+    case 1:
+      return "Move File";
+    case 2:
+      return "Delete File";
+    default:
+      return "Cancel";
+  }
+}
+
+void MyLibraryActivity::showMessagePopup(const std::string& message) {
+  if (message.empty()) {
+    return;
+  }
+  messagePopupText = message;
+  messagePopupOpen = true;
+  requestUpdate();
 }
 
 void MyLibraryActivity::loadMoveBrowseEntries() {
@@ -355,12 +401,17 @@ bool MyLibraryActivity::copyFile(const std::string& srcPath, const std::string& 
   return true;
 }
 
-bool MyLibraryActivity::moveSelectedFileTo(const std::string& targetDir) const {
+bool MyLibraryActivity::moveSelectedFileTo(const std::string& targetDir,
+                                           std::string* destinationPath) const {
   if (selectedFilePath.empty()) return false;
 
   std::string normalizedTarget = targetDir;
   if (normalizedTarget.empty()) normalizedTarget = "/";
   if (normalizedTarget.back() != '/') normalizedTarget += "/";
+  if (normalizedTarget == "/sleep/" &&
+      !FavoriteBmp::canPlacePathInSleep(selectedFilePath)) {
+    return false;
+  }
 
   const std::string filename = getBasename(selectedFilePath);
   const std::string destination = normalizedTarget + filename;
@@ -381,6 +432,12 @@ bool MyLibraryActivity::moveSelectedFileTo(const std::string& targetDir) const {
 
   if (isBookFile(selectedFilePath)) {
     RECENT_BOOKS.removeBook(selectedFilePath);
+  } else if (isBmpFile(selectedFilePath)) {
+    FavoriteBmp::replacePathReferences(selectedFilePath, destination);
+    APP_STATE.saveToFile();
+  }
+  if (destinationPath != nullptr) {
+    *destinationPath = destination;
   }
   return true;
 }
@@ -403,6 +460,10 @@ bool MyLibraryActivity::deleteSelectedFile() {
 
   const bool deleted = Storage.remove(selectedFilePath.c_str());
   if (deleted) {
+    if (isBmpFile(selectedFilePath)) {
+      FavoriteBmp::removePathReferences(selectedFilePath);
+      APP_STATE.saveToFile();
+    }
     selectedFilePath.clear();
   }
   return deleted;
@@ -432,6 +493,22 @@ void MyLibraryActivity::onExit() {
 }
 
 void MyLibraryActivity::loop() {
+  if (messagePopupOpen) {
+    const bool anyPress = mappedInput.wasPressed(MappedInputManager::Button::Confirm) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Back) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::PageForward) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Left) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Right) ||
+                          mappedInput.wasPressed(MappedInputManager::Button::Power);
+    if (anyPress) {
+      messagePopupOpen = false;
+      messagePopupText.clear();
+      requestUpdate();
+    }
+    return;
+  }
+
   if (mode == Mode::BMP_VIEW) {
     if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
       mode = Mode::BROWSE;
@@ -453,50 +530,100 @@ void MyLibraryActivity::loop() {
     }
 
     buttonNavigator.onNextRelease([this] {
-      fileActionIndex = ButtonNavigator::nextIndex(fileActionIndex, FILE_ACTION_COUNT);
+      fileActionIndex = ButtonNavigator::nextIndex(fileActionIndex, getFileActionCount());
       requestUpdate();
     });
     buttonNavigator.onPreviousRelease([this] {
-      fileActionIndex = ButtonNavigator::previousIndex(fileActionIndex, FILE_ACTION_COUNT);
+      fileActionIndex = ButtonNavigator::previousIndex(fileActionIndex, getFileActionCount());
       requestUpdate();
     });
 
     if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-      switch (fileActionIndex) {
-        case 0:
-          if (isBmpFile(selectedFilePath)) {
+      if (isBmpFile(selectedFilePath)) {
+        switch (fileActionIndex) {
+          case 0:
             mode = Mode::BMP_VIEW;
-          } else {
+            break;
+          case 1:
+            enterFileMoveBrowser();
+            break;
+          case 2: {
+            if (!FavoriteBmp::canPlacePathInSleep(selectedFilePath)) {
+              showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
+              return;
+            }
+            StatusPopup::showBlocking(renderer, "Moving file");
+            std::string destinationPath;
+            if (moveSelectedFileTo("/sleep", &destinationPath)) {
+              SleepActivity::trimSleepFolderToLimit();
+              mode = Mode::BROWSE;
+              if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
+              if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
+            }
+            requestCleanRefresh();
+            break;
+          }
+          case 3: {
+            const bool makeFavorite = !FavoriteBmp::isFavoritePath(selectedFilePath);
+            std::string updatedPath;
+            const auto result = FavoriteBmp::setFavorite(selectedFilePath, makeFavorite, &updatedPath);
+            if (result == FavoriteBmp::SetFavoriteResult::Success) {
+              const std::string newName = getBasename(updatedPath);
+              files[selectorIndex] = newName;
+              sortFileList(files);
+              selectorIndex = findEntry(newName);
+              selectedFilePath = updatedPath;
+            } else if (result == FavoriteBmp::SetFavoriteResult::LimitReached) {
+              showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
+              return;
+            } else if (result == FavoriteBmp::SetFavoriteResult::RenameConflict) {
+              showMessagePopup("Favorite name already exists");
+              return;
+            } else if (result == FavoriteBmp::SetFavoriteResult::RenameFailed) {
+              showMessagePopup("Failed to rename image");
+              return;
+            } else {
+              showMessagePopup("Favorite failed");
+              return;
+            }
+            requestCleanRefresh();
+            break;
+          }
+          case 4:
+            StatusPopup::showBlocking(renderer, "Deleting file");
+            if (deleteSelectedFile()) {
+              if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
+              if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
+            }
+            mode = Mode::BROWSE;
+            requestCleanRefresh();
+            break;
+          default:
+            mode = Mode::BROWSE;
+            break;
+        }
+      } else {
+        switch (fileActionIndex) {
+          case 0:
             onSelectBook(selectedFilePath);
             return;
-          }
-          break;
-        case 1:
-          enterFileMoveBrowser();
-          break;
-        case 2:
-          StatusPopup::showBlocking(renderer, "Moving file");
-          if (moveSelectedFileTo("/sleep")) {
+          case 1:
+            enterFileMoveBrowser();
+            break;
+          case 2:
+            StatusPopup::showBlocking(renderer, "Deleting file");
+            if (deleteSelectedFile()) {
+              progressPrefixCache.erase(selectedFilePath);
+              if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
+              if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
+            }
             mode = Mode::BROWSE;
-            progressPrefixCache.erase(selectedFilePath);
-            if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
-            if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
-          }
-          requestCleanRefresh();
-          break;
-        case 3:
-          StatusPopup::showBlocking(renderer, "Deleting file");
-          if (deleteSelectedFile()) {
-            progressPrefixCache.erase(selectedFilePath);
-            if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
-            if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
-          }
-          mode = Mode::BROWSE;
-          requestCleanRefresh();
-          break;
-        default:
-          mode = Mode::BROWSE;
-          break;
+            requestCleanRefresh();
+            break;
+          default:
+            mode = Mode::BROWSE;
+            break;
+        }
       }
       requestUpdateAndWait();
     }
@@ -528,8 +655,17 @@ void MyLibraryActivity::loop() {
 
     if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
       const auto& entry = moveBrowseEntries[fileMoveIndex];
+      if (entry.path == "/sleep" &&
+          !FavoriteBmp::canPlacePathInSleep(selectedFilePath)) {
+        showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
+        return;
+      }
       StatusPopup::showBlocking(renderer, "Moving file");
-      if (moveSelectedFileTo(entry.path)) {
+      std::string destinationPath;
+      if (moveSelectedFileTo(entry.path, &destinationPath)) {
+        if (entry.path == "/sleep") {
+          SleepActivity::trimSleepFolderToLimit();
+        }
         mode = Mode::BROWSE;
         progressPrefixCache.erase(selectedFilePath);
         if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
@@ -763,6 +899,10 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
                                             tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
+  if (messagePopupOpen) {
+    GUI.drawPopup(renderer, messagePopupText.c_str());
+  }
+
   displayFrame();
 }
 
@@ -809,6 +949,9 @@ void MyLibraryActivity::renderBmpView() {
 
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), "Actions", "", "");
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+  if (messagePopupOpen) {
+    GUI.drawPopup(renderer, messagePopupText.c_str());
+  }
   displayFrame();
 }
 
@@ -826,21 +969,22 @@ void MyLibraryActivity::renderFileActions() {
 
   const int rowStartY = popupY + 34;
   const int rowH = 26;
-  for (int i = 0; i < FILE_ACTION_COUNT; i++) {
+  const int actionCount = getFileActionCount();
+  for (int i = 0; i < actionCount; i++) {
     const int rowY = rowStartY + i * rowH;
     const bool selected = (i == fileActionIndex);
     if (selected) {
       renderer.fillRect(popupX + 8, rowY - 2, popupW - 16, rowH, true);
     }
-    const char* label = FILE_ACTION_LABELS[i];
-    if (i == 0) {
-      label = isBmpFile(selectedFilePath) ? "Open Image" : "Open Book";
-    }
-    renderer.drawText(UI_10_FONT_ID, popupX + 14, rowY, label, !selected);
+    const std::string label = getFileActionLabel(i);
+    renderer.drawText(UI_10_FONT_ID, popupX + 14, rowY, label.c_str(), !selected);
   }
 
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+  if (messagePopupOpen) {
+    GUI.drawPopup(renderer, messagePopupText.c_str());
+  }
   displayFrame();
 }
 
@@ -883,6 +1027,9 @@ void MyLibraryActivity::renderFileMoveBrowser() {
 
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+  if (messagePopupOpen) {
+    GUI.drawPopup(renderer, messagePopupText.c_str());
+  }
   displayFrame();
 }
 

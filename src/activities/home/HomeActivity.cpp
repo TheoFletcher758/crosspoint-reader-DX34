@@ -24,6 +24,7 @@
 #include "components/themes/BaseTheme.h"
 #include "fontIds.h"
 #include "util/BookProgress.h"
+#include "util/FavoriteBmp.h"
 #include "util/StringUtils.h"
 
 namespace {
@@ -53,6 +54,12 @@ int HomeActivity::getMenuItemCount() const {
 
 int HomeActivity::getRecentSlotCount() const {
   return std::max(1, static_cast<int>(recentBooks.size()));
+}
+
+void HomeActivity::refreshSleepFavoriteWarning() {
+  protectedSleepFavoriteCount = FavoriteBmp::countProtectedSleepFavorites();
+  sleepFavoritesFull =
+      protectedSleepFavoriteCount >= CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST;
 }
 
 void HomeActivity::loadRecentBooks(int maxBooks) {
@@ -172,6 +179,7 @@ void HomeActivity::onEnter() {
 
   // Trim sleep folder once we reach home to avoid delays during boot/sleep entry
   SleepActivity::trimSleepFolderToLimit(&renderer);
+  refreshSleepFavoriteWarning();
 
   // Check if OPDS browser URL is configured
   hasOpdsUrl = strlen(SETTINGS.opdsServerUrl) > 0;
@@ -293,6 +301,17 @@ void HomeActivity::render(Activity::RenderLock &&) {
   renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding,
                     metrics.topPadding + 5, homeVersionLabel.c_str());
 
+  int warningBottomY = metrics.homeTopPadding;
+  if (sleepFavoritesFull) {
+    const int warningY = metrics.topPadding + 20;
+    const int warningWidth = pageWidth - metrics.contentSidePadding * 2;
+    const std::string warningText = renderer.truncatedText(
+        SMALL_FONT_ID, FavoriteBmp::limitReachedHomeMessage(), warningWidth);
+    renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding, warningY,
+                      warningText.c_str());
+    warningBottomY = warningY + renderer.getLineHeight(SMALL_FONT_ID) + 4;
+  }
+
   // Build menu items dynamically
   std::vector<const char *> menuItems = {
       tr(STR_BROWSE_FILES), tr(STR_FILE_TRANSFER), tr(STR_SETTINGS_TITLE)};
@@ -310,7 +329,7 @@ void HomeActivity::render(Activity::RenderLock &&) {
       pageHeight - metrics.buttonHintsHeight - menuBottomGap - menuBlockHeight;
 
   const int recentAreaBottomGap = 8;
-  const int recentAreaY = metrics.homeTopPadding;
+  const int recentAreaY = warningBottomY;
   const int recentAreaHeight =
       std::max(0, menuY - recentAreaBottomGap - recentAreaY);
   GUI.drawRecentBookCover(

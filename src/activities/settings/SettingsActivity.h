@@ -151,6 +151,8 @@ class SettingsActivity final : public ActivityWithSubactivity {
   bool randomizePopupOpen = false;
   bool randomizePopupSuccess = false;
   bool sleepWallpaperPopupOpen = false;
+  bool messagePopupOpen = false;
+  std::string messagePopupText;
   int sleepWallpaperOptionIndex = 0;
   bool valueEditMode = false;
   int valueEditCategoryIndex = -1;
@@ -185,6 +187,7 @@ class SettingsActivity final : public ActivityWithSubactivity {
   void applyValueEdit();
   void cancelValueEdit();
   std::string currentValueEditText() const;
+  void showMessagePopup(const std::string& message);
   void toggleCurrentSetting();
 
  public:

@@ -16,6 +16,8 @@ class CrossPointState {
   uint8_t lastSleepImage = 0;
   std::vector<std::string> sleepImagePlaylist;
   std::string lastShownSleepFilename;
+  std::string lastSleepWallpaperPath;
+  std::vector<std::string> favoriteBmpPaths;
   uint8_t readerActivityLoadCount = 0;
   bool lastSleepFromReader = false;
   ~CrossPointState() = default;

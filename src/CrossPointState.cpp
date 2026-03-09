@@ -52,6 +52,9 @@ bool CrossPointState::loadFromBinaryFile() {
     return false;
   }
 
+  lastSleepWallpaperPath.clear();
+  favoriteBmpPaths.clear();
+
   uint8_t version;
   serialization::readPod(inputFile, version);
   if (version > STATE_FILE_VERSION) {

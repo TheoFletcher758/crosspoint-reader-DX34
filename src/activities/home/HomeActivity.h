@@ -1,5 +1,6 @@
 #pragma once
 #include <functional>
+#include <string>
 #include <vector>
 
 #include "../Activity.h"
@@ -16,6 +17,8 @@ class HomeActivity final : public Activity {
   bool recentsLoaded = false;
   bool firstRenderDone = false;
   bool hasOpdsUrl = false;
+  bool sleepFavoritesFull = false;
+  size_t protectedSleepFavoriteCount = 0;
   bool coverRendered = false;      // Track if cover has been rendered once
   bool coverBufferStored = false;  // Track if cover buffer is stored
   uint8_t* coverBuffer = nullptr;  // HomeActivity's own buffer for cover image
@@ -32,6 +35,7 @@ class HomeActivity final : public Activity {
   bool storeCoverBuffer();    // Store frame buffer for cover image
   bool restoreCoverBuffer();  // Restore frame buffer from stored cover
   void freeCoverBuffer();     // Free the stored cover buffer
+  void refreshSleepFavoriteWarning();
   void loadRecentBooks(int maxBooks);
   void loadRecentCovers(int coverHeight);
 
