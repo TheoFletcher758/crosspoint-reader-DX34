@@ -48,14 +48,18 @@ void persistSettingsWithLog(const char* context) {
   }
 }
 
-const char* fontSizeValueLabel(const uint8_t fontSize) {
-  switch (CrossPointSettings::fontSizeToPointSize(fontSize)) {
+const char* fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
+  switch (CrossPointSettings::fontSizeToPointSize(family, fontSize)) {
     case 12:
       return "12";
     case 14:
       return "14";
+    case 16:
+      return "16";
     case 17:
       return "17";
+    case 18:
+      return "18";
     case 19:
       return "19";
     default:
@@ -682,7 +686,7 @@ void SettingsActivity::render(Activity::RenderLock&&) {
       valueText = (SETTINGS.*(setting.valuePtr)) ? tr(STR_STATE_ON) : tr(STR_STATE_OFF);
     } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
       if (setting.valuePtr == &CrossPointSettings::fontSize) {
-        valueText = fontSizeValueLabel(SETTINGS.fontSize);
+        valueText = fontSizeValueLabel(SETTINGS.fontFamily, SETTINGS.fontSize);
       } else if (setting.valuePtr == &CrossPointSettings::fontFamily) {
         valueText = I18N.get(setting.enumValues[CrossPointSettings::fontFamilyToDisplayIndex(
             SETTINGS.fontFamily)]);

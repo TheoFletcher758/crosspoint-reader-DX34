@@ -104,10 +104,12 @@ public:
     CHAREINK = 0,
     LEGACY_REMOVED_FAMILY = 1,
     BOOKERLY = 2,
-    GEORGIA = 3,
+    VOLLKORN = 3,
     FONT_FAMILY_COUNT
   };
-  // Reader font sizes exposed in the UI are 12, 14, 17, and 19.
+  // Reader font sizes are family-dependent:
+  // ChareInk/Bookerly use 12, 14, 17, and 19.
+  // Vollkorn uses 16, 18, and 19.
   // Legacy enum values are retained so older saved settings can be normalized.
   enum FONT_SIZE {
     MEDIUM = 0,   // legacy 15 -> normalize to 14
@@ -275,7 +277,7 @@ public:
   static uint8_t defaultLineSpacingPercentForFamily(uint8_t family,
                                                     uint8_t currentPercent);
   static uint8_t nextFontSize(uint8_t family, uint8_t fontSize);
-  static uint8_t fontSizeToPointSize(uint8_t fontSize);
+  static uint8_t fontSizeToPointSize(uint8_t family, uint8_t fontSize);
   static uint8_t fontSizeOptionCount(uint8_t family);
   static uint8_t fontSizeToDisplayIndex(uint8_t family, uint8_t fontSize);
   static uint8_t displayIndexToFontSize(uint8_t family, uint8_t displayIndex);

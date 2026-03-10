@@ -1078,7 +1078,12 @@ void CrossPointWebServer::handleGetSettings() const {
         }
         JsonArray options = doc["options"].to<JsonArray>();
         if (s.valuePtr == &CrossPointSettings::fontSize) {
-          if (CrossPointSettings::isSingleSizeFontFamily(SETTINGS.fontFamily)) {
+          if (CrossPointSettings::fontSizeOptionCount(SETTINGS.fontFamily) == 1) {
+            options.add("19");
+          } else if (CrossPointSettings::normalizeFontFamily(SETTINGS.fontFamily) ==
+                     CrossPointSettings::VOLLKORN) {
+            options.add("16");
+            options.add("18");
             options.add("19");
           } else {
             options.add("12");

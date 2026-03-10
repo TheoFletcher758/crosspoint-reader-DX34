@@ -75,11 +75,21 @@ EpdFont bookerly19BoldFont(&bookerly_19_bold);
 EpdFont bookerly19ItalicFont(&bookerly_19_italic);
 EpdFontFamily bookerly19FontFamily(&bookerly19RegularFont, &bookerly19BoldFont,
                                    &bookerly19ItalicFont, nullptr);
-EpdFont georgia19RegularFont(&georgia_19_regular);
-EpdFont georgia19BoldFont(&georgia_19_bold);
-EpdFont georgia19ItalicFont(&georgia_19_italic);
-EpdFontFamily georgia19FontFamily(&georgia19RegularFont, &georgia19BoldFont,
-                                  &georgia19ItalicFont, nullptr);
+EpdFont vollkorn16RegularFont(&vollkorn_16_regular);
+EpdFont vollkorn16BoldFont(&vollkorn_16_bold);
+EpdFont vollkorn16ItalicFont(&vollkorn_16_italic);
+EpdFontFamily vollkorn16FontFamily(&vollkorn16RegularFont, &vollkorn16BoldFont,
+                                   &vollkorn16ItalicFont, nullptr);
+EpdFont vollkorn18RegularFont(&vollkorn_18_regular);
+EpdFont vollkorn18BoldFont(&vollkorn_18_bold);
+EpdFont vollkorn18ItalicFont(&vollkorn_18_italic);
+EpdFontFamily vollkorn18FontFamily(&vollkorn18RegularFont, &vollkorn18BoldFont,
+                                   &vollkorn18ItalicFont, nullptr);
+EpdFont vollkorn19RegularFont(&vollkorn_19_regular);
+EpdFont vollkorn19BoldFont(&vollkorn_19_bold);
+EpdFont vollkorn19ItalicFont(&vollkorn_19_italic);
+EpdFontFamily vollkorn19FontFamily(&vollkorn19RegularFont, &vollkorn19BoldFont,
+                                   &vollkorn19ItalicFont, nullptr);
 
 EpdFont unifont14RegularFont(&unifont_14_regular);
 EpdFontFamily unifont14FontFamily(&unifont14RegularFont, nullptr, nullptr, nullptr, 1, 0, false);
@@ -234,7 +244,9 @@ void setupDisplayAndFonts() {
   renderer.insertFont(BOOKERLY_14_FONT_ID, bookerly14FontFamily);
   renderer.insertFont(BOOKERLY_17_FONT_ID, bookerly17FontFamily);
   renderer.insertFont(BOOKERLY_19_FONT_ID, bookerly19FontFamily);
-  renderer.insertFont(GEORGIA_19_FONT_ID, georgia19FontFamily);
+  renderer.insertFont(VOLLKORN_16_FONT_ID, vollkorn16FontFamily);
+  renderer.insertFont(VOLLKORN_18_FONT_ID, vollkorn18FontFamily);
+  renderer.insertFont(VOLLKORN_19_FONT_ID, vollkorn19FontFamily);
   renderer.insertFont(UNIFONT_14_FONT_ID, unifont14FontFamily);
   renderer.insertFont(UNIFONT_18_FONT_ID, unifont18FontFamily);
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);

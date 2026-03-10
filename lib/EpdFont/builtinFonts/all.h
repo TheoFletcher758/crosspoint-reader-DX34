@@ -26,9 +26,15 @@
 #include <builtinFonts/bookerly_19_bold.h>
 #include <builtinFonts/bookerly_19_italic.h>
 
-#include <builtinFonts/georgia_19_regular.h>
-#include <builtinFonts/georgia_19_bold.h>
-#include <builtinFonts/georgia_19_italic.h>
+#include <builtinFonts/vollkorn_16_regular.h>
+#include <builtinFonts/vollkorn_16_bold.h>
+#include <builtinFonts/vollkorn_16_italic.h>
+#include <builtinFonts/vollkorn_18_regular.h>
+#include <builtinFonts/vollkorn_18_bold.h>
+#include <builtinFonts/vollkorn_18_italic.h>
+#include <builtinFonts/vollkorn_19_regular.h>
+#include <builtinFonts/vollkorn_19_bold.h>
+#include <builtinFonts/vollkorn_19_italic.h>
 
 #include <builtinFonts/unifont_14_regular.h>
 #include <builtinFonts/unifont_18_regular.h>

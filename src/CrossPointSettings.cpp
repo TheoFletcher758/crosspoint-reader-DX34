@@ -472,15 +472,16 @@ int CrossPointSettings::getRefreshFrequency() const {
 }
 
 bool CrossPointSettings::isSingleSizeFontFamily(uint8_t family) {
-  return normalizeFontFamily(family) == GEORGIA;
+  (void)family;
+  return false;
 }
 
 uint8_t CrossPointSettings::normalizeFontFamily(const uint8_t family) {
   switch (family) {
   case BOOKERLY:
     return BOOKERLY;
-  case GEORGIA:
-    return GEORGIA;
+  case VOLLKORN:
+    return VOLLKORN;
   default:
     return CHAREINK;
   }
@@ -490,7 +491,7 @@ uint8_t CrossPointSettings::fontFamilyToDisplayIndex(const uint8_t family) {
   switch (normalizeFontFamily(family)) {
   case BOOKERLY:
     return 1;
-  case GEORGIA:
+  case VOLLKORN:
     return 2;
   default:
     return 0;
@@ -503,7 +504,7 @@ uint8_t CrossPointSettings::displayIndexToFontFamily(
   case 1:
     return BOOKERLY;
   case 2:
-    return GEORGIA;
+    return VOLLKORN;
   default:
     return CHAREINK;
   }
@@ -511,8 +512,21 @@ uint8_t CrossPointSettings::displayIndexToFontFamily(
 
 uint8_t CrossPointSettings::normalizeFontSizeForFamily(const uint8_t family,
                                                        const uint8_t fontSize) {
-  if (normalizeFontFamily(family) == GEORGIA) {
-    return X_LARGE;
+  if (normalizeFontFamily(family) == VOLLKORN) {
+    switch (fontSize) {
+    case SIZE_18:
+    case LARGE:
+      return SIZE_18;
+    case X_LARGE:
+      return X_LARGE;
+    case SIZE_16:
+    case SIZE_12:
+    case SIZE_13:
+    case SIZE_14:
+    case MEDIUM:
+    default:
+      return SIZE_16;
+    }
   }
   switch (fontSize) {
   case SIZE_12:
@@ -542,7 +556,7 @@ uint8_t CrossPointSettings::defaultLineSpacingPercentForFamily(
   if (normalizedFamily == BOOKERLY) {
     return 85;
   }
-  if (normalizedFamily == GEORGIA) {
+  if (normalizedFamily == VOLLKORN) {
     return 90;
   }
   (void)currentPercent;
@@ -556,7 +570,19 @@ uint8_t CrossPointSettings::nextFontSize(const uint8_t family,
   return displayIndexToFontSize(family, (displayIndex + 1) % optionCount);
 }
 
-uint8_t CrossPointSettings::fontSizeToPointSize(uint8_t fontSize) {
+uint8_t CrossPointSettings::fontSizeToPointSize(const uint8_t family,
+                                                const uint8_t fontSize) {
+  if (normalizeFontFamily(family) == VOLLKORN) {
+    switch (normalizeFontSizeForFamily(family, fontSize)) {
+    case SIZE_16:
+      return 16;
+    case SIZE_18:
+      return 18;
+    case X_LARGE:
+    default:
+      return 19;
+    }
+  }
   switch (fontSize) {
   case SIZE_12:
     return 12;
@@ -579,16 +605,24 @@ uint8_t CrossPointSettings::fontSizeToPointSize(uint8_t fontSize) {
 }
 
 uint8_t CrossPointSettings::fontSizeOptionCount(const uint8_t family) {
-  if (normalizeFontFamily(family) == GEORGIA) {
-    return 1;
+  if (normalizeFontFamily(family) == VOLLKORN) {
+    return 3;
   }
   return 4;
 }
 
 uint8_t CrossPointSettings::fontSizeToDisplayIndex(const uint8_t family,
                                                    const uint8_t fontSize) {
-  if (normalizeFontFamily(family) == GEORGIA) {
-    return 0;
+  if (normalizeFontFamily(family) == VOLLKORN) {
+    switch (normalizeFontSizeForFamily(family, fontSize)) {
+    case SIZE_16:
+      return 0;
+    case SIZE_18:
+      return 1;
+    case X_LARGE:
+    default:
+      return 2;
+    }
   }
   const uint8_t normalized = normalizeFontSizeForFamily(family, fontSize);
   switch (normalized) {
@@ -606,8 +640,16 @@ uint8_t CrossPointSettings::fontSizeToDisplayIndex(const uint8_t family,
 
 uint8_t CrossPointSettings::displayIndexToFontSize(const uint8_t family,
                                                    const uint8_t displayIndex) {
-  if (normalizeFontFamily(family) == GEORGIA) {
-    return X_LARGE;
+  if (normalizeFontFamily(family) == VOLLKORN) {
+    switch (displayIndex) {
+    case 0:
+      return SIZE_16;
+    case 1:
+      return SIZE_18;
+    case 2:
+    default:
+      return X_LARGE;
+    }
   }
   switch (displayIndex) {
   case 0:
@@ -623,8 +665,16 @@ uint8_t CrossPointSettings::displayIndexToFontSize(const uint8_t family,
 }
 
 int CrossPointSettings::getReaderFontId() const {
-  if (normalizeFontFamily(fontFamily) == GEORGIA) {
-    return GEORGIA_19_FONT_ID;
+  if (normalizeFontFamily(fontFamily) == VOLLKORN) {
+    switch (normalizeFontSizeForFamily(fontFamily, fontSize)) {
+    case SIZE_16:
+      return VOLLKORN_16_FONT_ID;
+    case SIZE_18:
+      return VOLLKORN_18_FONT_ID;
+    case X_LARGE:
+    default:
+      return VOLLKORN_19_FONT_ID;
+    }
   }
   const uint8_t normalizedFontSize =
       normalizeFontSizeForFamily(fontFamily, fontSize);
