@@ -1,0 +1,363 @@
+#include "ReadingThemesActivity.h"
+
+#include <algorithm>
+
+#include <GfxRenderer.h>
+#include <I18n.h>
+
+#include "MappedInputManager.h"
+#include "ReadingThemeStore.h"
+#include "ReaderSettingsActivity.h"
+#include "activities/util/KeyboardEntryActivity.h"
+#include "components/UITheme.h"
+#include "fontIds.h"
+
+namespace {
+constexpr int kBaseRowCount = 2;
+constexpr int kThemeActionCount = 5;
+
+const char* themeActionLabel(const int index) {
+  switch (index) {
+    case 0:
+      return tr(STR_THEME_APPLY);
+    case 1:
+      return tr(STR_THEME_RENAME_ACTION);
+    case 2:
+      return tr(STR_THEME_OVERWRITE);
+    case 3:
+      return tr(STR_THEME_DELETE_ACTION);
+    case 4:
+    default:
+      return tr(STR_CANCEL);
+  }
+}
+}  // namespace
+
+void ReadingThemesActivity::onEnter() {
+  ActivityWithSubactivity::onEnter();
+  selectedRowIndex = 0;
+  requestUpdate();
+}
+
+void ReadingThemesActivity::onExit() { ActivityWithSubactivity::onExit(); }
+
+int ReadingThemesActivity::rowCount() const {
+  return kBaseRowCount + READING_THEMES.getCount();
+}
+
+bool ReadingThemesActivity::isThemeRow(const int rowIndex) const {
+  return rowIndex >= kBaseRowCount &&
+         rowIndex < kBaseRowCount + READING_THEMES.getCount();
+}
+
+int ReadingThemesActivity::themeIndexForRow(const int rowIndex) const {
+  return isThemeRow(rowIndex) ? rowIndex - kBaseRowCount : -1;
+}
+
+int ReadingThemesActivity::clampSelectedRow(const int rowIndex) const {
+  if (rowCount() <= 0) {
+    return 0;
+  }
+  return std::clamp(rowIndex, 0, rowCount() - 1);
+}
+
+void ReadingThemesActivity::showMessage(const std::string& message) {
+  messagePopupText = message;
+  messagePopupOpen = true;
+  requestUpdate();
+}
+
+void ReadingThemesActivity::openKeyboardForNewTheme() {
+  if (READING_THEMES.getCount() >=
+      static_cast<int>(ReadingThemeStore::MAX_THEMES)) {
+    showMessage(tr(STR_THEME_LIST_FULL));
+    return;
+  }
+
+  const std::string suggestedName =
+      READING_THEMES.makeUniqueName(tr(STR_THEME));
+  exitActivity();
+  enterNewActivity(new KeyboardEntryActivity(
+      renderer, mappedInput, tr(STR_THEME_NAME), suggestedName, 10,
+      ReadingThemeStore::MAX_THEME_NAME_LENGTH, false,
+      [this](const std::string& name) {
+        const bool ok = READING_THEMES.addTheme(name);
+        exitActivity();
+        if (!ok) {
+          showMessage(tr(STR_SAVE_THEME_FAILED));
+          return;
+        }
+        selectedRowIndex = rowCount() - 1;
+        requestUpdate();
+      },
+      [this]() {
+        exitActivity();
+        requestUpdate();
+      }));
+}
+
+void ReadingThemesActivity::openKeyboardForRename(const int themeIndex) {
+  const ReadingTheme* theme = READING_THEMES.getTheme(themeIndex);
+  if (theme == nullptr) {
+    showMessage(tr(STR_THEME_NOT_FOUND));
+    return;
+  }
+
+  exitActivity();
+  enterNewActivity(new KeyboardEntryActivity(
+      renderer, mappedInput, tr(STR_RENAME_THEME), theme->name, 10,
+      ReadingThemeStore::MAX_THEME_NAME_LENGTH, false,
+      [this, themeIndex](const std::string& name) {
+        const bool ok = READING_THEMES.renameTheme(themeIndex, name);
+        exitActivity();
+        actionPopupOpen = false;
+        if (!ok) {
+          showMessage(tr(STR_RENAME_THEME_FAILED));
+          return;
+        }
+        selectedRowIndex = clampSelectedRow(kBaseRowCount + themeIndex);
+        requestUpdate();
+      },
+      [this]() {
+        exitActivity();
+        actionPopupOpen = false;
+        requestUpdate();
+      }));
+}
+
+void ReadingThemesActivity::executeThemeAction() {
+  if (actionPopupThemeIndex < 0) {
+    actionPopupOpen = false;
+    return;
+  }
+
+  switch (actionPopupSelectedIndex) {
+    case 0: {
+      actionPopupOpen = false;
+      if (!READING_THEMES.applyTheme(actionPopupThemeIndex)) {
+        showMessage(tr(STR_APPLY_THEME_FAILED));
+        return;
+      }
+      settingsDirty = true;
+      onClose(true);
+      return;
+    }
+    case 1:
+      openKeyboardForRename(actionPopupThemeIndex);
+      return;
+    case 2:
+      actionPopupOpen = false;
+      if (!READING_THEMES.updateTheme(actionPopupThemeIndex)) {
+        showMessage(tr(STR_UPDATE_THEME_FAILED));
+        return;
+      }
+      requestUpdate();
+      return;
+    case 3: {
+      actionPopupOpen = false;
+      if (!READING_THEMES.deleteTheme(actionPopupThemeIndex)) {
+        showMessage(tr(STR_DELETE_THEME_FAILED));
+        return;
+      }
+      selectedRowIndex = clampSelectedRow(selectedRowIndex);
+      requestUpdate();
+      return;
+    }
+    case 4:
+    default:
+      actionPopupOpen = false;
+      requestUpdate();
+      return;
+  }
+}
+
+void ReadingThemesActivity::loop() {
+  if (subActivity) {
+    subActivity->loop();
+    return;
+  }
+
+  if (messagePopupOpen) {
+    const bool anyPress =
+        mappedInput.wasPressed(MappedInputManager::Button::Confirm) ||
+        mappedInput.wasPressed(MappedInputManager::Button::Back) ||
+        mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
+        mappedInput.wasPressed(MappedInputManager::Button::PageForward) ||
+        mappedInput.wasPressed(MappedInputManager::Button::Left) ||
+        mappedInput.wasPressed(MappedInputManager::Button::Right);
+    if (anyPress) {
+      messagePopupOpen = false;
+      messagePopupText.clear();
+      requestUpdate();
+    }
+    return;
+  }
+
+  if (actionPopupOpen) {
+    if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
+      actionPopupOpen = false;
+      requestUpdate();
+      return;
+    }
+    if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
+      executeThemeAction();
+      return;
+    }
+    buttonNavigator.onNextRelease([this] {
+      actionPopupSelectedIndex = ButtonNavigator::nextIndex(
+          actionPopupSelectedIndex, kThemeActionCount);
+      requestUpdate();
+    });
+    buttonNavigator.onPreviousRelease([this] {
+      actionPopupSelectedIndex = ButtonNavigator::previousIndex(
+          actionPopupSelectedIndex, kThemeActionCount);
+      requestUpdate();
+    });
+    return;
+  }
+
+  if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
+    onClose(settingsDirty);
+    return;
+  }
+
+  if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
+    if (selectedRowIndex == 0) {
+      exitActivity();
+      enterNewActivity(new ReaderSettingsActivity(
+          renderer, mappedInput, [this](const bool changed) {
+            exitActivity();
+            settingsDirty = settingsDirty || changed;
+            requestUpdate();
+          }));
+      return;
+    }
+    if (selectedRowIndex == 1) {
+      openKeyboardForNewTheme();
+      return;
+    }
+    if (isThemeRow(selectedRowIndex)) {
+      actionPopupOpen = true;
+      actionPopupThemeIndex = themeIndexForRow(selectedRowIndex);
+      actionPopupSelectedIndex = 0;
+      requestUpdate();
+    }
+    return;
+  }
+
+  buttonNavigator.onNextRelease([this] {
+    selectedRowIndex = ButtonNavigator::nextIndex(selectedRowIndex, rowCount());
+    requestUpdate();
+  });
+  buttonNavigator.onPreviousRelease([this] {
+    selectedRowIndex =
+        ButtonNavigator::previousIndex(selectedRowIndex, rowCount());
+    requestUpdate();
+  });
+  buttonNavigator.onNextContinuous([this] {
+    selectedRowIndex = ButtonNavigator::nextIndex(selectedRowIndex, rowCount());
+    requestUpdate();
+  });
+  buttonNavigator.onPreviousContinuous([this] {
+    selectedRowIndex =
+        ButtonNavigator::previousIndex(selectedRowIndex, rowCount());
+    requestUpdate();
+  });
+}
+
+void ReadingThemesActivity::render(Activity::RenderLock&&) {
+  renderer.clearScreen();
+
+  const auto pageWidth = renderer.getScreenWidth();
+  const auto pageHeight = renderer.getScreenHeight();
+  const auto metrics = UITheme::getInstance().getMetrics();
+
+  renderer.drawCenteredText(UI_12_FONT_ID, metrics.topPadding + 5,
+                            tr(STR_READING_THEMES), true,
+                            EpdFontFamily::REGULAR);
+
+  const int currentThemeIndex = READING_THEMES.findMatchingTheme();
+  const int contentY = metrics.topPadding + metrics.headerHeight;
+  const int contentHeight =
+      pageHeight - (contentY + metrics.buttonHintsHeight + metrics.verticalSpacing);
+  const int rowHeight = metrics.listRowHeight;
+  const int pageItems = std::max(1, contentHeight / rowHeight);
+  const int pageStartIndex = (selectedRowIndex / pageItems) * pageItems;
+
+  for (int i = pageStartIndex; i < rowCount() && i < pageStartIndex + pageItems;
+       i++) {
+    const int rowY = contentY + (i - pageStartIndex) * rowHeight;
+    const bool isSelected = (i == selectedRowIndex);
+
+    std::string label;
+    if (i == 0) {
+      label = tr(STR_ADJUST_CURRENT_SETTINGS);
+    } else if (i == 1) {
+      label = tr(STR_SAVE_CURRENT_AS_NEW);
+    } else {
+      const int themeIndex = themeIndexForRow(i);
+      const ReadingTheme* theme = READING_THEMES.getTheme(themeIndex);
+      label = theme ? theme->name : tr(STR_THEME);
+      if (themeIndex == currentThemeIndex) {
+        label = "* " + label;
+      }
+    }
+
+    if (isSelected) {
+      renderer.fillRect(0, rowY, pageWidth, rowHeight, true);
+    }
+    renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, rowY,
+                      label.c_str(), !isSelected);
+
+    if (i >= 2) {
+      const int themeIndex = themeIndexForRow(i);
+      if (themeIndex == currentThemeIndex) {
+        const char* currentLabel = tr(STR_CURRENT_THEME);
+        const int currentW =
+            renderer.getTextWidth(UI_10_FONT_ID, currentLabel);
+        renderer.drawText(UI_10_FONT_ID,
+                          pageWidth - metrics.contentSidePadding - currentW,
+                          rowY, currentLabel, !isSelected);
+      }
+    }
+  }
+
+  if (READING_THEMES.isEmpty()) {
+    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight - 70,
+                              tr(STR_NO_SAVED_THEMES));
+  }
+
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT),
+                                            tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
+                      labels.btn4);
+
+  if (actionPopupOpen) {
+    const int popupW = pageWidth - 60;
+    const int popupH = 50 + kThemeActionCount * 24;
+    const int popupX = (pageWidth - popupW) / 2;
+    const int popupY = (pageHeight - popupH) / 2;
+    renderer.fillRect(popupX - 2, popupY - 2, popupW + 4, popupH + 4, true);
+    renderer.fillRect(popupX, popupY, popupW, popupH, false);
+    renderer.drawCenteredText(UI_10_FONT_ID, popupY + 8, tr(STR_THEME_ACTIONS));
+    const ReadingTheme* theme = READING_THEMES.getTheme(actionPopupThemeIndex);
+    if (theme != nullptr) {
+      renderer.drawCenteredText(UI_10_FONT_ID, popupY + 20, theme->name.c_str());
+    }
+    for (int i = 0; i < kThemeActionCount; i++) {
+      const int rowY = popupY + 42 + i * 24;
+      const bool isSelected = (i == actionPopupSelectedIndex);
+      if (isSelected) {
+        renderer.fillRect(popupX + 6, rowY - 1, popupW - 12, 22, true);
+      }
+      renderer.drawText(UI_10_FONT_ID, popupX + 12, rowY, themeActionLabel(i),
+                        !isSelected);
+    }
+  }
+
+  if (messagePopupOpen) {
+    GUI.drawPopup(renderer, messagePopupText.c_str());
+  }
+
+  renderer.displayBuffer();
+}

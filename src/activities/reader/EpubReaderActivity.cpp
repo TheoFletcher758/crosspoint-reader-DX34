@@ -17,6 +17,7 @@
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
 #include "MappedInputManager.h"
+#include "ReadingThemesActivity.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -942,6 +943,21 @@ void EpubReaderActivity::onReaderMenuConfirm(
     pendingGoHome = true;
     break;
   }
+  case EpubReaderMenuActivity::MenuAction::READING_THEMES: {
+    exitActivity();
+    enterNewActivity(new ReadingThemesActivity(
+        renderer, mappedInput, [this](const bool changed) {
+          exitActivity();
+          pendingMenuOpen = false;
+          skipNextButtonCheck = true;
+          if (changed) {
+            reloadCurrentSectionForDisplaySettings();
+          } else {
+            requestUpdate();
+          }
+        }));
+    break;
+  }
   case EpubReaderMenuActivity::MenuAction::DELETE_CACHE: {
     StatusPopup::showBlocking(renderer, "Clearing book cache");
     {
@@ -1066,6 +1082,29 @@ void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
     // Reset section to force re-layout in the new orientation.
     section.reset();
   }
+}
+
+void EpubReaderActivity::reloadCurrentSectionForDisplaySettings() {
+  flushProgressIfNeeded(true);
+  {
+    RenderLock lock(*this);
+    if (section) {
+      cachedSpineIndex = currentSpineIndex;
+      cachedChapterTotalPageCount = section->pageCount;
+      nextPageNumber = section->currentPage;
+      saveProgress(currentSpineIndex, section->currentPage, section->pageCount);
+      lastSavedSpineIndex = currentSpineIndex;
+      lastSavedPage = section->currentPage;
+      lastSavedPageCount = section->pageCount;
+      lastObservedSpineIndex = currentSpineIndex;
+      lastObservedPage = section->currentPage;
+      lastObservedPageCount = section->pageCount;
+      progressDirty = false;
+    }
+    invalidateStatusBarCaches();
+    section.reset();
+  }
+  requestUpdate();
 }
 
 // TODO: Failure handling

@@ -17,6 +17,7 @@
 #include "CrossPointState.h"
 #include "KOReaderCredentialStore.h"
 #include "MappedInputManager.h"
+#include "ReadingThemeStore.h"
 #include "RecentBooksStore.h"
 #include "activities/boot_sleep/BootActivity.h"
 #include "activities/boot_sleep/SleepActivity.h"
@@ -330,6 +331,7 @@ void setup() {
   }
 
   SETTINGS.loadFromFile();
+  READING_THEMES.loadFromFile();
   KOREADER_STORE.loadFromFile();
   ButtonNavigator::setMappedInputManager(mappedInputManager);
 

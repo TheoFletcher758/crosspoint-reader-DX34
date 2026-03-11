@@ -10,6 +10,7 @@
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "KOReaderCredentialStore.h"
+#include "ReadingThemeStore.h"
 #include "RecentBooksStore.h"
 #include "WifiCredentialStore.h"
 
@@ -682,5 +683,104 @@ bool JsonSettingsIO::loadRecentBooks(RecentBooksStore &store,
 
   LOG_DBG("RBS", "Recent books loaded from file (%d entries)",
           store.getCount());
+  return true;
+}
+
+// ---- ReadingThemeStore ----
+
+bool JsonSettingsIO::saveReadingThemes(const ReadingThemeStore& store,
+                                       const char* path) {
+  JsonDocument doc;
+  JsonArray arr = doc["themes"].to<JsonArray>();
+  for (const auto& theme : store.getThemes()) {
+    JsonObject obj = arr.add<JsonObject>();
+    obj["name"] = theme.name;
+    obj["fontFamily"] = theme.fontFamily;
+    obj["fontSize"] = theme.fontSize;
+    obj["lineSpacingPercent"] = theme.lineSpacingPercent;
+    obj["screenMarginHorizontal"] = theme.screenMarginHorizontal;
+    obj["screenMarginTop"] = theme.screenMarginTop;
+    obj["screenMarginBottom"] = theme.screenMarginBottom;
+    obj["paragraphAlignment"] = theme.paragraphAlignment;
+    obj["extraParagraphSpacingLevel"] = theme.extraParagraphSpacingLevel;
+    obj["embeddedStyle"] = theme.embeddedStyle;
+    obj["hyphenationEnabled"] = theme.hyphenationEnabled;
+    obj["statusBarEnabled"] = theme.statusBarEnabled;
+    obj["statusBarShowBattery"] = theme.statusBarShowBattery;
+    obj["statusBarShowPageCounter"] = theme.statusBarShowPageCounter;
+    obj["statusBarShowBookPercentage"] = theme.statusBarShowBookPercentage;
+    obj["statusBarShowChapterPercentage"] =
+        theme.statusBarShowChapterPercentage;
+    obj["statusBarShowBookBar"] = theme.statusBarShowBookBar;
+    obj["statusBarShowChapterBar"] = theme.statusBarShowChapterBar;
+    obj["statusBarShowChapterTitle"] = theme.statusBarShowChapterTitle;
+    obj["statusBarNoTitleTruncation"] = theme.statusBarNoTitleTruncation;
+    obj["statusBarTextAlignment"] = theme.statusBarTextAlignment;
+    obj["statusBarProgressStyle"] = theme.statusBarProgressStyle;
+  }
+
+  String json;
+  serializeJson(doc, json);
+  return safeWriteFile(path, json);
+}
+
+bool JsonSettingsIO::loadReadingThemes(ReadingThemeStore& store,
+                                       const char* json) {
+  JsonDocument doc;
+  auto error = deserializeJson(doc, json);
+  if (error) {
+    LOG_ERR("RTH", "JSON parse error: %s", error.c_str());
+    return false;
+  }
+
+  store.themes.clear();
+  JsonArray arr = doc["themes"].as<JsonArray>();
+  for (JsonObject obj : arr) {
+    if (store.themes.size() >= ReadingThemeStore::MAX_THEMES) {
+      break;
+    }
+
+    ReadingTheme theme;
+    theme.name = ReadingThemeStore::sanitizeName(obj["name"] | "Theme");
+    theme.fontFamily =
+        obj["fontFamily"] | (uint8_t)CrossPointSettings::CHAREINK;
+    theme.fontSize = obj["fontSize"] | (uint8_t)CrossPointSettings::SIZE_16;
+    theme.lineSpacingPercent = obj["lineSpacingPercent"] | (uint8_t)110;
+    theme.screenMarginHorizontal =
+        obj["screenMarginHorizontal"] | (uint8_t)20;
+    theme.screenMarginTop = obj["screenMarginTop"] | (uint8_t)20;
+    theme.screenMarginBottom = obj["screenMarginBottom"] | (uint8_t)20;
+    theme.paragraphAlignment =
+        obj["paragraphAlignment"] | (uint8_t)CrossPointSettings::JUSTIFIED;
+    theme.extraParagraphSpacingLevel =
+        obj["extraParagraphSpacingLevel"] |
+        (uint8_t)CrossPointSettings::EXTRA_SPACING_M;
+    theme.embeddedStyle = obj["embeddedStyle"] | (uint8_t)1;
+    theme.hyphenationEnabled = obj["hyphenationEnabled"] | (uint8_t)0;
+    theme.statusBarEnabled = obj["statusBarEnabled"] | (uint8_t)1;
+    theme.statusBarShowBattery = obj["statusBarShowBattery"] | (uint8_t)1;
+    theme.statusBarShowPageCounter =
+        obj["statusBarShowPageCounter"] | (uint8_t)0;
+    theme.statusBarShowBookPercentage =
+        obj["statusBarShowBookPercentage"] | (uint8_t)0;
+    theme.statusBarShowChapterPercentage =
+        obj["statusBarShowChapterPercentage"] | (uint8_t)0;
+    theme.statusBarShowBookBar = obj["statusBarShowBookBar"] | (uint8_t)0;
+    theme.statusBarShowChapterBar =
+        obj["statusBarShowChapterBar"] | (uint8_t)0;
+    theme.statusBarShowChapterTitle =
+        obj["statusBarShowChapterTitle"] | (uint8_t)1;
+    theme.statusBarNoTitleTruncation =
+        obj["statusBarNoTitleTruncation"] | (uint8_t)0;
+    theme.statusBarTextAlignment =
+        obj["statusBarTextAlignment"] |
+        (uint8_t)CrossPointSettings::STATUS_TEXT_RIGHT;
+    theme.statusBarProgressStyle =
+        obj["statusBarProgressStyle"] |
+        (uint8_t)CrossPointSettings::STATUS_BAR_THICK;
+
+    store.themes.push_back(ReadingThemeStore::normalizeTheme(theme));
+  }
+
   return true;
 }

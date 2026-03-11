@@ -73,6 +73,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   void onReaderMenuBack(uint8_t orientation);
   void onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action);
   void applyOrientation(uint8_t orientation);
+  void reloadCurrentSectionForDisplaySettings();
   void openReaderMenu();
   void toggleReaderBoldSwap();
 
