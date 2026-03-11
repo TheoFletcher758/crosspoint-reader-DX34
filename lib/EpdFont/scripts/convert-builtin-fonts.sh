@@ -11,6 +11,12 @@ for size in ${READER_FONT_SIZES[@]}; do
     "$PYTHON_BIN" fontconvert.py "chareink_${size}_${lower_style}" $size "../builtinFonts/source/ChareInk/ChareInk7SP-${style}.ttf" --2bit > "../builtinFonts/chareink_${size}_${lower_style}.h"
   done
 done
+for size in 13 14 15; do
+  for style in ${READER_FONT_STYLES[@]}; do
+    lower_style=$(echo $style | tr '[:upper:]' '[:lower:]')
+    "$PYTHON_BIN" fontconvert.py "chareink_${size}_${lower_style}" $size "../builtinFonts/source/ChareInk/ChareInk7SP-${style}.ttf" --2bit > "../builtinFonts/chareink_${size}_${lower_style}.h"
+  done
+done
 for size in 14 18; do
   "$PYTHON_BIN" fontconvert.py "unifont_${size}_regular" $size "../builtinFonts/source/UI/unifont-english.ttf" > "../builtinFonts/unifont_${size}_regular.h"
 done

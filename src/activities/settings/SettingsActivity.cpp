@@ -50,6 +50,12 @@ void persistSettingsWithLog(const char* context) {
 
 const char* fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
   switch (CrossPointSettings::fontSizeToPointSize(family, fontSize)) {
+    case 13:
+      return "13";
+    case 14:
+      return "14";
+    case 15:
+      return "15";
     case 16:
       return "16";
     case 17:

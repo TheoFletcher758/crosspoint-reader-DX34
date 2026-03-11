@@ -1,5 +1,14 @@
 #pragma once
 
+#include <builtinFonts/chareink_13_regular.h>
+#include <builtinFonts/chareink_13_bold.h>
+#include <builtinFonts/chareink_13_italic.h>
+#include <builtinFonts/chareink_14_regular.h>
+#include <builtinFonts/chareink_14_bold.h>
+#include <builtinFonts/chareink_14_italic.h>
+#include <builtinFonts/chareink_15_regular.h>
+#include <builtinFonts/chareink_15_bold.h>
+#include <builtinFonts/chareink_15_italic.h>
 #include <builtinFonts/chareink_16_regular.h>
 #include <builtinFonts/chareink_16_bold.h>
 #include <builtinFonts/chareink_16_italic.h>

@@ -39,6 +39,18 @@ GfxRenderer renderer(display);
 Activity* currentActivity;
 
 // Fonts
+EpdFont chareink13RegularFont(&chareink_13_regular);
+EpdFont chareink13BoldFont(&chareink_13_bold);
+EpdFont chareink13ItalicFont(&chareink_13_italic);
+EpdFontFamily chareink13FontFamily(&chareink13RegularFont, &chareink13BoldFont, &chareink13ItalicFont, nullptr);
+EpdFont chareink14RegularFont(&chareink_14_regular);
+EpdFont chareink14BoldFont(&chareink_14_bold);
+EpdFont chareink14ItalicFont(&chareink_14_italic);
+EpdFontFamily chareink14FontFamily(&chareink14RegularFont, &chareink14BoldFont, &chareink14ItalicFont, nullptr);
+EpdFont chareink15RegularFont(&chareink_15_regular);
+EpdFont chareink15BoldFont(&chareink_15_bold);
+EpdFont chareink15ItalicFont(&chareink_15_italic);
+EpdFontFamily chareink15FontFamily(&chareink15RegularFont, &chareink15BoldFont, &chareink15ItalicFont, nullptr);
 EpdFont chareink16RegularFont(&chareink_16_regular);
 EpdFont chareink16BoldFont(&chareink_16_bold);
 EpdFont chareink16ItalicFont(&chareink_16_italic);
@@ -221,6 +233,9 @@ void setupDisplayAndFonts() {
   display.begin();
   renderer.begin();
   LOG_DBG("MAIN", "Display initialized");
+  renderer.insertFont(CHAREINK_13_FONT_ID, chareink13FontFamily);
+  renderer.insertFont(CHAREINK_14_FONT_ID, chareink14FontFamily);
+  renderer.insertFont(CHAREINK_15_FONT_ID, chareink15FontFamily);
   renderer.insertFont(CHAREINK_16_FONT_ID, chareink16FontFamily);
   renderer.insertFont(CHAREINK_17_FONT_ID, chareink17FontFamily);
   renderer.insertFont(CHAREINK_18_FONT_ID, chareink18FontFamily);

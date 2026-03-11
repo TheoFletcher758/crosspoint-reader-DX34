@@ -108,7 +108,8 @@ public:
     FONT_FAMILY_COUNT
   };
   // Reader font sizes are family-dependent:
-  // ChareInk and Bookerly use 16, 17, 18, and 19.
+  // ChareInk uses 13, 14, 15, 16, 17, 18, and 19.
+  // Bookerly uses 16, 17, 18, and 19.
   // Legacy enum values are retained so older saved settings can be normalized.
   enum FONT_SIZE {
     MEDIUM = 0,   // legacy 15 -> normalize to 16

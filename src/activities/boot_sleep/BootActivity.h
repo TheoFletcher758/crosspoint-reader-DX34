@@ -1,8 +1,6 @@
 #pragma once
 #include "../Activity.h"
 
-class Bitmap;
-
 class BootActivity final : public Activity {
  public:
   explicit BootActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
@@ -10,6 +8,5 @@ class BootActivity final : public Activity {
   void onEnter() override;
 
  private:
-  void renderDefaultBootScreen() const;
-  void renderBitmapBootScreen(const Bitmap& bitmap) const;
+  void renderEmbeddedBootScreen() const;
 };

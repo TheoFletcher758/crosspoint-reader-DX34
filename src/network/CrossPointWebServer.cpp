@@ -1078,10 +1078,15 @@ void CrossPointWebServer::handleGetSettings() const {
         }
         JsonArray options = doc["options"].to<JsonArray>();
         if (s.valuePtr == &CrossPointSettings::fontSize) {
-          options.add("16");
-          options.add("17");
-          options.add("18");
-          options.add("19");
+          const uint8_t optionCount =
+              CrossPointSettings::fontSizeOptionCount(SETTINGS.fontFamily);
+          for (uint8_t i = 0; i < optionCount; ++i) {
+            const uint8_t sizeValue =
+                CrossPointSettings::displayIndexToFontSize(SETTINGS.fontFamily,
+                                                           i);
+            options.add(String(CrossPointSettings::fontSizeToPointSize(
+                SETTINGS.fontFamily, sizeValue)));
+          }
           doc["value"] = static_cast<int>(
               CrossPointSettings::fontSizeToDisplayIndex(SETTINGS.fontFamily,
                                                          SETTINGS.fontSize));
