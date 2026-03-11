@@ -288,7 +288,6 @@ void SleepActivity::renderCustomSleepScreen() const {
         }
       }
     }
-
     if (!selectedImage.empty()) {
       const auto filename = "/sleep/" + selectedImage;
       FsFile file;

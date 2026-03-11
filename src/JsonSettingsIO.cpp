@@ -387,7 +387,7 @@ bool JsonSettingsIO::loadState(CrossPointState &s, const char *json) {
   }
 
   s.openEpubPath = doc["openEpubPath"] | std::string("");
-  s.lastSleepImage = doc["lastSleepImage"] | (uint8_t)0;
+  s.lastSleepImage = doc["lastSleepImage"] | (uint8_t)UINT8_MAX;
   s.lastShownSleepFilename = doc["lastShownSleepFilename"] | std::string("");
   s.lastSleepWallpaperPath = doc["lastSleepWallpaperPath"] | std::string("");
   s.readerActivityLoadCount = doc["readerActivityLoadCount"] | (uint8_t)0;

@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -13,7 +14,7 @@ class CrossPointState {
   static constexpr size_t SLEEP_PLAYLIST_MAX_PERSIST = 200;
 
   std::string openEpubPath;
-  uint8_t lastSleepImage = 0;
+  uint8_t lastSleepImage = UINT8_MAX;  // UINT8_MAX = unset sentinel
   std::vector<std::string> sleepImagePlaylist;
   std::string lastShownSleepFilename;
   std::string lastSleepWallpaperPath;
