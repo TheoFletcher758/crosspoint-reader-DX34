@@ -455,8 +455,8 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
   s.fontFamily = clamp(doc["fontFamily"] | (uint8_t)S::CHAREINK,
                        S::FONT_FAMILY_COUNT, S::CHAREINK);
   s.fontFamily = S::normalizeFontFamily(s.fontFamily);
-  s.fontSize = clamp(doc["fontSize"] | (uint8_t)S::MEDIUM, S::FONT_SIZE_COUNT,
-                     S::MEDIUM);
+  s.fontSize = clamp(doc["fontSize"] | (uint8_t)S::SIZE_16, S::FONT_SIZE_COUNT,
+                     S::SIZE_16);
   s.fontSize = S::normalizeFontSizeForFamily(s.fontFamily, s.fontSize);
   s.lineSpacing = clamp(doc["lineSpacing"] | (uint8_t)S::NORMAL,
                         S::LINE_COMPRESSION_COUNT, S::NORMAL);

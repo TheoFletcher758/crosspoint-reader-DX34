@@ -104,21 +104,20 @@ public:
     CHAREINK = 0,
     LEGACY_REMOVED_FAMILY = 1,
     BOOKERLY = 2,
-    VOLLKORN = 3,
+    LEGACY_REMOVED_FAMILY_2 = 3,
     FONT_FAMILY_COUNT
   };
   // Reader font sizes are family-dependent:
-  // ChareInk/Bookerly use 12, 14, 17, and 19.
-  // Vollkorn uses 16, 18, and 19.
+  // ChareInk and Bookerly use 16, 17, 18, and 19.
   // Legacy enum values are retained so older saved settings can be normalized.
   enum FONT_SIZE {
-    MEDIUM = 0,   // legacy 15 -> normalize to 14
+    MEDIUM = 0,   // legacy 15 -> normalize to 16
     LARGE = 1,    // legacy 17
     X_LARGE = 2,  // legacy 19
-    SIZE_14 = 3,
-    SIZE_16 = 4,  // legacy 16 -> normalize to 17
-    SIZE_18 = 5,  // legacy 18 -> normalize to 19
-    SIZE_13 = 6,  // legacy 13 -> normalize to 12
+    SIZE_14 = 3,  // legacy 14 -> normalize to 16
+    SIZE_16 = 4,
+    SIZE_18 = 5,
+    SIZE_13 = 6,  // legacy 13 -> normalize to 16
     SIZE_12 = 7,
     FONT_SIZE_COUNT
   };
@@ -224,7 +223,7 @@ public:
   uint8_t frontButtonRight = FRONT_HW_RIGHT;
   // Reader font settings
   uint8_t fontFamily = CHAREINK;
-  uint8_t fontSize = SIZE_14;
+  uint8_t fontSize = SIZE_16;
   // Legacy line spacing setting (kept for migration from old settings files)
   uint8_t lineSpacing = NORMAL;
   // Reader line spacing percentage (65..150)
