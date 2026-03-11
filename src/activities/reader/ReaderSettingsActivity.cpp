@@ -15,29 +15,49 @@
 namespace {
 const StrId kCategoryNames[] = {StrId::STR_CAT_READER, StrId::STR_STATUS_BAR};
 
-const char* fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
-  switch (CrossPointSettings::fontSizeToPointSize(family, fontSize)) {
-    case 13:
-      return "13";
-    case 14:
-      return "14";
-    case 15:
-      return "15";
-    case 16:
-      return "16";
-    case 17:
-      return "17";
-    case 18:
-      return "18";
-    case 19:
-      return "19";
-    default:
-      return "16";
-  }
+std::string fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
+  return std::to_string(
+      CrossPointSettings::fontSizeToPointSize(family, fontSize));
 }
 
 int getValueEditHoldStep(const MappedInputManager& mappedInput) {
   return mappedInput.getHeldTime() >= 1200 ? 5 : 1;
+}
+
+int readerFontIdFor(const uint8_t family, const uint8_t fontSize) {
+  const uint8_t normalizedFamily =
+      CrossPointSettings::normalizeFontFamily(family);
+  const uint8_t normalizedFontSize =
+      CrossPointSettings::normalizeFontSizeForFamily(family, fontSize);
+  if (normalizedFamily == CrossPointSettings::FREESERIF) {
+    switch (normalizedFontSize) {
+      case CrossPointSettings::MEDIUM:
+        return FREESERIF_19_FONT_ID;
+      case CrossPointSettings::LARGE:
+        return FREESERIF_21_FONT_ID;
+      case CrossPointSettings::X_LARGE:
+      default:
+        return FREESERIF_23_FONT_ID;
+    }
+  }
+
+  switch (normalizedFontSize) {
+    case CrossPointSettings::SIZE_13:
+      return CHAREINK_13_FONT_ID;
+    case CrossPointSettings::SIZE_14:
+      return CHAREINK_14_FONT_ID;
+    case CrossPointSettings::MEDIUM:
+      return CHAREINK_15_FONT_ID;
+    case CrossPointSettings::SIZE_16:
+      return CHAREINK_16_FONT_ID;
+    case CrossPointSettings::LARGE:
+      return CHAREINK_17_FONT_ID;
+    case CrossPointSettings::SIZE_18:
+      return CHAREINK_18_FONT_ID;
+    case CrossPointSettings::X_LARGE:
+    default:
+      return CHAREINK_19_FONT_ID;
+  }
 }
 }  // namespace
 
@@ -87,6 +107,26 @@ bool ReaderSettingsActivity::isPopupValueSetting(
          setting.valuePtr == &CrossPointSettings::screenMarginHorizontal ||
          setting.valuePtr == &CrossPointSettings::screenMarginTop ||
          setting.valuePtr == &CrossPointSettings::screenMarginBottom;
+}
+
+void ReaderSettingsActivity::startFontSizeEdit() {
+  fontSizeEditMode = true;
+  fontSizeEditDraftIndex = CrossPointSettings::fontSizeToDisplayIndex(
+      SETTINGS.fontFamily, SETTINGS.fontSize);
+}
+
+void ReaderSettingsActivity::adjustFontSizeEdit(const int delta) {
+  const int optionCount = CrossPointSettings::fontSizeOptionCount(SETTINGS.fontFamily);
+  const int next = static_cast<int>(fontSizeEditDraftIndex) + delta;
+  fontSizeEditDraftIndex = static_cast<uint8_t>(
+      std::clamp(next, 0, std::max(0, optionCount - 1)));
+}
+
+void ReaderSettingsActivity::applyFontSizeEdit() {
+  SETTINGS.fontSize = CrossPointSettings::displayIndexToFontSize(
+      SETTINGS.fontFamily, fontSizeEditDraftIndex);
+  fontSizeEditMode = false;
+  persistSettings("reader settings font size");
 }
 
 void ReaderSettingsActivity::startValueEdit(const SettingInfo& setting,
@@ -193,6 +233,7 @@ void ReaderSettingsActivity::onEnter() {
 
 void ReaderSettingsActivity::onExit() {
   Activity::onExit();
+  fontSizeEditMode = false;
   valueEditMode = false;
 }
 
@@ -215,10 +256,9 @@ void ReaderSettingsActivity::toggleCurrentSetting() {
   if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
     SETTINGS.*(setting.valuePtr) = !(SETTINGS.*(setting.valuePtr));
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
-    const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
     if (setting.valuePtr == &CrossPointSettings::fontSize) {
-      SETTINGS.fontSize =
-          CrossPointSettings::nextFontSize(SETTINGS.fontFamily, currentValue);
+      startFontSizeEdit();
+      return;
     } else if (setting.valuePtr == &CrossPointSettings::fontFamily) {
       const uint8_t currentIndex =
           CrossPointSettings::fontFamilyToDisplayIndex(SETTINGS.fontFamily);
@@ -235,6 +275,7 @@ void ReaderSettingsActivity::toggleCurrentSetting() {
       selectedRowIndex =
           std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
     } else {
+      const int currentValue = SETTINGS.*(setting.valuePtr);
       SETTINGS.*(setting.valuePtr) =
           (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
     }
@@ -257,6 +298,37 @@ void ReaderSettingsActivity::toggleCurrentSetting() {
 }
 
 void ReaderSettingsActivity::loop() {
+  if (fontSizeEditMode) {
+    if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
+      fontSizeEditMode = false;
+      requestUpdate();
+      return;
+    }
+    if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
+      applyFontSizeEdit();
+      requestUpdate();
+      return;
+    }
+
+    buttonNavigator.onNextRelease([this] {
+      adjustFontSizeEdit(+1);
+      requestUpdate();
+    });
+    buttonNavigator.onPreviousRelease([this] {
+      adjustFontSizeEdit(-1);
+      requestUpdate();
+    });
+    buttonNavigator.onNextContinuous([this] {
+      adjustFontSizeEdit(+1);
+      requestUpdate();
+    });
+    buttonNavigator.onPreviousContinuous([this] {
+      adjustFontSizeEdit(-1);
+      requestUpdate();
+    });
+    return;
+  }
+
   if (valueEditMode) {
     if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
       valueEditMode = false;
@@ -395,11 +467,61 @@ void ReaderSettingsActivity::render(Activity::RenderLock&&) {
     }
   }
 
-  const char* confirmLabel = valueEditMode ? tr(STR_CONFIRM) : tr(STR_TOGGLE);
+  const char* confirmLabel =
+      (valueEditMode || fontSizeEditMode) ? tr(STR_CONFIRM) : tr(STR_TOGGLE);
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), confirmLabel,
                                             tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
                       labels.btn4);
+
+  if (fontSizeEditMode) {
+    const int popupW = std::min(pageWidth - 30, 280);
+    const int popupH = 176;
+    const int popupX = (pageWidth - popupW) / 2;
+    const int popupY = (pageHeight - popupH) / 2;
+    const int optionCount =
+        CrossPointSettings::fontSizeOptionCount(SETTINGS.fontFamily);
+    const int draftIndex = static_cast<int>(fontSizeEditDraftIndex);
+    const int prevIndex = std::max(0, draftIndex - 1);
+    const int nextIndex = std::min(optionCount - 1, draftIndex + 1);
+    const uint8_t prevFontSize = CrossPointSettings::displayIndexToFontSize(
+        SETTINGS.fontFamily, static_cast<uint8_t>(prevIndex));
+    const uint8_t currentFontSize = CrossPointSettings::displayIndexToFontSize(
+        SETTINGS.fontFamily, fontSizeEditDraftIndex);
+    const uint8_t nextFontSize = CrossPointSettings::displayIndexToFontSize(
+        SETTINGS.fontFamily, static_cast<uint8_t>(nextIndex));
+
+    renderer.fillRect(popupX - 2, popupY - 2, popupW + 4, popupH + 4, true);
+    renderer.fillRect(popupX, popupY, popupW, popupH, false);
+    renderer.drawCenteredText(UI_10_FONT_ID, popupY + 8, tr(STR_FONT_SIZE));
+
+    if (prevIndex != draftIndex) {
+      const std::string prevLabel =
+          fontSizeValueLabel(SETTINGS.fontFamily, prevFontSize);
+      const int prevFontId = readerFontIdFor(SETTINGS.fontFamily, prevFontSize);
+      const int prevTextW = renderer.getTextWidth(prevFontId, prevLabel.c_str());
+      renderer.drawText(prevFontId, popupX + (popupW - prevTextW) / 2,
+                        popupY + 42, prevLabel.c_str(), true);
+    }
+
+    const std::string currentLabel =
+        fontSizeValueLabel(SETTINGS.fontFamily, currentFontSize);
+    const int currentFontId =
+        readerFontIdFor(SETTINGS.fontFamily, currentFontSize);
+    const int currentTextW =
+        renderer.getTextWidth(currentFontId, currentLabel.c_str());
+    renderer.drawText(currentFontId, popupX + (popupW - currentTextW) / 2,
+                      popupY + 80, currentLabel.c_str(), true);
+
+    if (nextIndex != draftIndex) {
+      const std::string nextLabel =
+          fontSizeValueLabel(SETTINGS.fontFamily, nextFontSize);
+      const int nextFontId = readerFontIdFor(SETTINGS.fontFamily, nextFontSize);
+      const int nextTextW = renderer.getTextWidth(nextFontId, nextLabel.c_str());
+      renderer.drawText(nextFontId, popupX + (popupW - nextTextW) / 2,
+                        popupY + 122, nextLabel.c_str(), true);
+    }
+  }
 
   if (valueEditMode) {
     const auto* settings = settingsForCategory(valueEditCategoryIndex);

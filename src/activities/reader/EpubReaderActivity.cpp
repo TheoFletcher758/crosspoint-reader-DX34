@@ -19,6 +19,7 @@
 #include "MappedInputManager.h"
 #include "ReadingThemesActivity.h"
 #include "RecentBooksStore.h"
+#include "activities/boot_sleep/LastSleepWallpaperActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/StatusPopup.h"
@@ -955,6 +956,17 @@ void EpubReaderActivity::onReaderMenuConfirm(
           } else {
             requestUpdate();
           }
+        }));
+    break;
+  }
+  case EpubReaderMenuActivity::MenuAction::LAST_SLEEP_WALLPAPER: {
+    exitActivity();
+    enterNewActivity(new LastSleepWallpaperActivity(
+        renderer, mappedInput, [this]() {
+          exitActivity();
+          pendingMenuOpen = false;
+          skipNextButtonCheck = true;
+          requestUpdate();
         }));
     break;
   }

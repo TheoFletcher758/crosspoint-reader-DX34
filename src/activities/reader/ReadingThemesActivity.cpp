@@ -334,7 +334,7 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
 
   if (actionPopupOpen) {
     const int popupW = pageWidth - 60;
-    const int popupH = 50 + kThemeActionCount * 24;
+    const int popupH = 62 + kThemeActionCount * 26;
     const int popupX = (pageWidth - popupW) / 2;
     const int popupY = (pageHeight - popupH) / 2;
     renderer.fillRect(popupX - 2, popupY - 2, popupW + 4, popupH + 4, true);
@@ -342,13 +342,15 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
     renderer.drawCenteredText(UI_10_FONT_ID, popupY + 8, tr(STR_THEME_ACTIONS));
     const ReadingTheme* theme = READING_THEMES.getTheme(actionPopupThemeIndex);
     if (theme != nullptr) {
-      renderer.drawCenteredText(UI_10_FONT_ID, popupY + 20, theme->name.c_str());
+      const std::string themeName =
+          renderer.truncatedText(UI_10_FONT_ID, theme->name.c_str(), popupW - 24);
+      renderer.drawCenteredText(UI_10_FONT_ID, popupY + 24, themeName.c_str());
     }
     for (int i = 0; i < kThemeActionCount; i++) {
-      const int rowY = popupY + 42 + i * 24;
+      const int rowY = popupY + 54 + i * 26;
       const bool isSelected = (i == actionPopupSelectedIndex);
       if (isSelected) {
-        renderer.fillRect(popupX + 6, rowY - 1, popupW - 12, 22, true);
+        renderer.fillRect(popupX + 6, rowY - 1, popupW - 12, 24, true);
       }
       renderer.drawText(UI_10_FONT_ID, popupX + 12, rowY, themeActionLabel(i),
                         !isSelected);

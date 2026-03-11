@@ -32,6 +32,8 @@ class ReaderSettingsActivity final : public Activity {
   std::vector<FlatSettingRow> flatRows;
   int selectedRowIndex = 0;
   bool dirty = false;
+  bool fontSizeEditMode = false;
+  uint8_t fontSizeEditDraftIndex = 0;
   bool valueEditMode = false;
   int valueEditCategoryIndex = -1;
   int valueEditSettingIndex = -1;
@@ -45,6 +47,9 @@ class ReaderSettingsActivity final : public Activity {
   const std::vector<SettingInfo>* settingsForCategory(int categoryIndex) const;
   int findNextEditableRow(int startIndex, int direction) const;
   bool isPopupValueSetting(const SettingInfo& setting) const;
+  void startFontSizeEdit();
+  void adjustFontSizeEdit(int delta);
+  void applyFontSizeEdit();
   void startValueEdit(const SettingInfo& setting, int categoryIndex,
                       int settingIndex);
   void adjustValueEdit(int delta);

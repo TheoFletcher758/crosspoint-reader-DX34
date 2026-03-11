@@ -150,10 +150,8 @@ class SettingsActivity final : public ActivityWithSubactivity {
   bool homeStatsPopupOpen = false;
   bool randomizePopupOpen = false;
   bool randomizePopupSuccess = false;
-  bool sleepWallpaperPopupOpen = false;
   bool messagePopupOpen = false;
   std::string messagePopupText;
-  int sleepWallpaperOptionIndex = 0;
   bool valueEditMode = false;
   int valueEditCategoryIndex = -1;
   int valueEditSettingIndex = -1;
