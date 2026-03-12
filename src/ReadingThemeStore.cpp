@@ -9,6 +9,7 @@
 
 namespace {
 constexpr char READING_THEMES_FILE_JSON[] = "/.crosspoint/reading_themes.json";
+constexpr char BOOK_READER_SETTINGS_FILE_JSON[] = "/reader_settings.json";
 
 uint8_t clampRange(const uint8_t value, const uint8_t minValue,
                    const uint8_t maxValue, const uint8_t defaultValue) {
@@ -32,6 +33,10 @@ bool sameThemeName(const std::string& left, const std::string& right) {
     }
   }
   return true;
+}
+
+std::string bookReaderSettingsPath(const std::string& cachePath) {
+  return cachePath + BOOK_READER_SETTINGS_FILE_JSON;
 }
 }  // namespace
 
@@ -328,6 +333,35 @@ bool ReadingThemeStore::applyTheme(const size_t index) {
   }
   applyThemeToSettings(themes[index], SETTINGS);
   return SETTINGS.saveToFile();
+}
+
+bool ReadingThemeStore::saveCurrentBookSettings(const std::string& cachePath) {
+  if (cachePath.empty()) {
+    return false;
+  }
+  return JsonSettingsIO::saveReadingTheme(
+      fromSettings("", SETTINGS), bookReaderSettingsPath(cachePath).c_str());
+}
+
+bool ReadingThemeStore::loadBookSettingsIntoCurrent(
+    const std::string& cachePath) {
+  if (cachePath.empty()) {
+    return false;
+  }
+
+  const String json =
+      JsonSettingsIO::safeReadFile(bookReaderSettingsPath(cachePath).c_str());
+  if (json.isEmpty()) {
+    return false;
+  }
+
+  ReadingTheme theme;
+  if (!JsonSettingsIO::loadReadingTheme(theme, json.c_str())) {
+    return false;
+  }
+
+  applyThemeToSettings(theme, SETTINGS);
+  return true;
 }
 
 ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {

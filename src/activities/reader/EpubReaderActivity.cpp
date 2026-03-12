@@ -1009,7 +1009,8 @@ void EpubReaderActivity::onReaderMenuConfirm(
   case EpubReaderMenuActivity::MenuAction::READING_THEMES: {
     exitActivity();
     enterNewActivity(new ReadingThemesActivity(
-        renderer, mappedInput, [this](const bool changed) {
+        renderer, mappedInput, epub ? epub->getCachePath() : std::string(),
+        [this](const bool changed) {
           exitActivity();
           pendingMenuOpen = false;
           skipNextButtonCheck = true;

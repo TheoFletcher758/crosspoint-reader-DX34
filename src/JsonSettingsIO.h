@@ -7,6 +7,7 @@ class WifiCredentialStore;
 class KOReaderCredentialStore;
 class RecentBooksStore;
 class ReadingThemeStore;
+struct ReadingTheme;
 
 namespace JsonSettingsIO {
 
@@ -37,6 +38,8 @@ bool saveRecentBooks(const RecentBooksStore &store, const char *path);
 bool loadRecentBooks(RecentBooksStore &store, const char *json);
 
 // ReadingThemeStore
+bool saveReadingTheme(const ReadingTheme &theme, const char *path);
+bool loadReadingTheme(ReadingTheme &theme, const char *json);
 bool saveReadingThemes(const ReadingThemeStore &store, const char *path);
 bool loadReadingThemes(ReadingThemeStore &store, const char *json);
 

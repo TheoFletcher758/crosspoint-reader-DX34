@@ -84,6 +84,8 @@ class ReadingThemeStore {
   bool renameTheme(size_t index, const std::string& desiredName);
   bool deleteTheme(size_t index);
   bool applyTheme(size_t index);
+  static bool saveCurrentBookSettings(const std::string& cachePath);
+  static bool loadBookSettingsIntoCurrent(const std::string& cachePath);
 
   static ReadingTheme fromSettings(const std::string& name,
                                    const CrossPointSettings& settings);

@@ -4,6 +4,7 @@
 
 #include <GfxRenderer.h>
 #include <I18n.h>
+#include <Logging.h>
 
 #include "MappedInputManager.h"
 #include "ReadingThemeStore.h"
@@ -138,6 +139,10 @@ void ReadingThemesActivity::executeThemeAction() {
         showMessage(tr(STR_APPLY_THEME_FAILED));
         return;
       }
+      if (!bookCachePath.empty() &&
+          !READING_THEMES.saveCurrentBookSettings(bookCachePath)) {
+        LOG_ERR("RTH", "Failed to save book settings after theme apply");
+      }
       settingsDirty = true;
       onClose(true);
       return;
@@ -225,7 +230,7 @@ void ReadingThemesActivity::loop() {
     if (selectedRowIndex == 0) {
       exitActivity();
       enterNewActivity(new ReaderSettingsActivity(
-          renderer, mappedInput, [this](const bool changed) {
+          renderer, mappedInput, bookCachePath, [this](const bool changed) {
             exitActivity();
             settingsDirty = settingsDirty || changed;
             requestUpdate();

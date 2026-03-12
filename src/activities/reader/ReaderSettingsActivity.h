@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <vector>
 
 #include "activities/Activity.h"
@@ -11,8 +12,11 @@ class ReaderSettingsActivity final : public Activity {
  public:
   explicit ReaderSettingsActivity(GfxRenderer& renderer,
                                   MappedInputManager& mappedInput,
+                                  const std::string& bookCachePath,
                                   const std::function<void(bool)>& onClose)
-      : Activity("ReaderSettings", renderer, mappedInput), onClose(onClose) {}
+      : Activity("ReaderSettings", renderer, mappedInput),
+        bookCachePath(bookCachePath),
+        onClose(onClose) {}
 
   void onEnter() override;
   void onExit() override;
@@ -41,6 +45,7 @@ class ReaderSettingsActivity final : public Activity {
   uint8_t valueEditMin = 0;
   uint8_t valueEditMax = 0;
 
+  std::string bookCachePath;
   const std::function<void(bool)> onClose;
 
   void buildSettingsList();

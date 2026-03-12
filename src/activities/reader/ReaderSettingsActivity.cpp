@@ -8,6 +8,7 @@
 
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
+#include "ReadingThemeStore.h"
 #include "SettingsList.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -62,10 +63,15 @@ int readerFontIdFor(const uint8_t family, const uint8_t fontSize) {
 }  // namespace
 
 void ReaderSettingsActivity::persistSettings(const char* context) {
-  if (SETTINGS.saveToFile()) {
-    dirty = true;
-  } else {
+  if (!SETTINGS.saveToFile()) {
     LOG_ERR("RSET", "Failed to save settings (%s)", context);
+    return;
+  }
+
+  dirty = true;
+  if (!bookCachePath.empty() &&
+      !READING_THEMES.saveCurrentBookSettings(bookCachePath)) {
+    LOG_ERR("RSET", "Failed to save book settings (%s)", context);
   }
 }
 

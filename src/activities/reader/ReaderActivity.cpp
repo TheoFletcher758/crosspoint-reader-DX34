@@ -6,6 +6,7 @@
 #include "CrossPointSettings.h"
 #include "Epub.h"
 #include "EpubReaderActivity.h"
+#include "ReadingThemeStore.h"
 #include "Txt.h"
 #include "TxtReaderActivity.h"
 #include "Xtc.h"
@@ -87,6 +88,7 @@ void ReaderActivity::goToLibrary(const std::string& fromBookPath) {
 
 void ReaderActivity::onGoToEpubReader(std::unique_ptr<Epub> epub) {
   const auto epubPath = epub->getPath();
+  ReadingThemeStore::loadBookSettingsIntoCurrent(epub->getCachePath());
   currentBookPath = epubPath;
   exitActivity();
   enterNewActivity(new EpubReaderActivity(
@@ -105,6 +107,7 @@ void ReaderActivity::onGoToXtcReader(std::unique_ptr<Xtc> xtc) {
 
 void ReaderActivity::onGoToTxtReader(std::unique_ptr<Txt> txt) {
   const auto txtPath = txt->getPath();
+  ReadingThemeStore::loadBookSettingsIntoCurrent(txt->getCachePath());
   currentBookPath = txtPath;
   exitActivity();
   enterNewActivity(new TxtReaderActivity(
