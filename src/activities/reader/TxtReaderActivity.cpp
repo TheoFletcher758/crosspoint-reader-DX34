@@ -1154,13 +1154,19 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
         showBandTitle ? static_cast<int>(statusBarLayout.titleLines.size()) : 0;
     const int textBlockHeight = computeStatusTextBlockHeight(
         renderer, showStatusTextRow, titleLineCount);
+    const int activeBars =
+        (showBandBookBar ? 1 : 0) + (showBandChapterBar ? 1 : 0);
     const int barsHeight = computeStatusBarsHeight(
         showBandBookBar, showBandChapterBar, progressBarHeight,
         textBlockHeight > 0);
+    const int renderedBarsHeight = activeBars * progressBarHeight;
 
     int currentTextY = bandTopY;
     if (textBlockHeight > 0) {
       currentTextY += statusTextTopPadding;
+      if (renderTopBand && barsHeight > 0) {
+        currentTextY += barsHeight;
+      }
     }
 
     const int batteryWidth =
@@ -1281,17 +1287,16 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
       return;
     }
 
-    const int activeBars =
-        (showBandBookBar ? 1 : 0) + (showBandChapterBar ? 1 : 0);
     int barIndex = 0;
-    int currentBarY = bandTopY + reservedHeight - barsHeight +
-                      ((textBlockHeight > 0) ? progressBarMarginTop : 0);
+    int currentBarY = renderTopBand ? bandTopY
+                                    : bandTopY + reservedHeight -
+                                          renderedBarsHeight;
     const auto drawBandBar = [&](const size_t progressPercent) {
       const bool isFirstBar = barIndex == 0;
       const bool isLastBar = barIndex == activeBars - 1;
       int barY = currentBarY + barIndex * progressBarHeight;
       int barDrawHeight = progressBarHeight;
-      if (renderTopBand && isFirstBar && textBlockHeight == 0) {
+      if (renderTopBand && isFirstBar) {
         barY -= statusTopInset;
         barDrawHeight += statusTopInset;
       }
