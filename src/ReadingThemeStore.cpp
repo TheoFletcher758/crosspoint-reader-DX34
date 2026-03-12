@@ -131,10 +131,9 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
   settings.statusBarEnabled = theme.statusBarEnabled ? 1 : 0;
   settings.statusBarShowBattery = theme.statusBarShowBattery ? 1 : 0;
   settings.statusBarShowPageCounter = theme.statusBarShowPageCounter ? 1 : 0;
-  settings.statusBarPageCounterMode = clampRange(
-      theme.statusBarPageCounterMode, 0,
-      CrossPointSettings::STATUS_BAR_PAGE_COUNTER_MODE_COUNT - 1,
-      CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL);
+  settings.statusBarPageCounterMode =
+      CrossPointSettings::normalizeStatusBarPageCounterMode(
+          theme.statusBarPageCounterMode);
   settings.statusBarShowBookPercentage =
       theme.statusBarShowBookPercentage ? 1 : 0;
   settings.statusBarShowChapterPercentage =
@@ -391,10 +390,9 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
   normalized.statusBarEnabled = theme.statusBarEnabled ? 1 : 0;
   normalized.statusBarShowBattery = theme.statusBarShowBattery ? 1 : 0;
   normalized.statusBarShowPageCounter = theme.statusBarShowPageCounter ? 1 : 0;
-  normalized.statusBarPageCounterMode = clampRange(
-      theme.statusBarPageCounterMode, 0,
-      CrossPointSettings::STATUS_BAR_PAGE_COUNTER_MODE_COUNT - 1,
-      CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL);
+  normalized.statusBarPageCounterMode =
+      CrossPointSettings::normalizeStatusBarPageCounterMode(
+          theme.statusBarPageCounterMode);
   normalized.statusBarShowBookPercentage =
       theme.statusBarShowBookPercentage ? 1 : 0;
   normalized.statusBarShowChapterPercentage =

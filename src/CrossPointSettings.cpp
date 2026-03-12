@@ -87,7 +87,7 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
   settings.statusBarShowBattery = 1;
   settings.statusBarShowPageCounter = 0;
   settings.statusBarPageCounterMode =
-      CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL;
+      CrossPointSettings::STATUS_PAGE_CURRENT_OVER_TOTAL;
   settings.statusBarShowBookPercentage = 0;
   settings.statusBarShowChapterPercentage = 0;
   settings.statusBarShowBookBar = 0;
@@ -153,6 +153,18 @@ uint8_t legacyLineSpacingToPercent(const uint8_t legacy) {
   }
 }
 } // namespace
+
+uint8_t CrossPointSettings::normalizeStatusBarPageCounterMode(uint8_t mode) {
+  switch (mode) {
+  case STATUS_PAGE_CURRENT_OVER_TOTAL:
+    return STATUS_PAGE_CURRENT_OVER_TOTAL;
+  case STATUS_PAGE_LEFT_TEXT:
+  case 2:
+    return STATUS_PAGE_LEFT_TEXT;
+  default:
+    return STATUS_PAGE_CURRENT_OVER_TOTAL;
+  }
+}
 
 void CrossPointSettings::validateFrontButtonMapping(
     CrossPointSettings &settings) {

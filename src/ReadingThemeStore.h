@@ -23,7 +23,7 @@ struct ReadingTheme {
   uint8_t statusBarShowBattery = 1;
   uint8_t statusBarShowPageCounter = 0;
   uint8_t statusBarPageCounterMode =
-      CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL;
+      CrossPointSettings::STATUS_PAGE_CURRENT_OVER_TOTAL;
   uint8_t statusBarShowBookPercentage = 0;
   uint8_t statusBarShowChapterPercentage = 0;
   uint8_t statusBarShowBookBar = 0;

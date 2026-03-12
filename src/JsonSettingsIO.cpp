@@ -20,7 +20,7 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
   settings.statusBarShowBattery = 1;
   settings.statusBarShowPageCounter = 0;
   settings.statusBarPageCounterMode =
-      CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL;
+      CrossPointSettings::STATUS_PAGE_CURRENT_OVER_TOTAL;
   settings.statusBarShowBookPercentage = 0;
   settings.statusBarShowChapterPercentage = 0;
   settings.statusBarShowBookBar = 0;
@@ -130,8 +130,9 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
   theme.statusBarShowPageCounter =
       obj["statusBarShowPageCounter"] | (uint8_t)0;
   theme.statusBarPageCounterMode =
-      obj["statusBarPageCounterMode"] |
-      (uint8_t)CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL;
+      CrossPointSettings::normalizeStatusBarPageCounterMode(
+          obj["statusBarPageCounterMode"] |
+          (uint8_t)CrossPointSettings::STATUS_PAGE_CURRENT_OVER_TOTAL);
   theme.statusBarShowBookPercentage =
       obj["statusBarShowBookPercentage"] | (uint8_t)0;
   theme.statusBarShowChapterPercentage =
@@ -530,16 +531,14 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
     s.statusBarShowBattery = doc["statusBarShowBattery"] | (uint8_t)1;
     s.statusBarShowPageCounter = doc["statusBarShowPageCounter"] | (uint8_t)0;
     if (doc["statusBarPageCounterMode"].isNull()) {
-      s.statusBarPageCounterMode = (uint8_t)S::STATUS_PAGE_CURRENT_TOTAL;
+      s.statusBarPageCounterMode = (uint8_t)S::STATUS_PAGE_CURRENT_OVER_TOTAL;
       if (needsResave) {
         *needsResave = true;
       }
     } else {
-      s.statusBarPageCounterMode = clamp(
+      s.statusBarPageCounterMode = S::normalizeStatusBarPageCounterMode(
           doc["statusBarPageCounterMode"] |
-              (uint8_t)S::STATUS_PAGE_CURRENT_TOTAL,
-          S::STATUS_BAR_PAGE_COUNTER_MODE_COUNT,
-          S::STATUS_PAGE_CURRENT_TOTAL);
+          (uint8_t)S::STATUS_PAGE_CURRENT_OVER_TOTAL);
     }
     s.statusBarShowBookPercentage =
         doc["statusBarShowBookPercentage"] | (uint8_t)0;

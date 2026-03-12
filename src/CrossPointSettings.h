@@ -61,9 +61,8 @@ public:
     STATUS_BAR_PROGRESS_STYLE_COUNT
   };
   enum STATUS_BAR_PAGE_COUNTER_MODE {
-    STATUS_PAGE_CURRENT_TOTAL = 0,
-    STATUS_PAGE_LEFT_IN_BOOK = 1,
-    STATUS_PAGE_LEFT_IN_CHAPTER = 2,
+    STATUS_PAGE_CURRENT_OVER_TOTAL = 0,
+    STATUS_PAGE_LEFT_TEXT = 1,
     STATUS_BAR_PAGE_COUNTER_MODE_COUNT
   };
   enum STATUS_BAR_ITEM_POSITION {
@@ -215,7 +214,7 @@ public:
   uint8_t statusBarEnabled = 1;
   uint8_t statusBarShowBattery = 1;
   uint8_t statusBarShowPageCounter = 0;
-  uint8_t statusBarPageCounterMode = STATUS_PAGE_CURRENT_TOTAL;
+  uint8_t statusBarPageCounterMode = STATUS_PAGE_CURRENT_OVER_TOTAL;
   uint8_t statusBarShowBookPercentage = 0;
   uint8_t statusBarShowChapterPercentage = 0;
   uint8_t statusBarShowBookBar = 0;
@@ -311,6 +310,7 @@ public:
   static uint8_t fontSizeOptionCount(uint8_t family);
   static uint8_t fontSizeToDisplayIndex(uint8_t family, uint8_t fontSize);
   static uint8_t displayIndexToFontSize(uint8_t family, uint8_t displayIndex);
+  static uint8_t normalizeStatusBarPageCounterMode(uint8_t mode);
   int getReaderFontId() const;
   int getStatusBarProgressBarHeight() const;
 

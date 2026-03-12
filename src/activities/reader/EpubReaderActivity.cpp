@@ -7,6 +7,7 @@
 #include <HalStorage.h>
 #include <I18n.h>
 #include <Logging.h>
+#include <algorithm>
 #include <climits>
 #include <vector>
 
@@ -125,32 +126,21 @@ int statusTextPositionHorizontalSlot(const uint8_t position) {
 std::string formatPageCounterText(const uint8_t mode, const int currentPage,
                                   const int chapterPageCount,
                                   const float bookProgressPercent) {
+  (void)bookProgressPercent;
+
+  const int safeChapterPageCount = std::max(chapterPageCount, 0);
+  const int safeCurrentPage = std::max(currentPage, 0);
+  int pagesLeft = safeChapterPageCount - (currentPage + 1);
+  if (pagesLeft < 0) {
+    pagesLeft = 0;
+  }
+
   switch (mode) {
-    case CrossPointSettings::STATUS_PAGE_LEFT_IN_BOOK: {
-      if (bookProgressPercent <= 0.0f || currentPage < 0) {
-        return "0 left";
-      }
-      const int pagesReadEstimate = currentPage + 1;
-      const float estimatedTotalPages =
-          pagesReadEstimate * 100.0f / bookProgressPercent;
-      int pagesLeftEstimate =
-          static_cast<int>(estimatedTotalPages + 0.5f) - pagesReadEstimate;
-      if (pagesLeftEstimate < 0) {
-        pagesLeftEstimate = 0;
-      }
-      return std::to_string(pagesLeftEstimate) + " left";
-    }
-    case CrossPointSettings::STATUS_PAGE_LEFT_IN_CHAPTER: {
-      int pagesLeft = chapterPageCount - (currentPage + 1);
-      if (pagesLeft < 0) {
-        pagesLeft = 0;
-      }
+    case CrossPointSettings::STATUS_PAGE_LEFT_TEXT:
       return std::to_string(pagesLeft) + " left";
-    }
-    case CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL:
     default:
-      return std::to_string(currentPage + 1) + "/" +
-             std::to_string(chapterPageCount);
+      return std::to_string(safeCurrentPage + 1) + "/" +
+             std::to_string(safeChapterPageCount);
   }
 }
 

@@ -7,6 +7,7 @@
 #include <Logging.h>
 #include <Serialization.h>
 #include <Utf8.h>
+#include <algorithm>
 #include <vector>
 
 #include "CrossPointSettings.h"
@@ -97,18 +98,19 @@ int statusTextPositionHorizontalSlot(const uint8_t position) {
 
 std::string formatPageCounterText(const uint8_t mode, const int currentPage,
                                   const int totalPages) {
+  const int safeTotalPages = std::max(totalPages, 0);
+  const int safeCurrentPage = std::max(currentPage, 0);
+  int pagesLeft = safeTotalPages - (currentPage + 1);
+  if (pagesLeft < 0) {
+    pagesLeft = 0;
+  }
+
   switch (mode) {
-    case CrossPointSettings::STATUS_PAGE_LEFT_IN_BOOK:
-    case CrossPointSettings::STATUS_PAGE_LEFT_IN_CHAPTER: {
-      int pagesLeft = totalPages - (currentPage + 1);
-      if (pagesLeft < 0) {
-        pagesLeft = 0;
-      }
+    case CrossPointSettings::STATUS_PAGE_LEFT_TEXT:
       return std::to_string(pagesLeft) + " left";
-    }
-    case CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL:
     default:
-      return std::to_string(currentPage + 1) + "/" + std::to_string(totalPages);
+      return std::to_string(safeCurrentPage + 1) + "/" +
+             std::to_string(safeTotalPages);
   }
 }
 
