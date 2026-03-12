@@ -7,10 +7,15 @@
 
 class EpubReaderActivity final : public ActivityWithSubactivity {
   struct StatusBarLayout {
-    int reservedHeight = 0;
+    int topReservedHeight = 0;
+    int bottomReservedHeight = 0;
     int usableWidth = 0;
-    std::string progressText;
-    int progressTextWidth = 0;
+    std::string pageCounterText;
+    int pageCounterTextWidth = 0;
+    std::string bookPercentageText;
+    int bookPercentageTextWidth = 0;
+    std::string chapterPercentageText;
+    int chapterPercentageTextWidth = 0;
     std::vector<std::string> titleLines;
     float bookProgress = 0.0f;
     float chapterProgress = 0.0f;
@@ -67,7 +72,8 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   void invalidateStatusBarCaches();
   int getWrappedStatusBarReserveLineCount(int usableWidth);
   const std::vector<std::string>& getStatusBarTitleLines(int tocIndex, int usableWidth, bool noTitleTruncation);
-  StatusBarLayout buildStatusBarLayout(int usableWidth, int reservedHeight);
+  StatusBarLayout buildStatusBarLayout(int usableWidth, int topReservedHeight,
+                                       int bottomReservedHeight);
   // Jump to a percentage of the book (0-100), mapping it to spine and page.
   void jumpToPercent(int percent);
   void onReaderMenuBack(uint8_t orientation);

@@ -74,12 +74,23 @@ ReadingTheme ReadingThemeStore::fromSettings(const std::string& name,
   theme.statusBarEnabled = settings.statusBarEnabled;
   theme.statusBarShowBattery = settings.statusBarShowBattery;
   theme.statusBarShowPageCounter = settings.statusBarShowPageCounter;
+  theme.statusBarPageCounterMode = settings.statusBarPageCounterMode;
   theme.statusBarShowBookPercentage = settings.statusBarShowBookPercentage;
   theme.statusBarShowChapterPercentage = settings.statusBarShowChapterPercentage;
   theme.statusBarShowBookBar = settings.statusBarShowBookBar;
   theme.statusBarShowChapterBar = settings.statusBarShowChapterBar;
   theme.statusBarShowChapterTitle = settings.statusBarShowChapterTitle;
   theme.statusBarNoTitleTruncation = settings.statusBarNoTitleTruncation;
+  theme.statusBarBatteryPosition = settings.statusBarBatteryPosition;
+  theme.statusBarProgressTextPosition = settings.statusBarProgressTextPosition;
+  theme.statusBarPageCounterPosition = settings.statusBarPageCounterPosition;
+  theme.statusBarBookPercentagePosition =
+      settings.statusBarBookPercentagePosition;
+  theme.statusBarChapterPercentagePosition =
+      settings.statusBarChapterPercentagePosition;
+  theme.statusBarBookBarPosition = settings.statusBarBookBarPosition;
+  theme.statusBarChapterBarPosition = settings.statusBarChapterBarPosition;
+  theme.statusBarTitlePosition = settings.statusBarTitlePosition;
   theme.statusBarTextAlignment = settings.statusBarTextAlignment;
   theme.statusBarProgressStyle = settings.statusBarProgressStyle;
   return theme;
@@ -115,6 +126,10 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
   settings.statusBarEnabled = theme.statusBarEnabled ? 1 : 0;
   settings.statusBarShowBattery = theme.statusBarShowBattery ? 1 : 0;
   settings.statusBarShowPageCounter = theme.statusBarShowPageCounter ? 1 : 0;
+  settings.statusBarPageCounterMode = clampRange(
+      theme.statusBarPageCounterMode, 0,
+      CrossPointSettings::STATUS_BAR_PAGE_COUNTER_MODE_COUNT - 1,
+      CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL);
   settings.statusBarShowBookPercentage =
       theme.statusBarShowBookPercentage ? 1 : 0;
   settings.statusBarShowChapterPercentage =
@@ -124,6 +139,38 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
   settings.statusBarShowChapterTitle = theme.statusBarShowChapterTitle ? 1 : 0;
   settings.statusBarNoTitleTruncation =
       theme.statusBarNoTitleTruncation ? 1 : 0;
+  settings.statusBarBatteryPosition = clampRange(
+      theme.statusBarBatteryPosition, 0,
+      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_AT_BOTTOM);
+  settings.statusBarProgressTextPosition = clampRange(
+      theme.statusBarProgressTextPosition, 0,
+      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_AT_BOTTOM);
+  settings.statusBarPageCounterPosition = clampRange(
+      theme.statusBarPageCounterPosition, 0,
+      CrossPointSettings::STATUS_BAR_TEXT_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER);
+  settings.statusBarBookPercentagePosition = clampRange(
+      theme.statusBarBookPercentagePosition, 0,
+      CrossPointSettings::STATUS_BAR_TEXT_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER);
+  settings.statusBarChapterPercentagePosition = clampRange(
+      theme.statusBarChapterPercentagePosition, 0,
+      CrossPointSettings::STATUS_BAR_TEXT_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER);
+  settings.statusBarBookBarPosition = clampRange(
+      theme.statusBarBookBarPosition, 0,
+      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_AT_BOTTOM);
+  settings.statusBarChapterBarPosition = clampRange(
+      theme.statusBarChapterBarPosition, 0,
+      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_AT_BOTTOM);
+  settings.statusBarTitlePosition = clampRange(
+      theme.statusBarTitlePosition, 0,
+      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_AT_BOTTOM);
   settings.statusBarTextAlignment = clampRange(
       theme.statusBarTextAlignment, 0,
       CrossPointSettings::STATUS_TEXT_ALIGNMENT_COUNT - 1,
@@ -150,6 +197,7 @@ bool ReadingThemeStore::matchesCurrent(const ReadingTheme& theme) const {
          current.statusBarEnabled == theme.statusBarEnabled &&
          current.statusBarShowBattery == theme.statusBarShowBattery &&
          current.statusBarShowPageCounter == theme.statusBarShowPageCounter &&
+         current.statusBarPageCounterMode == theme.statusBarPageCounterMode &&
          current.statusBarShowBookPercentage ==
              theme.statusBarShowBookPercentage &&
          current.statusBarShowChapterPercentage ==
@@ -160,6 +208,20 @@ bool ReadingThemeStore::matchesCurrent(const ReadingTheme& theme) const {
              theme.statusBarShowChapterTitle &&
          current.statusBarNoTitleTruncation ==
              theme.statusBarNoTitleTruncation &&
+         current.statusBarBatteryPosition ==
+             theme.statusBarBatteryPosition &&
+         current.statusBarProgressTextPosition ==
+             theme.statusBarProgressTextPosition &&
+         current.statusBarPageCounterPosition ==
+             theme.statusBarPageCounterPosition &&
+         current.statusBarBookPercentagePosition ==
+             theme.statusBarBookPercentagePosition &&
+         current.statusBarChapterPercentagePosition ==
+             theme.statusBarChapterPercentagePosition &&
+         current.statusBarBookBarPosition == theme.statusBarBookBarPosition &&
+         current.statusBarChapterBarPosition ==
+             theme.statusBarChapterBarPosition &&
+         current.statusBarTitlePosition == theme.statusBarTitlePosition &&
          current.statusBarTextAlignment == theme.statusBarTextAlignment &&
          current.statusBarProgressStyle == theme.statusBarProgressStyle;
 }
@@ -295,6 +357,10 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
   normalized.statusBarEnabled = theme.statusBarEnabled ? 1 : 0;
   normalized.statusBarShowBattery = theme.statusBarShowBattery ? 1 : 0;
   normalized.statusBarShowPageCounter = theme.statusBarShowPageCounter ? 1 : 0;
+  normalized.statusBarPageCounterMode = clampRange(
+      theme.statusBarPageCounterMode, 0,
+      CrossPointSettings::STATUS_BAR_PAGE_COUNTER_MODE_COUNT - 1,
+      CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL);
   normalized.statusBarShowBookPercentage =
       theme.statusBarShowBookPercentage ? 1 : 0;
   normalized.statusBarShowChapterPercentage =
@@ -305,6 +371,38 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
       theme.statusBarShowChapterTitle ? 1 : 0;
   normalized.statusBarNoTitleTruncation =
       theme.statusBarNoTitleTruncation ? 1 : 0;
+  normalized.statusBarBatteryPosition = clampRange(
+      theme.statusBarBatteryPosition, 0,
+      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_AT_BOTTOM);
+  normalized.statusBarProgressTextPosition = clampRange(
+      theme.statusBarProgressTextPosition, 0,
+      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_AT_BOTTOM);
+  normalized.statusBarPageCounterPosition = clampRange(
+      theme.statusBarPageCounterPosition, 0,
+      CrossPointSettings::STATUS_BAR_TEXT_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER);
+  normalized.statusBarBookPercentagePosition = clampRange(
+      theme.statusBarBookPercentagePosition, 0,
+      CrossPointSettings::STATUS_BAR_TEXT_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER);
+  normalized.statusBarChapterPercentagePosition = clampRange(
+      theme.statusBarChapterPercentagePosition, 0,
+      CrossPointSettings::STATUS_BAR_TEXT_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER);
+  normalized.statusBarBookBarPosition = clampRange(
+      theme.statusBarBookBarPosition, 0,
+      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_AT_BOTTOM);
+  normalized.statusBarChapterBarPosition = clampRange(
+      theme.statusBarChapterBarPosition, 0,
+      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_AT_BOTTOM);
+  normalized.statusBarTitlePosition = clampRange(
+      theme.statusBarTitlePosition, 0,
+      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_AT_BOTTOM);
   normalized.statusBarTextAlignment = clampRange(
       theme.statusBarTextAlignment, 0,
       CrossPointSettings::STATUS_TEXT_ALIGNMENT_COUNT - 1,

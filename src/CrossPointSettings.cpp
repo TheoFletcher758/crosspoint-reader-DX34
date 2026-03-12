@@ -86,6 +86,8 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
   settings.statusBarEnabled = 1;
   settings.statusBarShowBattery = 1;
   settings.statusBarShowPageCounter = 0;
+  settings.statusBarPageCounterMode =
+      CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL;
   settings.statusBarShowBookPercentage = 0;
   settings.statusBarShowChapterPercentage = 0;
   settings.statusBarShowBookBar = 0;
@@ -93,6 +95,18 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
   settings.statusBarShowChapterTitle = 1;
   settings.statusBarNoTitleTruncation = 0;
   settings.statusBarTopLine = 0;
+  settings.statusBarBatteryPosition = CrossPointSettings::STATUS_AT_BOTTOM;
+  settings.statusBarProgressTextPosition =
+      CrossPointSettings::STATUS_AT_BOTTOM;
+  settings.statusBarPageCounterPosition =
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER;
+  settings.statusBarBookPercentagePosition =
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER;
+  settings.statusBarChapterPercentagePosition =
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER;
+  settings.statusBarBookBarPosition = CrossPointSettings::STATUS_AT_BOTTOM;
+  settings.statusBarChapterBarPosition = CrossPointSettings::STATUS_AT_BOTTOM;
+  settings.statusBarTitlePosition = CrossPointSettings::STATUS_AT_BOTTOM;
   settings.statusBarTextAlignment = CrossPointSettings::STATUS_TEXT_RIGHT;
   settings.statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THICK;
 

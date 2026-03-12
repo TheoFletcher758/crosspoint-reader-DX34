@@ -11,10 +11,15 @@ struct RecentBook;
 
 class TxtReaderActivity final : public ActivityWithSubactivity {
   struct StatusBarLayout {
-    int reservedHeight = 0;
+    int topReservedHeight = 0;
+    int bottomReservedHeight = 0;
     int usableWidth = 0;
-    std::string progressText;
-    int progressTextWidth = 0;
+    std::string pageCounterText;
+    int pageCounterTextWidth = 0;
+    std::string bookPercentageText;
+    int bookPercentageTextWidth = 0;
+    std::string chapterPercentageText;
+    int chapterPercentageTextWidth = 0;
     std::vector<std::string> titleLines;
     float progress = 0.0f;
   };
@@ -65,7 +70,8 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   const std::vector<std::string>& getStatusBarTitleLines(int usableWidth,
                                                          bool noTitleTruncation);
   int getStatusBarReserveTitleLineCount(int usableWidth, bool noTitleTruncation);
-  StatusBarLayout buildStatusBarLayout(int usableWidth, int reservedHeight);
+  StatusBarLayout buildStatusBarLayout(int usableWidth, int topReservedHeight,
+                                       int bottomReservedHeight);
 
   void initializeReader();
   bool loadPageAtOffset(size_t offset, std::vector<std::string>& outLines, size_t& nextOffset);

@@ -22,12 +22,25 @@ struct ReadingTheme {
   uint8_t statusBarEnabled = 1;
   uint8_t statusBarShowBattery = 1;
   uint8_t statusBarShowPageCounter = 0;
+  uint8_t statusBarPageCounterMode =
+      CrossPointSettings::STATUS_PAGE_CURRENT_TOTAL;
   uint8_t statusBarShowBookPercentage = 0;
   uint8_t statusBarShowChapterPercentage = 0;
   uint8_t statusBarShowBookBar = 0;
   uint8_t statusBarShowChapterBar = 0;
   uint8_t statusBarShowChapterTitle = 1;
   uint8_t statusBarNoTitleTruncation = 0;
+  uint8_t statusBarBatteryPosition = CrossPointSettings::STATUS_AT_BOTTOM;
+  uint8_t statusBarProgressTextPosition = CrossPointSettings::STATUS_AT_BOTTOM;
+  uint8_t statusBarPageCounterPosition =
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER;
+  uint8_t statusBarBookPercentagePosition =
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER;
+  uint8_t statusBarChapterPercentagePosition =
+      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER;
+  uint8_t statusBarBookBarPosition = CrossPointSettings::STATUS_AT_BOTTOM;
+  uint8_t statusBarChapterBarPosition = CrossPointSettings::STATUS_AT_BOTTOM;
+  uint8_t statusBarTitlePosition = CrossPointSettings::STATUS_AT_BOTTOM;
   uint8_t statusBarTextAlignment = CrossPointSettings::STATUS_TEXT_RIGHT;
   uint8_t statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THICK;
 };

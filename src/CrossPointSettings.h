@@ -60,6 +60,26 @@ public:
     STATUS_BAR_DOTTED = 2,
     STATUS_BAR_PROGRESS_STYLE_COUNT
   };
+  enum STATUS_BAR_PAGE_COUNTER_MODE {
+    STATUS_PAGE_CURRENT_TOTAL = 0,
+    STATUS_PAGE_LEFT_IN_BOOK = 1,
+    STATUS_PAGE_LEFT_IN_CHAPTER = 2,
+    STATUS_BAR_PAGE_COUNTER_MODE_COUNT
+  };
+  enum STATUS_BAR_ITEM_POSITION {
+    STATUS_AT_TOP = 0,
+    STATUS_AT_BOTTOM = 1,
+    STATUS_BAR_ITEM_POSITION_COUNT
+  };
+  enum STATUS_BAR_TEXT_POSITION {
+    STATUS_TEXT_TOP_LEFT = 0,
+    STATUS_TEXT_TOP_CENTER = 1,
+    STATUS_TEXT_TOP_RIGHT = 2,
+    STATUS_TEXT_BOTTOM_LEFT = 3,
+    STATUS_TEXT_BOTTOM_CENTER = 4,
+    STATUS_TEXT_BOTTOM_RIGHT = 5,
+    STATUS_BAR_TEXT_POSITION_COUNT
+  };
 
   enum ORIENTATION {
     PORTRAIT = 0, // 480x800 logical coordinates (current default)
@@ -195,6 +215,7 @@ public:
   uint8_t statusBarEnabled = 1;
   uint8_t statusBarShowBattery = 1;
   uint8_t statusBarShowPageCounter = 0;
+  uint8_t statusBarPageCounterMode = STATUS_PAGE_CURRENT_TOTAL;
   uint8_t statusBarShowBookPercentage = 0;
   uint8_t statusBarShowChapterPercentage = 0;
   uint8_t statusBarShowBookBar = 0;
@@ -202,6 +223,14 @@ public:
   uint8_t statusBarShowChapterTitle = 1;
   uint8_t statusBarNoTitleTruncation = 0;
   uint8_t statusBarTopLine = 0;
+  uint8_t statusBarBatteryPosition = STATUS_AT_BOTTOM;
+  uint8_t statusBarProgressTextPosition = STATUS_AT_BOTTOM;
+  uint8_t statusBarPageCounterPosition = STATUS_TEXT_BOTTOM_CENTER;
+  uint8_t statusBarBookPercentagePosition = STATUS_TEXT_BOTTOM_CENTER;
+  uint8_t statusBarChapterPercentagePosition = STATUS_TEXT_BOTTOM_CENTER;
+  uint8_t statusBarBookBarPosition = STATUS_AT_BOTTOM;
+  uint8_t statusBarChapterBarPosition = STATUS_AT_BOTTOM;
+  uint8_t statusBarTitlePosition = STATUS_AT_BOTTOM;
   uint8_t statusBarTextAlignment = STATUS_TEXT_RIGHT;
   uint8_t statusBarProgressStyle = STATUS_BAR_THICK;
   // Text rendering settings
