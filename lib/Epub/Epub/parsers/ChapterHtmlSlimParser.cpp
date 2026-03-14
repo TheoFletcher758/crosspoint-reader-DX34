@@ -15,8 +15,9 @@
 const char* HEADER_TAGS[] = {"h1", "h2", "h3", "h4", "h5", "h6"};
 constexpr int NUM_HEADER_TAGS = sizeof(HEADER_TAGS) / sizeof(HEADER_TAGS[0]);
 
-// Minimum file size (in bytes) to show indexing popup - smaller chapters don't benefit from it
-constexpr size_t MIN_SIZE_FOR_POPUP = 10 * 1024;  // 10KB
+// Minimum file size (in bytes) to show indexing progress - smaller chapters don't benefit from it
+constexpr size_t MIN_SIZE_FOR_PROGRESS = 10 * 1024;  // 10KB
+constexpr int PROGRESS_STEP_PERCENT = 5;
 constexpr int MIN_DENSE_PAGE_LINES = 6;
 constexpr int DENSE_PAGE_THRESHOLD_PERCENT = 80;
 
@@ -680,9 +681,13 @@ bool ChapterHtmlSlimParser::parseAndBuildPages() {
     return false;
   }
 
-  // Get file size to decide whether to show indexing popup.
-  if (popupFn && file.size() >= MIN_SIZE_FOR_POPUP) {
-    popupFn();
+  const size_t fileSize = file.size();
+  const bool shouldReportProgress =
+      progressFn && fileSize >= MIN_SIZE_FOR_PROGRESS;
+  int lastReportedProgress = -1;
+  if (shouldReportProgress) {
+    progressFn(0);
+    lastReportedProgress = 0;
   }
 
   XML_SetUserData(parser, this);
@@ -714,6 +719,20 @@ bool ChapterHtmlSlimParser::parseAndBuildPages() {
     }
 
     done = file.available() == 0;
+
+    if (shouldReportProgress) {
+      int progress = static_cast<int>((file.position() * 100U) / fileSize);
+      if (done) {
+        progress = 100;
+      } else {
+        progress = (progress / PROGRESS_STEP_PERCENT) * PROGRESS_STEP_PERCENT;
+      }
+
+      if (progress > lastReportedProgress) {
+        progressFn(progress);
+        lastReportedProgress = progress;
+      }
+    }
 
     if (XML_ParseBuffer(parser, static_cast<int>(len), done) == XML_STATUS_ERROR) {
       LOG_ERR("EHP", "Parse error at line %lu:\n%s", XML_GetCurrentLineNumber(parser),

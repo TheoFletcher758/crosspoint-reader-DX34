@@ -3,6 +3,7 @@
 #include <HalStorage.h>
 
 #include <algorithm>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -100,10 +101,11 @@ class BookMetadataCache {
   bool cleanupTmpFiles() const;
 
   // Post-processing to update mappings and sizes
-  bool buildBookBin(const std::string& epubPath, const BookMetadata& metadata);
+  bool buildBookBin(const std::string& epubPath, const BookMetadata& metadata,
+                    const std::function<void(int)>& progressCallback = nullptr);
 
   // Reading phase (read mode)
-  bool load();
+  bool load(const std::function<void(int)>& progressCallback = nullptr);
   SpineEntry getSpineEntry(int index);
   TocEntry getTocEntry(int index);
   int getSpineCount() const { return spineCount; }

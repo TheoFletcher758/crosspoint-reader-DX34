@@ -356,11 +356,15 @@ void setup() {
   setupDisplayAndFonts();
 
   exitActivity();
-  enterNewActivity(new BootActivity(renderer, mappedInputManager));
+  auto* bootActivity = new BootActivity(renderer, mappedInputManager);
+  enterNewActivity(bootActivity);
 
+  bootActivity->setProgress(32, "Restoring state");
   APP_STATE.loadFromFile();
+  bootActivity->setProgress(56, "Refreshing sleep cache");
   // FORCE trimming early if we were already in an OOM situation from a large playlist
   SleepActivity::trimSleepFolderToLimit();
+  bootActivity->setProgress(80, "Loading recents");
   RECENT_BOOKS.loadFromFile();
 
   LOG_INF("MAIN", "Booting complete, checking initial activity");
@@ -369,6 +373,7 @@ void setup() {
   // crashed (indicated by readerActivityLoadCount > 0)
   if (APP_STATE.openEpubPath.empty() || !APP_STATE.lastSleepFromReader ||
       mappedInputManager.isPressed(MappedInputManager::Button::Back) || APP_STATE.readerActivityLoadCount > 0) {
+    bootActivity->setProgress(100, "Opening home");
     SleepActivity::trimSleepFolderToLimit();
     onGoHome();
   } else {
@@ -377,6 +382,7 @@ void setup() {
     APP_STATE.openEpubPath = "";
     APP_STATE.readerActivityLoadCount++;
     APP_STATE.saveToFile();
+    bootActivity->setProgress(100, "Opening last book");
     onGoToReader(path);
   }
 

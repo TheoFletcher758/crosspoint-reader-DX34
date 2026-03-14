@@ -24,7 +24,7 @@ class ChapterHtmlSlimParser {
   GfxRenderer& renderer;
   std::function<void(std::unique_ptr<Page>)> completePageFn;
   std::function<void(const std::string&, uint16_t)> anchorPageFn;
-  std::function<void()> popupFn;  // Popup callback
+  std::function<void(int)> progressFn;  // Progress callback
   int depth = 0;
   int skipUntilDepth = INT_MAX;
   int boldUntilDepth = INT_MAX;
@@ -87,7 +87,7 @@ class ChapterHtmlSlimParser {
                                  const std::function<void(std::unique_ptr<Page>)>& completePageFn,
                                  const std::function<void(const std::string&, uint16_t)>& anchorPageFn,
                                  const bool embeddedStyle, const std::string& contentBase,
-                                 const std::string& imageBasePath, const std::function<void()>& popupFn = nullptr,
+                                 const std::string& imageBasePath, const std::function<void(int)>& progressFn = nullptr,
                                  const CssParser* cssParser = nullptr)
 
       : epub(epub),
@@ -102,7 +102,7 @@ class ChapterHtmlSlimParser {
         hyphenationEnabled(hyphenationEnabled),
         completePageFn(completePageFn),
         anchorPageFn(anchorPageFn),
-        popupFn(popupFn),
+        progressFn(progressFn),
         cssParser(cssParser),
         embeddedStyle(embeddedStyle),
         contentBase(contentBase),

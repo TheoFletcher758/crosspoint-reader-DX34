@@ -1,5 +1,6 @@
 #include "EpubReaderActivity.h"
 
+#include <Arduino.h>
 #include <EpdFontFamily.h>
 #include <Epub/Page.h>
 #include <FsHelpers.h>
@@ -44,6 +45,11 @@ int clampPercent(int percent) {
     return 100;
   }
   return percent;
+}
+
+void finishLoadingBar(GfxRenderer& renderer) {
+  StatusPopup::showBottomProgress(renderer, tr(STR_LOADING), 100);
+  delay(70);
 }
 
 void drawDottedRect(const GfxRenderer &renderer, int x, int y, int w, int h) {
@@ -1283,6 +1289,7 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
             currentSpineIndex);
     section = std::unique_ptr<Section>(
         new Section(epub, currentSpineIndex, renderer));
+    bool builtSection = false;
 
     const uint16_t viewportWidth =
         renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
@@ -1295,16 +1302,18 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
             viewportWidth, viewportHeight, false,
             SETTINGS.embeddedStyle, SETTINGS.readerBoldSwap != 0)) {
       LOG_DBG("ERS", "Cache not found, building...");
+      builtSection = true;
 
-      const auto popupFn = [this]() {
-        StatusPopup::showBlocking(renderer, tr(STR_INDEXING_CHAPTER));
+      const auto progressFn = [this](const int progress) {
+        StatusPopup::showBottomProgress(renderer, tr(STR_INDEXING_CHAPTER),
+                                        progress);
       };
 
       if (!section->createSectionFile(
               SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
               SETTINGS.extraParagraphSpacingLevel, SETTINGS.paragraphAlignment,
               viewportWidth, viewportHeight, false,
-              SETTINGS.embeddedStyle, SETTINGS.readerBoldSwap != 0, popupFn)) {
+              SETTINGS.embeddedStyle, SETTINGS.readerBoldSwap != 0, progressFn)) {
         LOG_ERR("ERS", "Failed to persist page data to SD");
         section.reset();
         return;
@@ -1352,6 +1361,10 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
         section->currentPage = anchorPage;
       }
       pendingAnchor.clear();
+    }
+
+    if (builtSection) {
+      finishLoadingBar(renderer);
     }
   }
 

@@ -157,7 +157,7 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
                                 const uint8_t extraParagraphSpacingLevel,
                                 const uint8_t paragraphAlignment, const uint16_t viewportWidth,
                                 const uint16_t viewportHeight, const bool hyphenationEnabled, const bool embeddedStyle,
-                                const bool readerBoldSwap, const std::function<void()>& popupFn) {
+                                const bool readerBoldSwap, const std::function<void(int)>& progressFn) {
   const auto localPath = epub->getSpineItem(spineIndex).href;
   const auto tmpHtmlPath = epub->getCachePath() + "/.tmp_" + std::to_string(spineIndex) + ".html";
 
@@ -233,7 +233,7 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
       [&anchors](const std::string& anchor, const uint16_t pageIndex) {
         anchors.emplace_back(anchor, pageIndex);
       },
-      embeddedStyle, contentBase, imageBasePath, popupFn, cssParser);
+      embeddedStyle, contentBase, imageBasePath, progressFn, cssParser);
   success = visitor.parseAndBuildPages();
 
   Storage.remove(tmpHtmlPath.c_str());

@@ -13,6 +13,12 @@ constexpr uint8_t BOOK_CACHE_VERSION = 5;
 constexpr char bookBinFile[] = "/book.bin";
 constexpr char tmpSpineBinFile[] = "/spine.bin.tmp";
 constexpr char tmpTocBinFile[] = "/toc.bin.tmp";
+
+void reportProgress(const std::function<void(int)>& callback, const int value) {
+  if (callback) {
+    callback(value);
+  }
+}
 }  // namespace
 
 /* ============= WRITING / BUILDING FUNCTIONS ================ */
@@ -96,7 +102,9 @@ bool BookMetadataCache::endWrite() {
   return true;
 }
 
-bool BookMetadataCache::buildBookBin(const std::string& epubPath, const BookMetadata& metadata) {
+bool BookMetadataCache::buildBookBin(const std::string& epubPath,
+                                     const BookMetadata& metadata,
+                                     const std::function<void(int)>& progressCallback) {
   // Open all three files, writing to meta, reading from spine and toc
   if (!Storage.openFileForWrite("BMC", cachePath + bookBinFile, bookFile)) {
     return false;
@@ -140,6 +148,7 @@ bool BookMetadataCache::buildBookBin(const std::string& epubPath, const BookMeta
     auto spineEntry = readSpineEntry(spineFile);
     serialization::writePod(bookFile, pos + lutOffset + lutSize);
   }
+  reportProgress(progressCallback, 15);
 
   // Loop through toc entries, writing LUT positions
   tocFile.seek(0);
@@ -148,6 +157,7 @@ bool BookMetadataCache::buildBookBin(const std::string& epubPath, const BookMeta
     auto tocEntry = readTocEntry(tocFile);
     serialization::writePod(bookFile, pos + lutOffset + lutSize + static_cast<uint32_t>(spineFile.position()));
   }
+  reportProgress(progressCallback, 30);
 
   // LUTs complete
   // Loop through spines from spine file matching up TOC indexes, calculating cumulative size and writing to book.bin
@@ -215,6 +225,7 @@ bool BookMetadataCache::buildBookBin(const std::string& epubPath, const BookMeta
 
     useBatchSizes = true;
   }
+  reportProgress(progressCallback, 45);
 
   uint32_t cumSize = 0;
   spineFile.seek(0);
@@ -254,6 +265,9 @@ bool BookMetadataCache::buildBookBin(const std::string& epubPath, const BookMeta
 
     // Write out spine data to book.bin
     writeSpineEntry(bookFile, spineEntry);
+    if (spineCount > 0) {
+      reportProgress(progressCallback, 45 + ((i + 1) * 35 / spineCount));
+    }
   }
   // Close opened zip file
   zip.close();
@@ -263,6 +277,9 @@ bool BookMetadataCache::buildBookBin(const std::string& epubPath, const BookMeta
   for (int i = 0; i < tocCount; i++) {
     auto tocEntry = readTocEntry(tocFile);
     writeTocEntry(bookFile, tocEntry);
+    if (tocCount > 0) {
+      reportProgress(progressCallback, 80 + ((i + 1) * 20 / tocCount));
+    }
   }
 
   bookFile.close();
@@ -362,13 +379,17 @@ void BookMetadataCache::createTocEntry(const std::string& title, const std::stri
 
 /* ============= READING / LOADING FUNCTIONS ================ */
 
-bool BookMetadataCache::load() {
+bool BookMetadataCache::load(const std::function<void(int)>& progressCallback) {
   if (!Storage.openFileForRead("BMC", cachePath + bookBinFile, bookFile)) {
     return false;
   }
 
+  const uint32_t fileSize = bookFile.size();
   uint8_t version;
   serialization::readPod(bookFile, version);
+  if (fileSize > 0) {
+    reportProgress(progressCallback, static_cast<int>((bookFile.position() * 100U) / fileSize));
+  }
   if (version != BOOK_CACHE_VERSION) {
     LOG_DBG("BMC", "Cache version mismatch: expected %d, got %d", BOOK_CACHE_VERSION, version);
     bookFile.close();
@@ -384,6 +405,9 @@ bool BookMetadataCache::load() {
   serialization::readString(bookFile, coreMetadata.language);
   serialization::readString(bookFile, coreMetadata.coverItemHref);
   serialization::readString(bookFile, coreMetadata.textReferenceHref);
+  if (fileSize > 0) {
+    reportProgress(progressCallback, static_cast<int>((bookFile.position() * 100U) / fileSize));
+  }
 
   loaded = true;
   LOG_DBG("BMC", "Loaded cache data: %d spine, %d TOC entries", spineCount, tocCount);

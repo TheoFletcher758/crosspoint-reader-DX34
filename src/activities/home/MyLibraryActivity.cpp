@@ -552,7 +552,6 @@ void MyLibraryActivity::loop() {
               showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
               return;
             }
-            StatusPopup::showBlocking(renderer, "Moving file");
             std::string destinationPath;
             if (moveSelectedFileTo("/sleep", &destinationPath)) {
               SleepActivity::trimSleepFolderToLimit();
@@ -590,7 +589,6 @@ void MyLibraryActivity::loop() {
             break;
           }
           case 4:
-            StatusPopup::showBlocking(renderer, "Deleting file");
             if (deleteSelectedFile()) {
               if (selectorIndex < files.size()) files.erase(files.begin() + selectorIndex);
               if (!files.empty() && selectorIndex >= files.size()) selectorIndex = files.size() - 1;
@@ -660,7 +658,9 @@ void MyLibraryActivity::loop() {
         showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
         return;
       }
-      StatusPopup::showBlocking(renderer, "Moving file");
+      if (!isBmpFile(selectedFilePath)) {
+        StatusPopup::showBlocking(renderer, "Moving file");
+      }
       std::string destinationPath;
       if (moveSelectedFileTo(entry.path, &destinationPath)) {
         if (entry.path == "/sleep") {

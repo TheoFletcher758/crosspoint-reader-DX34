@@ -1,5 +1,7 @@
 #include "Epub.h"
 
+#include <algorithm>
+
 #include <FsHelpers.h>
 #include <HalStorage.h>
 #include <JpegToBmpConverter.h>
@@ -11,6 +13,74 @@
 #include "Epub/parsers/ContentOpfParser.h"
 #include "Epub/parsers/TocNavParser.h"
 #include "Epub/parsers/TocNcxParser.h"
+
+namespace {
+
+constexpr int kProgressStepPercent = 5;
+
+class ProgressReporter {
+ public:
+  explicit ProgressReporter(const std::function<void(int)>& callback)
+      : callback(callback) {}
+
+  void report(const int percent) {
+    if (!callback) {
+      return;
+    }
+    const int clamped = std::max(0, std::min(100, percent));
+    if (clamped <= lastPercent) {
+      return;
+    }
+
+    const int throttled =
+        (clamped == 100) ? 100 : (clamped / kProgressStepPercent) * kProgressStepPercent;
+    if (throttled <= lastPercent) {
+      return;
+    }
+
+    lastPercent = throttled;
+    callback(lastPercent);
+  }
+
+  int current() const { return lastPercent; }
+
+ private:
+  std::function<void(int)> callback;
+  int lastPercent = -1;
+};
+
+class ProgressSpan {
+ public:
+  ProgressSpan(ProgressReporter& reporter, const int startPercent,
+               const int endPercent)
+      : reporter(reporter), startPercent(startPercent), endPercent(endPercent) {
+    reporter.report(startPercent);
+  }
+
+  void reportPercent(const int percent) const {
+    const int clamped = std::max(0, std::min(100, percent));
+    const int mapped =
+        startPercent + ((endPercent - startPercent) * clamped) / 100;
+    reporter.report(mapped);
+  }
+
+  void reportFraction(const size_t numerator, const size_t denominator) const {
+    if (denominator == 0) {
+      reportPercent(100);
+      return;
+    }
+    reportPercent(static_cast<int>((numerator * 100U) / denominator));
+  }
+
+  void finish() const { reporter.report(endPercent); }
+
+ private:
+  ProgressReporter& reporter;
+  int startPercent;
+  int endPercent;
+};
+
+}  // namespace
 
 bool Epub::findContentOpfFile(std::string* contentOpfFile) const {
   const auto containerPath = "META-INF/container.xml";
@@ -190,6 +260,9 @@ bool Epub::parseTocNcxFile() const {
       tempNcxFile.close();
       return false;
     }
+    if (progressCallback && ncxSize > 0) {
+      progressCallback(static_cast<int>((tempNcxFile.position() * 100U) / ncxSize));
+    }
   }
 
   free(ncxBuffer);
@@ -247,6 +320,9 @@ bool Epub::parseTocNavFile() const {
       tempNavFile.close();
       return false;
     }
+    if (progressCallback && navSize > 0) {
+      progressCallback(static_cast<int>((tempNavFile.position() * 100U) / navSize));
+    }
   }
 
   free(navBuffer);
@@ -277,6 +353,8 @@ void Epub::parseCssFiles() const {
   }
 
   // No cache yet - parse CSS files
+  const size_t totalCssFiles = std::max<size_t>(cssFiles.size(), 1);
+  size_t parsedCssFiles = 0;
   for (const auto& cssPath : cssFiles) {
     LOG_DBG("EBP", "Parsing CSS file: %s", cssPath.c_str());
 
@@ -294,6 +372,10 @@ void Epub::parseCssFiles() const {
       if (cssFileSize > MAX_CSS_FILE_SIZE) {
         LOG_ERR("EBP", "CSS file too large (%zu bytes > %zu max), skipping: %s", cssFileSize, MAX_CSS_FILE_SIZE,
                 cssPath.c_str());
+        parsedCssFiles++;
+        if (progressCallback) {
+          progressCallback(static_cast<int>((parsedCssFiles * 100U) / totalCssFiles));
+        }
         continue;
       }
     }
@@ -309,6 +391,10 @@ void Epub::parseCssFiles() const {
       LOG_ERR("EBP", "Could not read CSS file: %s", cssPath.c_str());
       tempCssFile.close();
       Storage.remove(tmpCssPath.c_str());
+      parsedCssFiles++;
+      if (progressCallback) {
+        progressCallback(static_cast<int>((parsedCssFiles * 100U) / totalCssFiles));
+      }
       continue;
     }
     tempCssFile.close();
@@ -322,6 +408,10 @@ void Epub::parseCssFiles() const {
     cssParser->loadFromStream(tempCssFile);
     tempCssFile.close();
     Storage.remove(tmpCssPath.c_str());
+    parsedCssFiles++;
+    if (progressCallback) {
+      progressCallback(static_cast<int>((parsedCssFiles * 100U) / totalCssFiles));
+    }
   }
 
   // Save to cache for next time
@@ -334,32 +424,56 @@ void Epub::parseCssFiles() const {
 }
 
 // load in the meta data for the epub file
-bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss) {
+bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss,
+                const std::function<void(int)>& progressCallback) {
   LOG_DBG("EBP", "Loading ePub: %s", filepath.c_str());
+  this->progressCallback = progressCallback;
+  ProgressReporter reporter(progressCallback);
 
   // Initialize spine/TOC cache
   bookMetadataCache.reset(new BookMetadataCache(cachePath));
   // Always create CssParser - needed for inline style parsing even without CSS files
   cssParser.reset(new CssParser(cachePath));
+  reporter.report(0);
 
   // Try to load existing cache first
-  if (bookMetadataCache->load()) {
-    if (!skipLoadingCss) {
-      // Rebuild CSS cache when missing or when cache version changed (loadFromCache removes stale file)
-      if (!cssParser->hasCache() || !cssParser->loadFromCache()) {
-        LOG_DBG("EBP", "CSS rules cache missing or stale, attempting to parse CSS files");
-        cssParser->deleteCache();
+  {
+    ProgressSpan cacheProbeSpan(reporter, 0, 10);
+    cacheProbeSpan.reportPercent(30);
+    if (bookMetadataCache->load([&cacheProbeSpan](const int percent) {
+          cacheProbeSpan.reportPercent(percent);
+        })) {
+      cacheProbeSpan.finish();
+      if (!skipLoadingCss) {
+        ProgressSpan cachedCssSpan(reporter, 10, 90);
+        cachedCssSpan.reportPercent(15);
+        // Rebuild CSS cache when missing or when cache version changed (loadFromCache removes stale file)
+        if (!cssParser->hasCache() || !cssParser->loadFromCache()) {
+          LOG_DBG("EBP", "CSS rules cache missing or stale, attempting to parse CSS files");
+          cssParser->deleteCache();
 
-        if (!parseContentOpf(bookMetadataCache->coreMetadata)) {
-          LOG_ERR("EBP", "Could not parse content.opf from cached bookMetadata for CSS files");
-          // continue anyway - book will work without CSS and we'll still load any inline style CSS
+          ProgressSpan cachedOpfSpan(reporter, 10, 35);
+          if (!parseContentOpf(bookMetadataCache->coreMetadata)) {
+            LOG_ERR("EBP", "Could not parse content.opf from cached bookMetadata for CSS files");
+            // continue anyway - book will work without CSS and we'll still load any inline style CSS
+          }
+          cachedOpfSpan.finish();
+
+          ProgressSpan cssSpan(reporter, 80, 90);
+          parseCssFiles();
+          cssSpan.finish();
+        } else {
+          cachedCssSpan.finish();
         }
-        parseCssFiles();
+      } else {
+        reporter.report(90);
       }
+      LOG_DBG("EBP", "Loaded ePub: %s", filepath.c_str());
+      return true;
     }
-    LOG_DBG("EBP", "Loaded ePub: %s", filepath.c_str());
-    return true;
   }
+
+  reporter.report(10);
 
   // If we didn't load from cache above and we aren't allowed to build, fail now
   if (!buildIfMissing) {
@@ -385,9 +499,14 @@ bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss) {
     LOG_ERR("EBP", "Could not begin writing content.opf pass");
     return false;
   }
-  if (!parseContentOpf(bookMetadata)) {
-    LOG_ERR("EBP", "Could not parse content.opf");
-    return false;
+  {
+    ProgressSpan opfSpan(reporter, 10, 35);
+    opfSpan.reportPercent(10);
+    if (!parseContentOpf(bookMetadata)) {
+      LOG_ERR("EBP", "Could not parse content.opf");
+      return false;
+    }
+    opfSpan.finish();
   }
   if (!bookMetadataCache->endContentOpfPass()) {
     LOG_ERR("EBP", "Could not end writing content.opf pass");
@@ -404,16 +523,23 @@ bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss) {
 
   bool tocParsed = false;
 
-  // Try EPUB 3 nav document first (preferred)
-  if (!tocNavItem.empty()) {
-    LOG_DBG("EBP", "Attempting to parse EPUB 3 nav document");
-    tocParsed = parseTocNavFile();
-  }
+  {
+    ProgressSpan tocSpan(reporter, 35, 60);
+    tocSpan.reportPercent(5);
 
-  // Fall back to NCX if nav parsing failed or wasn't available
-  if (!tocParsed && !tocNcxItem.empty()) {
-    LOG_DBG("EBP", "Falling back to NCX TOC");
-    tocParsed = parseTocNcxFile();
+    // Try EPUB 3 nav document first (preferred)
+    if (!tocNavItem.empty()) {
+      LOG_DBG("EBP", "Attempting to parse EPUB 3 nav document");
+      tocParsed = parseTocNavFile();
+    }
+
+    // Fall back to NCX if nav parsing failed or wasn't available
+    if (!tocParsed && !tocNcxItem.empty()) {
+      LOG_DBG("EBP", "Falling back to NCX TOC");
+      tocParsed = parseTocNcxFile();
+    }
+
+    tocSpan.finish();
   }
 
   if (!tocParsed) {
@@ -435,9 +561,15 @@ bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss) {
 
   // Build final book.bin
   const uint32_t buildStart = millis();
-  if (!bookMetadataCache->buildBookBin(filepath, bookMetadata)) {
-    LOG_ERR("EBP", "Could not update mappings and sizes");
-    return false;
+  {
+    ProgressSpan buildSpan(reporter, 60, 80);
+    if (!bookMetadataCache->buildBookBin(
+            filepath, bookMetadata,
+            [&buildSpan](const int percent) { buildSpan.reportPercent(percent); })) {
+      LOG_ERR("EBP", "Could not update mappings and sizes");
+      return false;
+    }
+    buildSpan.finish();
   }
   LOG_DBG("EBP", "buildBookBin completed in %lu ms", millis() - buildStart);
   LOG_DBG("EBP", "Total indexing completed in %lu ms", millis() - indexingStart);
@@ -448,14 +580,23 @@ bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss) {
 
   // Reload the cache from disk so it's in the correct state
   bookMetadataCache.reset(new BookMetadataCache(cachePath));
-  if (!bookMetadataCache->load()) {
-    LOG_ERR("EBP", "Failed to reload cache after writing");
-    return false;
+  {
+    ProgressSpan reloadSpan(reporter, 80, 85);
+    if (!bookMetadataCache->load(
+            [&reloadSpan](const int percent) { reloadSpan.reportPercent(percent); })) {
+      LOG_ERR("EBP", "Failed to reload cache after writing");
+      return false;
+    }
+    reloadSpan.finish();
   }
 
   if (!skipLoadingCss) {
     // Parse CSS files after cache reload
+    ProgressSpan cssSpan(reporter, 85, 90);
     parseCssFiles();
+    cssSpan.finish();
+  } else {
+    reporter.report(90);
   }
 
   LOG_DBG("EBP", "Loaded ePub: %s", filepath.c_str());

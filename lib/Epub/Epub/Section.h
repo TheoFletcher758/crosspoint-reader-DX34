@@ -43,7 +43,7 @@ class Section {
   bool createSectionFile(int fontId, float lineCompression,
                          uint8_t extraParagraphSpacingLevel, uint8_t paragraphAlignment,
                          uint16_t viewportWidth, uint16_t viewportHeight, bool hyphenationEnabled, bool embeddedStyle,
-                         bool readerBoldSwap, const std::function<void()>& popupFn = nullptr);
+                         bool readerBoldSwap, const std::function<void(int)>& progressFn = nullptr);
   std::unique_ptr<Page> loadPageFromSectionFile();
   int getPageForAnchor(const std::string& anchor) const;
   std::string getCurrentAnchorForPage(int page) const;
