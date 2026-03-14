@@ -37,6 +37,7 @@ const char* themeActionLabel(const int index) {
 void ReadingThemesActivity::onEnter() {
   ActivityWithSubactivity::onEnter();
   selectedRowIndex = 0;
+  lastUsedThemeIndex = READING_THEMES.findMatchingTheme();
   requestUpdate();
 }
 
@@ -164,6 +165,11 @@ void ReadingThemesActivity::executeThemeAction() {
         showMessage(tr(STR_DELETE_THEME_FAILED));
         return;
       }
+      if (lastUsedThemeIndex == actionPopupThemeIndex) {
+        lastUsedThemeIndex = -1;
+      } else if (lastUsedThemeIndex > actionPopupThemeIndex) {
+        lastUsedThemeIndex--;
+      }
       selectedRowIndex = clampSelectedRow(selectedRowIndex);
       requestUpdate();
       return;
@@ -282,6 +288,8 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
                             EpdFontFamily::REGULAR);
 
   const int currentThemeIndex = READING_THEMES.findMatchingTheme();
+  const bool showLastUsedTheme =
+      currentThemeIndex < 0 && lastUsedThemeIndex >= 0;
   const int contentY = metrics.topPadding + metrics.headerHeight;
   const int contentHeight =
       pageHeight - (contentY + metrics.buttonHintsHeight + metrics.verticalSpacing);
@@ -305,6 +313,8 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
       label = theme ? theme->name : tr(STR_THEME);
       if (themeIndex == currentThemeIndex) {
         label = "* " + label;
+      } else if (showLastUsedTheme && themeIndex == lastUsedThemeIndex) {
+        label = "? " + label;
       }
     }
 
@@ -316,13 +326,17 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
 
     if (i >= 2) {
       const int themeIndex = themeIndexForRow(i);
+      const char* stateLabel = nullptr;
       if (themeIndex == currentThemeIndex) {
-        const char* currentLabel = tr(STR_CURRENT_THEME);
-        const int currentW =
-            renderer.getTextWidth(UI_10_FONT_ID, currentLabel);
+        stateLabel = tr(STR_CURRENT_THEME);
+      } else if (showLastUsedTheme && themeIndex == lastUsedThemeIndex) {
+        stateLabel = tr(STR_LAST_USED_THEME);
+      }
+      if (stateLabel != nullptr) {
+        const int currentW = renderer.getTextWidth(UI_10_FONT_ID, stateLabel);
         renderer.drawText(UI_10_FONT_ID,
                           pageWidth - metrics.contentSidePadding - currentW,
-                          rowY, currentLabel, !isSelected);
+                          rowY, stateLabel, !isSelected);
       }
     }
   }
