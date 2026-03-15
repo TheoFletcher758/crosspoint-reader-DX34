@@ -603,6 +603,39 @@ bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss,
   return true;
 }
 
+bool Epub::ensureCssCache(
+    const std::function<void(int)>& progressCallback) {
+  if (!bookMetadataCache || !bookMetadataCache->isLoaded()) {
+    LOG_ERR("EBP", "Cannot prepare CSS cache before EPUB metadata is loaded");
+    return false;
+  }
+
+  if (!cssParser) {
+    cssParser.reset(new CssParser(cachePath));
+  }
+
+  if (cssParser->hasCache() && cssParser->loadFromCache()) {
+    cssParser->clear();
+    return true;
+  }
+
+  cssParser->deleteCache();
+  cssFiles.clear();
+  tocNcxItem.clear();
+  tocNavItem.clear();
+
+  if (!parseContentOpf(bookMetadataCache->coreMetadata)) {
+    LOG_ERR("EBP", "Could not parse content.opf to prepare CSS cache");
+    return false;
+  }
+
+  const auto previousProgressCallback = this->progressCallback;
+  this->progressCallback = progressCallback;
+  parseCssFiles();
+  this->progressCallback = previousProgressCallback;
+  return cssParser->hasCache();
+}
+
 bool Epub::clearCache() const {
   if (!Storage.exists(cachePath.c_str())) {
     LOG_DBG("EPB", "Cache does not exist, no action needed");

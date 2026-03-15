@@ -1069,6 +1069,22 @@ void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
 
 void EpubReaderActivity::reloadCurrentSectionForDisplaySettings() {
   flushProgressIfNeeded(true);
+  if (epub && SETTINGS.readerStyleMode == CrossPointSettings::READER_STYLE_HYBRID) {
+    const bool showCssProgress =
+        epub->getCssParser() == nullptr || !epub->getCssParser()->hasCache();
+    const auto progressCallback =
+        showCssProgress
+            ? std::function<void(int)>([this](const int progress) {
+                StatusPopup::showBottomProgress(renderer, tr(STR_LOADING),
+                                                progress);
+              })
+            : std::function<void(int)>();
+    if (!epub->ensureCssCache(progressCallback)) {
+      LOG_ERR("ERS", "Failed to prepare CSS cache for hybrid reader style");
+    } else if (showCssProgress) {
+      finishLoadingBar(renderer);
+    }
+  }
   {
     RenderLock lock(*this);
     if (section) {

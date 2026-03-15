@@ -323,6 +323,7 @@ bool ReadingThemeStore::addTheme(const std::string& name) {
     return false;
   }
   themes.push_back(captureCurrent(makeUniqueName(name)));
+  lastEditedThemeIndex = static_cast<int>(themes.size()) - 1;
   return saveToFile();
 }
 
@@ -331,6 +332,7 @@ bool ReadingThemeStore::updateTheme(const size_t index) {
     return false;
   }
   themes[index] = captureCurrent(themes[index].name);
+  lastEditedThemeIndex = static_cast<int>(index);
   return saveToFile();
 }
 
@@ -340,6 +342,7 @@ bool ReadingThemeStore::renameTheme(const size_t index,
     return false;
   }
   themes[index].name = makeUniqueName(desiredName, static_cast<int>(index));
+  lastEditedThemeIndex = static_cast<int>(index);
   return saveToFile();
 }
 
@@ -348,6 +351,11 @@ bool ReadingThemeStore::deleteTheme(const size_t index) {
     return false;
   }
   themes.erase(themes.begin() + static_cast<long>(index));
+  if (lastEditedThemeIndex == static_cast<int>(index)) {
+    lastEditedThemeIndex = -1;
+  } else if (lastEditedThemeIndex > static_cast<int>(index)) {
+    lastEditedThemeIndex--;
+  }
   return saveToFile();
 }
 
@@ -367,8 +375,8 @@ bool ReadingThemeStore::saveCurrentBookSettings(const std::string& cachePath) {
       fromSettings("", SETTINGS), bookReaderSettingsPath(cachePath).c_str());
 }
 
-bool ReadingThemeStore::loadBookSettingsIntoCurrent(
-    const std::string& cachePath) {
+bool ReadingThemeStore::loadBookSettings(const std::string& cachePath,
+                                         ReadingTheme& theme) {
   if (cachePath.empty()) {
     return false;
   }
@@ -379,8 +387,13 @@ bool ReadingThemeStore::loadBookSettingsIntoCurrent(
     return false;
   }
 
+  return JsonSettingsIO::loadReadingTheme(theme, json.c_str());
+}
+
+bool ReadingThemeStore::loadBookSettingsIntoCurrent(
+    const std::string& cachePath) {
   ReadingTheme theme;
-  if (!JsonSettingsIO::loadReadingTheme(theme, json.c_str())) {
+  if (!loadBookSettings(cachePath, theme)) {
     return false;
   }
 

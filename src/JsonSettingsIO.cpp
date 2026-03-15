@@ -1023,6 +1023,7 @@ bool JsonSettingsIO::loadReadingTheme(ReadingTheme& theme, const char* json) {
 bool JsonSettingsIO::saveReadingThemes(const ReadingThemeStore& store,
                                        const char* path) {
   JsonDocument doc;
+  doc["lastEditedThemeIndex"] = store.getLastEditedThemeIndex();
   JsonArray arr = doc["themes"].to<JsonArray>();
   for (const auto& theme : store.getThemes()) {
     JsonObject obj = arr.add<JsonObject>();
@@ -1044,6 +1045,7 @@ bool JsonSettingsIO::loadReadingThemes(ReadingThemeStore& store,
   }
 
   store.themes.clear();
+  store.lastEditedThemeIndex = doc["lastEditedThemeIndex"] | -1;
   JsonArray arr = doc["themes"].as<JsonArray>();
   for (JsonObject obj : arr) {
     if (store.themes.size() >= ReadingThemeStore::MAX_THEMES) {
@@ -1053,6 +1055,11 @@ bool JsonSettingsIO::loadReadingThemes(ReadingThemeStore& store,
     ReadingTheme theme;
     readReadingThemeObject(obj, theme);
     store.themes.push_back(theme);
+  }
+
+  if (store.lastEditedThemeIndex < 0 ||
+      store.lastEditedThemeIndex >= static_cast<int>(store.themes.size())) {
+    store.lastEditedThemeIndex = -1;
   }
 
   return true;

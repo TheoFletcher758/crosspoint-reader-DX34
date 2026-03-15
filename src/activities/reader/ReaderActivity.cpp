@@ -39,8 +39,15 @@ std::unique_ptr<Epub> ReaderActivity::loadEpub(const std::string& path) {
   }
 
   auto epub = std::unique_ptr<Epub>(new Epub(path, "/.crosspoint"));
+  uint8_t readerStyleMode = SETTINGS.readerStyleMode;
+  ReadingTheme savedBookSettings;
+  if (ReadingThemeStore::loadBookSettings(epub->getCachePath(),
+                                          savedBookSettings)) {
+    readerStyleMode = savedBookSettings.readerStyleMode;
+  }
+
   if (epub->load(
-          true, SETTINGS.readerStyleMode ==
+          true, readerStyleMode ==
                     CrossPointSettings::READER_STYLE_USER)) {
     return epub;
   }

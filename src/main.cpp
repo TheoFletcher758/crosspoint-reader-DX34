@@ -99,6 +99,12 @@ void enterNewActivity(Activity* activity) {
   currentActivity->onEnter();
 }
 
+void persistAppState(const char* context) {
+  if (!APP_STATE.saveToFile()) {
+    LOG_ERR("MAIN", "Failed to save app state (%s)", context);
+  }
+}
+
 // Verify power button press duration on wake-up from deep sleep
 // Pre-condition: isWakeupByPowerButton() == true
 void verifyPowerButtonDuration() {
@@ -154,8 +160,7 @@ void waitForPowerRelease() {
 // Enter deep sleep mode
 void enterDeepSleep() {
   APP_STATE.lastSleepFromReader = currentActivity && currentActivity->isReaderActivity();
-  APP_STATE.sessionPagesRead = 0;
-  APP_STATE.saveToFile();
+  persistAppState("enter deep sleep");
   exitActivity();
   enterNewActivity(new SleepActivity(renderer, mappedInputManager));
 
@@ -186,16 +191,19 @@ void onGoToSettings() {
 }
 
 void onGoToMyLibrary() {
+  persistAppState("go to library");
   exitActivity();
   enterNewActivity(new MyLibraryActivity(renderer, mappedInputManager, onGoHome, onGoToReader));
 }
 
 void onGoToRecentBooks() {
+  persistAppState("go to recents");
   exitActivity();
   enterNewActivity(new RecentBooksActivity(renderer, mappedInputManager, onGoHome, onGoToReader));
 }
 
 void onGoToMyLibraryWithPath(const std::string& path) {
+  persistAppState("go to library path");
   exitActivity();
   enterNewActivity(new MyLibraryActivity(renderer, mappedInputManager, onGoHome, onGoToReader, path));
 }
@@ -206,6 +214,7 @@ void onGoToBrowser() {
 }
 
 void onGoHome() {
+  persistAppState("go home");
   exitActivity();
   enterNewActivity(new HomeActivity(renderer, mappedInputManager, onGoToReader, onGoToMyLibrary, onGoToRecentBooks,
                                     onGoToSettings, onGoToFileTransfer, onGoToBrowser));
@@ -341,7 +350,6 @@ void setup() {
 
   bootActivity->setProgress(32, "Restoring state");
   APP_STATE.loadFromFile();
-  APP_STATE.sessionPagesRead = 0;
   bootActivity->setProgress(56, "Refreshing sleep cache");
   // FORCE trimming early if we were already in an OOM situation from a large playlist
   SleepActivity::trimSleepFolderToLimit();

@@ -58,6 +58,7 @@ class ReadingThemeStore {
   static ReadingThemeStore instance;
 
   std::vector<ReadingTheme> themes;
+  int lastEditedThemeIndex = -1;
 
   friend bool JsonSettingsIO::loadReadingThemes(ReadingThemeStore& store,
                                                 const char* json);
@@ -72,6 +73,7 @@ class ReadingThemeStore {
   const ReadingTheme* getTheme(size_t index) const;
   int getCount() const { return static_cast<int>(themes.size()); }
   bool isEmpty() const { return themes.empty(); }
+  int getLastEditedThemeIndex() const { return lastEditedThemeIndex; }
 
   bool saveToFile() const;
   bool loadFromFile();
@@ -87,6 +89,8 @@ class ReadingThemeStore {
   bool renameTheme(size_t index, const std::string& desiredName);
   bool deleteTheme(size_t index);
   bool applyTheme(size_t index);
+  static bool loadBookSettings(const std::string& cachePath,
+                               ReadingTheme& theme);
   static bool saveCurrentBookSettings(const std::string& cachePath);
   static bool loadBookSettingsIntoCurrent(const std::string& cachePath);
 

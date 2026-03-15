@@ -5,6 +5,7 @@
 #include <Logging.h>
 #include <Serialization.h>
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 
@@ -647,14 +648,21 @@ uint8_t CrossPointSettings::legacyWordSpacingPercentToLevel(
 }
 
 uint8_t CrossPointSettings::normalizeWordSpacingSetting(const uint8_t raw) {
-  if (raw <= WORD_SPACING_LEVEL_MAX) {
+  if (raw >= WORD_SPACING_LEVEL_MIN && raw <= WORD_SPACING_LEVEL_MAX) {
     return raw;
+  }
+  if (raw <= 6) {
+    const int migrated = static_cast<int>(raw) + 10;
+    return static_cast<uint8_t>(
+        std::max(static_cast<int>(WORD_SPACING_LEVEL_MIN),
+                 std::min(static_cast<int>(WORD_SPACING_LEVEL_MAX), migrated)));
   }
   return legacyWordSpacingPercentToLevel(raw);
 }
 
-uint8_t CrossPointSettings::wordSpacingDisplayLevel(const uint8_t raw) {
-  return static_cast<uint8_t>(normalizeWordSpacingSetting(raw) + 1);
+int CrossPointSettings::wordSpacingDisplayLevel(const uint8_t raw) {
+  return static_cast<int>(normalizeWordSpacingSetting(raw)) -
+         static_cast<int>(WORD_SPACING_LEVEL_DEFAULT);
 }
 
 int CrossPointSettings::wordSpacingSettingToPixelDelta(const uint8_t raw) {

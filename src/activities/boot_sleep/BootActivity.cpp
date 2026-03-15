@@ -1,6 +1,7 @@
 #include "BootActivity.h"
 
 #include <algorithm>
+#include <string>
 
 #include <HalDisplay.h>
 #include <GfxRenderer.h>
@@ -23,6 +24,15 @@ int clampPercent(const int percent) {
   return std::max(0, std::min(100, percent));
 }
 
+std::string bootVersionText() {
+  constexpr const char* kPrefix = "CrossPoint-Mod-DX34-";
+  std::string version = CROSSPOINT_VERSION;
+  if (version.rfind(kPrefix, 0) == 0) {
+    version.erase(0, std::char_traits<char>::length(kPrefix));
+  }
+  return "[MOD] DX34 " + version;
+}
+
 }
 
 void BootActivity::onEnter() {
@@ -43,8 +53,9 @@ void BootActivity::drawStaticBootScreen() const {
   const int y = centeredY + kBootImageVerticalOffset;
   renderer.clearScreen();
   renderer.drawImage(BootImage, x, y, kBootImageWidth, kBootImageHeight);
+  const std::string versionText = bootVersionText();
   renderer.drawCenteredText(SMALL_FONT_ID, pageHeight - kVersionTextBottom,
-                            CROSSPOINT_VERSION);
+                            versionText.c_str());
 }
 
 void BootActivity::drawDynamicBootScreen() const {

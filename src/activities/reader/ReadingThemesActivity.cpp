@@ -17,6 +17,26 @@ namespace {
 constexpr int kBaseRowCount = 2;
 constexpr int kThemeActionCount = 5;
 
+void drawDashedRect(const GfxRenderer& renderer, const int x, const int y,
+                    const int width, const int height, const bool state) {
+  constexpr int dash = 4;
+  constexpr int gap = 3;
+  constexpr int step = dash + gap;
+  const int x2 = x + width - 1;
+  const int y2 = y + height - 1;
+
+  for (int px = x; px <= x2; px += step) {
+    const int end = std::min(px + dash - 1, x2);
+    renderer.drawLine(px, y, end, y, state);
+    renderer.drawLine(px, y2, end, y2, state);
+  }
+  for (int py = y; py <= y2; py += step) {
+    const int end = std::min(py + dash - 1, y2);
+    renderer.drawLine(x, py, x, end, state);
+    renderer.drawLine(x2, py, x2, end, state);
+  }
+}
+
 const char* themeActionLabel(const int index) {
   switch (index) {
     case 0:
@@ -37,7 +57,7 @@ const char* themeActionLabel(const int index) {
 void ReadingThemesActivity::onEnter() {
   ActivityWithSubactivity::onEnter();
   selectedRowIndex = 0;
-  lastUsedThemeIndex = READING_THEMES.findMatchingTheme();
+  lastEditedThemeIndex = READING_THEMES.getLastEditedThemeIndex();
   requestUpdate();
 }
 
@@ -89,6 +109,7 @@ void ReadingThemesActivity::openKeyboardForNewTheme() {
           showMessage(tr(STR_SAVE_THEME_FAILED));
           return;
         }
+        lastEditedThemeIndex = READING_THEMES.getLastEditedThemeIndex();
         selectedRowIndex = rowCount() - 1;
         requestUpdate();
       },
@@ -117,6 +138,7 @@ void ReadingThemesActivity::openKeyboardForRename(const int themeIndex) {
           showMessage(tr(STR_RENAME_THEME_FAILED));
           return;
         }
+        lastEditedThemeIndex = READING_THEMES.getLastEditedThemeIndex();
         selectedRowIndex = clampSelectedRow(kBaseRowCount + themeIndex);
         requestUpdate();
       },
@@ -157,6 +179,7 @@ void ReadingThemesActivity::executeThemeAction() {
         showMessage(tr(STR_UPDATE_THEME_FAILED));
         return;
       }
+      lastEditedThemeIndex = READING_THEMES.getLastEditedThemeIndex();
       requestUpdate();
       return;
     case 3: {
@@ -165,11 +188,7 @@ void ReadingThemesActivity::executeThemeAction() {
         showMessage(tr(STR_DELETE_THEME_FAILED));
         return;
       }
-      if (lastUsedThemeIndex == actionPopupThemeIndex) {
-        lastUsedThemeIndex = -1;
-      } else if (lastUsedThemeIndex > actionPopupThemeIndex) {
-        lastUsedThemeIndex--;
-      }
+      lastEditedThemeIndex = READING_THEMES.getLastEditedThemeIndex();
       selectedRowIndex = clampSelectedRow(selectedRowIndex);
       requestUpdate();
       return;
@@ -288,8 +307,6 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
                             EpdFontFamily::REGULAR);
 
   const int currentThemeIndex = READING_THEMES.findMatchingTheme();
-  const bool showLastUsedTheme =
-      currentThemeIndex < 0 && lastUsedThemeIndex >= 0;
   const int contentY = metrics.topPadding + metrics.headerHeight;
   const int contentHeight =
       pageHeight - (contentY + metrics.buttonHintsHeight + metrics.verticalSpacing);
@@ -313,8 +330,6 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
       label = theme ? theme->name : tr(STR_THEME);
       if (themeIndex == currentThemeIndex) {
         label = "* " + label;
-      } else if (showLastUsedTheme && themeIndex == lastUsedThemeIndex) {
-        label = "? " + label;
       }
     }
 
@@ -326,17 +341,22 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
 
     if (i >= 2) {
       const int themeIndex = themeIndexForRow(i);
-      const char* stateLabel = nullptr;
-      if (themeIndex == currentThemeIndex) {
-        stateLabel = tr(STR_CURRENT_THEME);
-      } else if (showLastUsedTheme && themeIndex == lastUsedThemeIndex) {
-        stateLabel = tr(STR_LAST_USED_THEME);
-      }
+      const char* stateLabel =
+          themeIndex == currentThemeIndex ? tr(STR_CURRENT_THEME) : nullptr;
       if (stateLabel != nullptr) {
         const int currentW = renderer.getTextWidth(UI_10_FONT_ID, stateLabel);
         renderer.drawText(UI_10_FONT_ID,
                           pageWidth - metrics.contentSidePadding - currentW,
                           rowY, stateLabel, !isSelected);
+      }
+
+      if (themeIndex == lastEditedThemeIndex) {
+        const int borderX = metrics.contentSidePadding - 6;
+        const int borderY = rowY - 2;
+        const int borderW = pageWidth - borderX * 2;
+        const int borderH = rowHeight - 2;
+        drawDashedRect(renderer, borderX, borderY, borderW, borderH,
+                       !isSelected);
       }
     }
   }

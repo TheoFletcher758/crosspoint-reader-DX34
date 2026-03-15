@@ -182,9 +182,11 @@ public:
     EXTRA_PARAGRAPH_SPACING_COUNT
   };
 
-  static constexpr uint8_t WORD_SPACING_LEVEL_MIN = 0;
-  static constexpr uint8_t WORD_SPACING_LEVEL_MAX = 6;
-  static constexpr uint8_t WORD_SPACING_LEVEL_DEFAULT = 3;
+  // Stored values are encoded so older 0..6 settings can be migrated while
+  // the visible scale remains centered around L0.
+  static constexpr uint8_t WORD_SPACING_LEVEL_MIN = 8;
+  static constexpr uint8_t WORD_SPACING_LEVEL_MAX = 19;
+  static constexpr uint8_t WORD_SPACING_LEVEL_DEFAULT = 13;
 
   // Auto-sleep timeout options (in minutes)
   enum SLEEP_TIMEOUT {
@@ -340,7 +342,7 @@ public:
   static uint8_t normalizeStatusBarPageCounterMode(uint8_t mode);
   static uint8_t normalizeWordSpacingSetting(uint8_t raw);
   static uint8_t legacyWordSpacingPercentToLevel(uint8_t percent);
-  static uint8_t wordSpacingDisplayLevel(uint8_t raw);
+  static int wordSpacingDisplayLevel(uint8_t raw);
   static int wordSpacingSettingToPixelDelta(uint8_t raw);
   int getReaderFontId() const;
   int getStatusBarProgressBarHeight() const;
