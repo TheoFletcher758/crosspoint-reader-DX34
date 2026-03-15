@@ -165,40 +165,44 @@ uint64_t BaseTheme::homeInfoStatsSignature() {
 }
 
 void BaseTheme::drawBatteryLeft(const GfxRenderer& renderer, Rect rect, const bool showPercentage) const {
-  // Left aligned: icon on left, percentage on right (reader mode)
-  const uint16_t percentage = battery.readPercentage();
-  const int y = rect.y + 6;
-
-  if (showPercentage) {
-    const auto percentageText = std::to_string(percentage) + "%";
-    const int textX = rect.x + batteryPercentSpacing + BaseMetrics::values.batteryWidth;
-    const int textY = rect.y;
-    renderer.drawText(SMALL_FONT_ID, textX, textY, percentageText.c_str());
+  // Reader/status usage is text-only for a cleaner, more compact layout.
+  if (!showPercentage) {
+    return;
   }
-
-  drawBatteryIcon(renderer, rect.x, y, BaseMetrics::values.batteryWidth, rect.height, percentage);
+  const uint16_t percentage = battery.readPercentage();
+  const auto percentageText = std::to_string(percentage) + "%";
+  const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
+  const int textY = rect.y + std::max(0, (rect.height - textHeight) / 2);
+  renderer.drawText(SMALL_FONT_ID, rect.x, textY, percentageText.c_str());
 }
 
-void BaseTheme::drawBatteryRight(const GfxRenderer& renderer, Rect rect, const bool showPercentage) const {
+void BaseTheme::drawBatteryRight(const GfxRenderer& renderer, Rect rect,
+                                 const bool showPercentage,
+                                 const int textFont,
+                                 const int iconWidth,
+                                 const int iconHeight,
+                                 const bool showIcon) const {
   // Right aligned: percentage on left, icon on right (UI headers)
-  // rect.x is already positioned for the icon (drawHeader calculated it)
+  // rect.x is positioned for the icon, or the right text edge when icon is hidden.
   const uint16_t percentage = battery.readPercentage();
-  const int y = rect.y + 6;
+  const int y = rect.y + std::max(0, (rect.height - iconHeight) / 2);
 
   if (showPercentage) {
     const auto percentageText = std::to_string(percentage) + "%";
-    const int textWidth = renderer.getTextWidth(SMALL_FONT_ID, percentageText.c_str());
-    const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
-    const int textX = rect.x - textWidth - batteryPercentSpacing;
-    const int textY = rect.y;
+    const int textWidth = renderer.getTextWidth(textFont, percentageText.c_str());
+    const int textHeight = renderer.getTextHeight(textFont);
+    const int textX = showIcon ? (rect.x - textWidth - batteryPercentSpacing)
+                               : (rect.x - textWidth);
+    const int textY = rect.y + std::max(0, (rect.height - textHeight) / 2);
     // Clear the area where we're going to draw the text to prevent ghosting.
     renderer.fillRect(textX, textY, textWidth, textHeight, false);
     // Draw text to the left of the icon
-    renderer.drawText(SMALL_FONT_ID, textX, textY, percentageText.c_str());
+    renderer.drawText(textFont, textX, textY, percentageText.c_str());
   }
 
-  // Icon is already at correct position from rect.x
-  drawBatteryIcon(renderer, rect.x, y, BaseMetrics::values.batteryWidth, rect.height, percentage);
+  if (showIcon) {
+    drawBatteryIcon(renderer, rect.x, y, iconWidth, iconHeight, percentage);
+  }
 }
 
 void BaseTheme::drawProgressBar(const GfxRenderer& renderer, Rect rect, const size_t current,
@@ -385,14 +389,28 @@ void BaseTheme::drawList(const GfxRenderer& renderer, Rect rect, int itemCount, 
 void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* title) const {
   const bool showBatteryPercentage =
       SETTINGS.hideBatteryPercentage != CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_ALWAYS;
-  // Position icon at right edge, drawBatteryRight will place text to the left
-  const int batteryX = rect.x + rect.width - 12 - BaseMetrics::values.batteryWidth;
+  const bool homeStyleHeader = title == nullptr;
+  const int batteryTextFont = UI_10_FONT_ID;
+  const int batteryIconWidth =
+      homeStyleHeader ? BaseMetrics::values.batteryWidth + 2
+                      : BaseMetrics::values.batteryWidth;
+  const int batteryIconHeight =
+      homeStyleHeader ? BaseMetrics::values.batteryHeight + 2
+                      : BaseMetrics::values.batteryHeight;
+  const bool showBatteryIcon = false;
+  // Align percentage text to the right edge.
+  const int batteryX = rect.x + rect.width - 12 -
+                       (showBatteryIcon ? batteryIconWidth : 0);
   drawBatteryRight(renderer,
-                   Rect{batteryX, rect.y + 5, BaseMetrics::values.batteryWidth, BaseMetrics::values.batteryHeight},
-                   showBatteryPercentage);
+                   Rect{batteryX, rect.y + 5, batteryIconWidth, batteryIconHeight},
+                   showBatteryPercentage, batteryTextFont, batteryIconWidth,
+                   batteryIconHeight, showBatteryIcon);
 
   if (title) {
-    int padding = rect.width - batteryX + BaseMetrics::values.batteryWidth;
+    const int padding = 12 +
+                        (showBatteryPercentage
+                             ? renderer.getTextWidth(batteryTextFont, "100%")
+                             : 0);
     auto truncatedTitle = renderer.truncatedText(UI_12_FONT_ID, title,
                                                  rect.width - padding * 2 - BaseMetrics::values.contentSidePadding * 2,
                                                  EpdFontFamily::REGULAR);

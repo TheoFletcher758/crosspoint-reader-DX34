@@ -182,6 +182,10 @@ public:
     EXTRA_PARAGRAPH_SPACING_COUNT
   };
 
+  static constexpr uint8_t WORD_SPACING_LEVEL_MIN = 0;
+  static constexpr uint8_t WORD_SPACING_LEVEL_MAX = 6;
+  static constexpr uint8_t WORD_SPACING_LEVEL_DEFAULT = 3;
+
   // Auto-sleep timeout options (in minutes)
   enum SLEEP_TIMEOUT {
     SLEEP_1_MIN = 0,
@@ -251,9 +255,11 @@ public:
   uint8_t statusBarProgressStyle = STATUS_BAR_THICK;
   // Text rendering settings
   uint8_t extraParagraphSpacingLevel = EXTRA_SPACING_M;
-  uint8_t wordSpacingPercent = 100;
+  // Legacy field name retained for storage compatibility; value stores a
+  // word-spacing level (0..6) instead of a raw percentage.
+  uint8_t wordSpacingPercent = WORD_SPACING_LEVEL_DEFAULT;
   uint8_t firstLineIndentMode = INDENT_BOOK;
-  uint8_t readerStyleMode = READER_STYLE_HYBRID;
+  uint8_t readerStyleMode = READER_STYLE_USER;
   uint8_t textRenderMode = TEXT_RENDER_CRISP;
   // Legacy compatibility field migrated into textRenderMode.
   uint8_t textAntiAliasing = 1;
@@ -332,6 +338,10 @@ public:
   static uint8_t fontSizeToDisplayIndex(uint8_t family, uint8_t fontSize);
   static uint8_t displayIndexToFontSize(uint8_t family, uint8_t displayIndex);
   static uint8_t normalizeStatusBarPageCounterMode(uint8_t mode);
+  static uint8_t normalizeWordSpacingSetting(uint8_t raw);
+  static uint8_t legacyWordSpacingPercentToLevel(uint8_t percent);
+  static uint8_t wordSpacingDisplayLevel(uint8_t raw);
+  static int wordSpacingSettingToPixelDelta(uint8_t raw);
   int getReaderFontId() const;
   int getStatusBarProgressBarHeight() const;
 

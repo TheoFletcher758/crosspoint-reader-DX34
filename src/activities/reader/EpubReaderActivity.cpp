@@ -1568,6 +1568,7 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
 
     const bool showBandBattery =
         showBattery &&
+        showBatteryPercentage &&
         (statusBarItemIsTop(SETTINGS.statusBarBatteryPosition) ==
          renderTopBand);
     const bool showBandPageCounter =
@@ -1626,10 +1627,7 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
 
     const int batteryWidth =
         showBandBattery
-            ? (metrics.batteryWidth +
-               (showBatteryPercentage
-                    ? (4 + renderer.getTextWidth(SMALL_FONT_ID, "100%"))
-                    : 0))
+            ? renderer.getTextWidth(SMALL_FONT_ID, "100%")
             : 0;
     int currentX =
         orientedMarginLeft + std::max(0, (usableWidth - batteryWidth) / 2);

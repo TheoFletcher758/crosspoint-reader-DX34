@@ -69,6 +69,11 @@ const char* fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
   }
 }
 
+std::string wordSpacingValueLabel(const uint8_t value) {
+  return "L" +
+         std::to_string(CrossPointSettings::wordSpacingDisplayLevel(value));
+}
+
 }
 
 const std::vector<SettingInfo>* SettingsActivity::settingsForCategory(const int categoryIndex) const {
@@ -125,6 +130,7 @@ bool SettingsActivity::isPopupValueSetting(const SettingInfo& setting) const {
     return false;
   }
   return setting.valuePtr == &CrossPointSettings::lineSpacingPercent ||
+         setting.valuePtr == &CrossPointSettings::wordSpacingPercent ||
          setting.valuePtr == &CrossPointSettings::screenMarginHorizontal ||
          setting.valuePtr == &CrossPointSettings::screenMarginTop ||
          setting.valuePtr == &CrossPointSettings::screenMarginBottom;
@@ -157,7 +163,11 @@ void SettingsActivity::adjustValueEdit(const int delta) {
 }
 
 namespace {
-int getValueEditHoldStep(const MappedInputManager& mappedInput) {
+int getValueEditHoldStep(const MappedInputManager& mappedInput,
+                         const SettingInfo& setting) {
+  if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
+    return 1;
+  }
   return mappedInput.getHeldTime() >= 1200 ? 5 : 1;
 }
 }
@@ -197,6 +207,9 @@ std::string SettingsActivity::currentValueEditText() const {
   }
   const auto& setting = (*settings)[valueEditSettingIndex];
   std::string v = std::to_string(valueEditDraft);
+  if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
+    return wordSpacingValueLabel(valueEditDraft);
+  }
   if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
     v += "%";
   }
@@ -347,12 +360,24 @@ void SettingsActivity::loop() {
     });
 
     buttonNavigator.onNextContinuous([this] {
-      adjustValueEdit(+getValueEditHoldStep(mappedInput));
+      const auto* settings = settingsForCategory(valueEditCategoryIndex);
+      if (!settings || valueEditSettingIndex < 0 ||
+          valueEditSettingIndex >= static_cast<int>(settings->size())) {
+        return;
+      }
+      adjustValueEdit(+getValueEditHoldStep(mappedInput,
+                                            (*settings)[valueEditSettingIndex]));
       requestUpdate();
     });
 
     buttonNavigator.onPreviousContinuous([this] {
-      adjustValueEdit(-getValueEditHoldStep(mappedInput));
+      const auto* settings = settingsForCategory(valueEditCategoryIndex);
+      if (!settings || valueEditSettingIndex < 0 ||
+          valueEditSettingIndex >= static_cast<int>(settings->size())) {
+        return;
+      }
+      adjustValueEdit(-getValueEditHoldStep(mappedInput,
+                                            (*settings)[valueEditSettingIndex]));
       requestUpdate();
     });
     return;
@@ -537,12 +562,16 @@ void SettingsActivity::render(Activity::RenderLock&&) {
   auto metrics = UITheme::getInstance().getMetrics();
 
   // Top status line: version left, battery right
-  renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding, metrics.topPadding + 5, CROSSPOINT_VERSION);
+  renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding,
+                    metrics.topPadding + 5, CROSSPOINT_VERSION);
   const bool showBatteryPercentage =
       SETTINGS.hideBatteryPercentage != CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_ALWAYS;
-  const int batteryX = pageWidth - 12 - metrics.batteryWidth;
-  GUI.drawBatteryRight(renderer, Rect{batteryX, metrics.topPadding + 5, metrics.batteryWidth, metrics.batteryHeight},
-                       showBatteryPercentage);
+  const int batteryX = pageWidth - 12;
+  GUI.drawBatteryRight(renderer,
+                       Rect{batteryX, metrics.topPadding + 5,
+                            metrics.batteryWidth, metrics.batteryHeight},
+                       showBatteryPercentage, UI_10_FONT_ID,
+                       metrics.batteryWidth, metrics.batteryHeight, false);
 
   const int contentY = metrics.topPadding + metrics.headerHeight;
   const int contentHeight = pageHeight - (contentY + metrics.buttonHintsHeight + metrics.verticalSpacing);
@@ -595,7 +624,11 @@ void SettingsActivity::render(Activity::RenderLock&&) {
           (valueEditMode && row.categoryIndex == valueEditCategoryIndex && row.settingIndex == valueEditSettingIndex)
               ? valueEditDraft
               : SETTINGS.*(setting.valuePtr);
-      valueText = std::to_string(valueToShow);
+      if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
+        valueText = wordSpacingValueLabel(valueToShow);
+      } else {
+        valueText = std::to_string(valueToShow);
+      }
       if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
         valueText += "%";
       }

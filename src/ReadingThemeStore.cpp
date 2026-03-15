@@ -129,7 +129,10 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
       theme.extraParagraphSpacingLevel, 0,
       CrossPointSettings::EXTRA_PARAGRAPH_SPACING_COUNT - 1,
       CrossPointSettings::EXTRA_SPACING_M);
-  settings.wordSpacingPercent = clampRange(theme.wordSpacingPercent, 80, 140, 100);
+  settings.wordSpacingPercent = clampRange(
+      theme.wordSpacingPercent, CrossPointSettings::WORD_SPACING_LEVEL_MIN,
+      CrossPointSettings::WORD_SPACING_LEVEL_MAX,
+      CrossPointSettings::WORD_SPACING_LEVEL_DEFAULT);
   settings.firstLineIndentMode = clampRange(
       theme.firstLineIndentMode, 0,
       CrossPointSettings::FIRST_LINE_INDENT_MODE_COUNT - 1,
@@ -137,7 +140,7 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
   settings.readerStyleMode = clampRange(
       theme.readerStyleMode, 0,
       CrossPointSettings::READER_STYLE_MODE_COUNT - 1,
-      CrossPointSettings::READER_STYLE_HYBRID);
+      CrossPointSettings::READER_STYLE_USER);
   settings.textRenderMode = clampRange(
       theme.textRenderMode, 0,
       CrossPointSettings::TEXT_RENDER_MODE_COUNT - 1,
@@ -407,7 +410,10 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
       theme.extraParagraphSpacingLevel, 0,
       CrossPointSettings::EXTRA_PARAGRAPH_SPACING_COUNT - 1,
       CrossPointSettings::EXTRA_SPACING_M);
-  normalized.wordSpacingPercent = clampRange(theme.wordSpacingPercent, 80, 140, 100);
+  normalized.wordSpacingPercent = clampRange(
+      theme.wordSpacingPercent, CrossPointSettings::WORD_SPACING_LEVEL_MIN,
+      CrossPointSettings::WORD_SPACING_LEVEL_MAX,
+      CrossPointSettings::WORD_SPACING_LEVEL_DEFAULT);
   normalized.firstLineIndentMode = clampRange(
       theme.firstLineIndentMode, 0,
       CrossPointSettings::FIRST_LINE_INDENT_MODE_COUNT - 1,
@@ -415,7 +421,7 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
   normalized.readerStyleMode = clampRange(
       theme.readerStyleMode, 0,
       CrossPointSettings::READER_STYLE_MODE_COUNT - 1,
-      CrossPointSettings::READER_STYLE_HYBRID);
+      CrossPointSettings::READER_STYLE_USER);
   normalized.textRenderMode = clampRange(
       theme.textRenderMode, 0,
       CrossPointSettings::TEXT_RENDER_MODE_COUNT - 1,

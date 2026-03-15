@@ -21,7 +21,16 @@ std::string fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
       CrossPointSettings::fontSizeToPointSize(family, fontSize));
 }
 
-int getValueEditHoldStep(const MappedInputManager& mappedInput) {
+std::string wordSpacingValueLabel(const uint8_t value) {
+  return "L" +
+         std::to_string(CrossPointSettings::wordSpacingDisplayLevel(value));
+}
+
+int getValueEditHoldStep(const MappedInputManager& mappedInput,
+                         const SettingInfo& setting) {
+  if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
+    return 1;
+  }
   return mappedInput.getHeldTime() >= 1200 ? 5 : 1;
 }
 
@@ -174,8 +183,10 @@ std::string ReaderSettingsActivity::currentValueEditText() const {
 
   std::string valueText = std::to_string(valueEditDraft);
   const auto& setting = (*settings)[valueEditSettingIndex];
-  if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent ||
-      setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
+  if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
+    return wordSpacingValueLabel(valueEditDraft);
+  }
+  if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
     valueText += "%";
   }
   return valueText;
@@ -363,11 +374,23 @@ void ReaderSettingsActivity::loop() {
       requestUpdate();
     });
     buttonNavigator.onNextContinuous([this] {
-      adjustValueEdit(+getValueEditHoldStep(mappedInput));
+      const auto* settings = settingsForCategory(valueEditCategoryIndex);
+      if (!settings || valueEditSettingIndex < 0 ||
+          valueEditSettingIndex >= static_cast<int>(settings->size())) {
+        return;
+      }
+      adjustValueEdit(+getValueEditHoldStep(mappedInput,
+                                            (*settings)[valueEditSettingIndex]));
       requestUpdate();
     });
     buttonNavigator.onPreviousContinuous([this] {
-      adjustValueEdit(-getValueEditHoldStep(mappedInput));
+      const auto* settings = settingsForCategory(valueEditCategoryIndex);
+      if (!settings || valueEditSettingIndex < 0 ||
+          valueEditSettingIndex >= static_cast<int>(settings->size())) {
+        return;
+      }
+      adjustValueEdit(-getValueEditHoldStep(mappedInput,
+                                            (*settings)[valueEditSettingIndex]));
       requestUpdate();
     });
     return;
@@ -462,11 +485,16 @@ void ReaderSettingsActivity::render(Activity::RenderLock&&) {
         valueText = I18N.get(setting.enumValues[SETTINGS.*(setting.valuePtr)]);
       }
     } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
-      valueText = std::to_string(
+      const uint8_t valueToShow =
           (valueEditMode && row.categoryIndex == valueEditCategoryIndex &&
            row.settingIndex == valueEditSettingIndex)
               ? valueEditDraft
-              : SETTINGS.*(setting.valuePtr));
+              : SETTINGS.*(setting.valuePtr);
+      if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
+        valueText = wordSpacingValueLabel(valueToShow);
+      } else {
+        valueText = std::to_string(valueToShow);
+      }
       if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
         valueText += "%";
       }

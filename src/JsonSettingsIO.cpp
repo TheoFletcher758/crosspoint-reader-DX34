@@ -130,14 +130,18 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
   theme.extraParagraphSpacingLevel =
       obj["extraParagraphSpacingLevel"] |
       (uint8_t)CrossPointSettings::EXTRA_SPACING_M;
-  theme.wordSpacingPercent = obj["wordSpacingPercent"] | (uint8_t)100;
+  theme.wordSpacingPercent = CrossPointSettings::normalizeWordSpacingSetting(
+      obj["wordSpacingPercent"] |
+      (uint8_t)CrossPointSettings::WORD_SPACING_LEVEL_DEFAULT);
   theme.firstLineIndentMode =
       obj["firstLineIndentMode"] | (uint8_t)CrossPointSettings::INDENT_BOOK;
   theme.readerStyleMode =
       obj["readerStyleMode"] |
-      ((obj["embeddedStyle"] | (uint8_t)1)
-           ? (uint8_t)CrossPointSettings::READER_STYLE_HYBRID
-           : (uint8_t)CrossPointSettings::READER_STYLE_USER);
+      (obj["embeddedStyle"].isNull()
+           ? (uint8_t)CrossPointSettings::READER_STYLE_USER
+           : ((obj["embeddedStyle"] | (uint8_t)0)
+                  ? (uint8_t)CrossPointSettings::READER_STYLE_HYBRID
+                  : (uint8_t)CrossPointSettings::READER_STYLE_USER));
   theme.textRenderMode =
       obj["textRenderMode"] |
       (obj["textAntiAliasing"].isNull()
@@ -690,16 +694,10 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
       *needsResave = true;
   }
   if (!doc["wordSpacingPercent"].isNull()) {
-    const uint8_t parsed = doc["wordSpacingPercent"] | (uint8_t)100;
-    if (parsed < 80) {
-      s.wordSpacingPercent = 80;
-    } else if (parsed > 140) {
-      s.wordSpacingPercent = 140;
-    } else {
-      s.wordSpacingPercent = parsed;
-    }
+    s.wordSpacingPercent = S::normalizeWordSpacingSetting(
+        doc["wordSpacingPercent"] | (uint8_t)S::WORD_SPACING_LEVEL_DEFAULT);
   } else {
-    s.wordSpacingPercent = 100;
+    s.wordSpacingPercent = S::WORD_SPACING_LEVEL_DEFAULT;
     if (needsResave) {
       *needsResave = true;
     }
@@ -708,17 +706,18 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
       doc["firstLineIndentMode"] | (uint8_t)S::INDENT_BOOK,
       S::FIRST_LINE_INDENT_MODE_COUNT, S::INDENT_BOOK);
   if (doc["readerStyleMode"].isNull()) {
-    s.readerStyleMode =
-        (doc["embeddedStyle"] | (uint8_t)1)
-            ? (uint8_t)S::READER_STYLE_HYBRID
-            : (uint8_t)S::READER_STYLE_USER;
+    s.readerStyleMode = doc["embeddedStyle"].isNull()
+                            ? (uint8_t)S::READER_STYLE_USER
+                            : ((doc["embeddedStyle"] | (uint8_t)0)
+                                   ? (uint8_t)S::READER_STYLE_HYBRID
+                                   : (uint8_t)S::READER_STYLE_USER);
     if (needsResave) {
       *needsResave = true;
     }
   } else {
     s.readerStyleMode = clamp(
-        doc["readerStyleMode"] | (uint8_t)S::READER_STYLE_HYBRID,
-        S::READER_STYLE_MODE_COUNT, S::READER_STYLE_HYBRID);
+        doc["readerStyleMode"] | (uint8_t)S::READER_STYLE_USER,
+        S::READER_STYLE_MODE_COUNT, S::READER_STYLE_USER);
   }
   if (doc["textRenderMode"].isNull()) {
     if (doc["textAntiAliasing"].isNull()) {

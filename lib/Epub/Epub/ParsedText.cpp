@@ -11,10 +11,34 @@
 constexpr int MAX_COST = std::numeric_limits<int>::max();
 
 namespace {
+constexpr uint8_t WORD_SPACING_LEVEL_MIN = 0;
+constexpr uint8_t WORD_SPACING_LEVEL_MAX = 6;
+constexpr uint8_t WORD_SPACING_LEVEL_DEFAULT = 3;
 
 // Soft hyphen byte pattern used throughout EPUBs (UTF-8 for U+00AD).
 constexpr char SOFT_HYPHEN_UTF8[] = "\xC2\xAD";
 constexpr size_t SOFT_HYPHEN_BYTES = 2;
+
+uint8_t normalizeWordSpacingSetting(const uint8_t raw) {
+  if (raw <= WORD_SPACING_LEVEL_MAX) {
+    return raw;
+  }
+
+  const int delta = static_cast<int>(raw) - 100;
+  const int roundedDelta = delta >= 0 ? (delta + 5) / 10 : (delta - 5) / 10;
+  int level = static_cast<int>(WORD_SPACING_LEVEL_DEFAULT) + roundedDelta;
+  if (level < static_cast<int>(WORD_SPACING_LEVEL_MIN)) {
+    level = WORD_SPACING_LEVEL_MIN;
+  } else if (level > static_cast<int>(WORD_SPACING_LEVEL_MAX)) {
+    level = WORD_SPACING_LEVEL_MAX;
+  }
+  return static_cast<uint8_t>(level);
+}
+
+int wordSpacingSettingToPixelDelta(const uint8_t raw) {
+  return static_cast<int>(normalizeWordSpacingSetting(raw)) -
+         static_cast<int>(WORD_SPACING_LEVEL_DEFAULT);
+}
 
 bool containsSoftHyphen(const std::string &word) {
   return word.find(SOFT_HYPHEN_UTF8) != std::string::npos;
@@ -98,10 +122,11 @@ void ParsedText::layoutAndExtractLines(
   applyParagraphIndent(renderer, fontId);
 
   const int pageWidth = viewportWidth;
-  const int baseSpaceWidth =
-      (renderer.getSpaceWidth(fontId) * static_cast<int>(wordSpacingPercent)) /
-      100;
-  const int spaceWidth = std::max(0, baseSpaceWidth + blockStyle.wordSpacing);
+  const int baseSpaceWidth = renderer.getSpaceWidth(fontId);
+  const int userSpaceWidth =
+      std::max(1, baseSpaceWidth + wordSpacingSettingToPixelDelta(
+                                      wordSpacingPercent));
+  const int spaceWidth = std::max(0, userSpaceWidth + blockStyle.wordSpacing);
   auto wordWidths = calculateWordWidths(renderer, fontId);
 
   std::vector<size_t> lineBreakIndices = computeLineBreaks(renderer, fontId, pageWidth, spaceWidth, wordWidths, wordContinues);

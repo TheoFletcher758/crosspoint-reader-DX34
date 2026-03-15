@@ -336,11 +336,11 @@ void HomeActivity::render(Activity::RenderLock &&) {
                  nullptr);
   const std::string homeVersionLabel = getHomeHeaderVersionLabel();
   const int versionY = metrics.topPadding + 5;
-  renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding, versionY,
+  renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, versionY,
                     homeVersionLabel.c_str());
 
   int warningBottomY =
-      versionY + renderer.getLineHeight(SMALL_FONT_ID) + 12;
+      versionY + renderer.getLineHeight(UI_10_FONT_ID) + 12;
   if (sleepFavoritesFull) {
     const int warningY = warningBottomY;
     const int warningWidth = pageWidth - metrics.contentSidePadding * 2;

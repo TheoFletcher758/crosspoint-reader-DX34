@@ -5,6 +5,8 @@
 #include <functional>
 #include <vector>
 
+#include "fontIds.h"
+
 class GfxRenderer;
 struct RecentBook;
 
@@ -99,7 +101,11 @@ class BaseTheme {
   virtual void drawBatteryLeft(const GfxRenderer& renderer, Rect rect,
                                bool showPercentage = true) const;  // Left aligned (reader mode)
   virtual void drawBatteryRight(const GfxRenderer& renderer, Rect rect,
-                                bool showPercentage = true) const;  // Right aligned (UI headers)
+                                bool showPercentage = true,
+                                int textFont = SMALL_FONT_ID,
+                                int iconWidth = BaseMetrics::values.batteryWidth,
+                                int iconHeight = BaseMetrics::values.batteryHeight,
+                                bool showIcon = true) const;  // Right aligned (UI headers)
   virtual void drawButtonHints(GfxRenderer& renderer, const char* btn1, const char* btn2, const char* btn3,
                                const char* btn4) const;
   virtual void drawSideButtonHints(const GfxRenderer& renderer, const char* topBtn, const char* bottomBtn) const;

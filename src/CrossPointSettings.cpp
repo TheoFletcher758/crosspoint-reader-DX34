@@ -447,9 +447,10 @@ bool CrossPointSettings::loadFromBinaryFile() {
   fontFamily = normalizeFontFamily(fontFamily);
   fontSize = normalizeFontSizeForFamily(fontFamily, fontSize);
 
-  // Binary settings only store legacy 3-step spacing; map it to percent.
+  // Binary settings only store legacy 3-step line spacing; newer reader
+  // spacing/style settings fall back to their current defaults.
   lineSpacingPercent = legacyLineSpacingToPercent(lineSpacing);
-  wordSpacingPercent = 100;
+  wordSpacingPercent = WORD_SPACING_LEVEL_DEFAULT;
   firstLineIndentMode = INDENT_BOOK;
   readerStyleMode = embeddedStyle ? READER_STYLE_HYBRID : READER_STYLE_USER;
   textRenderMode = textAntiAliasing ? TEXT_RENDER_SMOOTH : TEXT_RENDER_CRISP;
@@ -630,6 +631,35 @@ uint8_t CrossPointSettings::displayIndexToFontSize(const uint8_t family,
   default:
     return X_LARGE;
   }
+}
+
+uint8_t CrossPointSettings::legacyWordSpacingPercentToLevel(
+    const uint8_t percent) {
+  const int delta = static_cast<int>(percent) - 100;
+  const int roundedDelta = delta >= 0 ? (delta + 5) / 10 : (delta - 5) / 10;
+  int level = static_cast<int>(WORD_SPACING_LEVEL_DEFAULT) + roundedDelta;
+  if (level < static_cast<int>(WORD_SPACING_LEVEL_MIN)) {
+    level = WORD_SPACING_LEVEL_MIN;
+  } else if (level > static_cast<int>(WORD_SPACING_LEVEL_MAX)) {
+    level = WORD_SPACING_LEVEL_MAX;
+  }
+  return static_cast<uint8_t>(level);
+}
+
+uint8_t CrossPointSettings::normalizeWordSpacingSetting(const uint8_t raw) {
+  if (raw <= WORD_SPACING_LEVEL_MAX) {
+    return raw;
+  }
+  return legacyWordSpacingPercentToLevel(raw);
+}
+
+uint8_t CrossPointSettings::wordSpacingDisplayLevel(const uint8_t raw) {
+  return static_cast<uint8_t>(normalizeWordSpacingSetting(raw) + 1);
+}
+
+int CrossPointSettings::wordSpacingSettingToPixelDelta(const uint8_t raw) {
+  return static_cast<int>(normalizeWordSpacingSetting(raw)) -
+         static_cast<int>(WORD_SPACING_LEVEL_DEFAULT);
 }
 
 int CrossPointSettings::getReaderFontId() const {

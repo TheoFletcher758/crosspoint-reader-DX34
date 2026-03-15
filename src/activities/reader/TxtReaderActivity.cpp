@@ -309,9 +309,9 @@ int TxtReaderActivity::getReaderLineHeightPx() const {
 
 int TxtReaderActivity::getTxtWordSpaceWidth() const {
   return std::max(
-      0, (renderer.getSpaceWidth(cachedFontId) *
-          static_cast<int>(cachedWordSpacingPercent)) /
-             100);
+      1, renderer.getSpaceWidth(cachedFontId) +
+             CrossPointSettings::wordSpacingSettingToPixelDelta(
+                 cachedWordSpacingPercent));
 }
 
 int TxtReaderActivity::getTxtParagraphIndentPx() const {
@@ -1260,6 +1260,7 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
 
     const bool showBandBattery =
         showBattery &&
+        showBatteryPercentage &&
         (statusBarItemIsTop(SETTINGS.statusBarBatteryPosition) ==
          renderTopBand);
     const bool showBandPageCounter =
@@ -1311,10 +1312,7 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
 
     const int batteryWidth =
         showBandBattery
-            ? (metrics.batteryWidth +
-               (showBatteryPercentage
-                    ? (4 + renderer.getTextWidth(SMALL_FONT_ID, "100%"))
-                    : 0))
+            ? renderer.getTextWidth(SMALL_FONT_ID, "100%")
             : 0;
     int currentX =
         orientedMarginLeft + std::max(0, (usableWidth - batteryWidth) / 2);
@@ -1545,7 +1543,7 @@ bool TxtReaderActivity::loadPageIndexCache() {
   // changes)
   // - uint8_t: paragraph alignment (to invalidate cache on alignment change)
   // - uint8_t: line spacing percent
-  // - uint8_t: word spacing percent
+  // - uint8_t: word spacing level
   // - uint8_t: first-line indent mode
   // - uint32_t: total pages count
   // - N * uint32_t: page offsets
