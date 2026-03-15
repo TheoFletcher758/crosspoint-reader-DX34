@@ -74,6 +74,11 @@ static void renderCharImpl(const GfxRenderer &renderer,
 
   const EpdFontData *fontData = fontFamily.getData(style);
   const bool is2Bit = fontData->is2Bit;
+  const uint8_t extraBoldPasses =
+      renderMode == GfxRenderer::BW
+          ? static_cast<uint8_t>(fontFamily.getSyntheticBoldPasses(style) +
+                                 (renderer.isTextDarkeningEnabled() ? 1 : 0))
+          : 0;
   const uint8_t width = glyph->width;
   const uint8_t height = glyph->height;
   const int left = glyph->left;
@@ -118,8 +123,9 @@ static void renderCharImpl(const GfxRenderer &renderer,
           const uint8_t bmpVal = 3 - ((byte >> bit_index) & 0x3);
 
           if (renderMode == GfxRenderer::BW && bmpVal < 3) {
-            // Black (also paints over the grays in BW mode)
-            renderer.drawPixel(screenX, screenY, pixelState);
+            for (uint8_t pass = 0; pass <= extraBoldPasses; ++pass) {
+              renderer.drawPixel(screenX + pass, screenY, pixelState);
+            }
           } else if (renderMode == GfxRenderer::GRAYSCALE_MSB &&
                      (bmpVal == 1 || bmpVal == 2)) {
             // Light gray (also mark the MSB if it's going to be a dark gray
@@ -150,7 +156,9 @@ static void renderCharImpl(const GfxRenderer &renderer,
           const uint8_t bit_index = 7 - (pixelPosition & 7);
 
           if ((byte >> bit_index) & 1) {
-            renderer.drawPixel(screenX, screenY, pixelState);
+            for (uint8_t pass = 0; pass <= extraBoldPasses; ++pass) {
+              renderer.drawPixel(screenX + pass, screenY, pixelState);
+            }
           }
         }
       }
@@ -205,6 +213,15 @@ int GfxRenderer::getTextWidth(const int fontId, const char *text,
   return w;
 }
 
+int GfxRenderer::getTextWidthSpaced(const int fontId, const char *text,
+                                    const int letterSpacing,
+                                    const EpdFontFamily::Style style) const {
+  if (letterSpacing == 0) {
+    return getTextWidth(fontId, text, style);
+  }
+  return getTextAdvanceXSpaced(fontId, text, letterSpacing, style);
+}
+
 void GfxRenderer::drawCenteredText(const int fontId, const int y,
                                    const char *text, const bool black,
                                    const EpdFontFamily::Style style) const {
@@ -215,6 +232,13 @@ void GfxRenderer::drawCenteredText(const int fontId, const int y,
 void GfxRenderer::drawText(const int fontId, const int x, const int y,
                            const char *text, const bool black,
                            const EpdFontFamily::Style style) const {
+  drawTextSpaced(fontId, x, y, text, 0, black, style);
+}
+
+void GfxRenderer::drawTextSpaced(const int fontId, const int x, const int y,
+                                 const char *text, const int letterSpacing,
+                                 const bool black,
+                                 const EpdFontFamily::Style style) const {
   int yPos = y + getFontAscenderSize(fontId);
   int xpos = x;
 
@@ -238,6 +262,9 @@ void GfxRenderer::drawText(const int fontId, const int x, const int y,
   uint32_t cp;
   while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t **>(&text)))) {
     renderChar(font, cp, &xpos, &yPos, black, style);
+    if (letterSpacing != 0 && text != nullptr && *text != '\0') {
+      xpos += letterSpacing;
+    }
   }
 }
 
@@ -915,6 +942,12 @@ int GfxRenderer::getSpaceWidth(const int fontId,
 
 int GfxRenderer::getTextAdvanceX(const int fontId, const char *text,
                                  const EpdFontFamily::Style style) const {
+  return getTextAdvanceXSpaced(fontId, text, 0, style);
+}
+
+int GfxRenderer::getTextAdvanceXSpaced(const int fontId, const char *text,
+                                       const int letterSpacing,
+                                       const EpdFontFamily::Style style) const {
   const auto fontIt = fontMap.find(fontId);
   if (fontIt == fontMap.end()) {
     LOG_ERR("GFX", "Font %d not found", fontId);
@@ -928,8 +961,12 @@ int GfxRenderer::getTextAdvanceX(const int fontId, const char *text,
     const EpdGlyph *glyph = font.getGlyph(cp, style);
     if (!glyph)
       glyph = font.getGlyph(REPLACEMENT_GLYPH, style);
-    if (glyph)
+    if (glyph) {
       width += glyph->advanceX;
+      if (letterSpacing != 0 && text != nullptr && *text != '\0') {
+        width += letterSpacing;
+      }
+    }
   }
   return width;
 }

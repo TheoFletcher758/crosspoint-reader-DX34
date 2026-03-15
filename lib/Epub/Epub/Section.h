@@ -22,7 +22,9 @@ class Section {
   void writeSectionFileHeader(int fontId, float lineCompression,
                               uint8_t extraParagraphSpacingLevel, uint8_t paragraphAlignment,
                               uint16_t viewportWidth, uint16_t viewportHeight, bool hyphenationEnabled,
-                              bool embeddedStyle, bool readerBoldSwap);
+                              uint8_t wordSpacingPercent,
+                              uint8_t firstLineIndentMode, uint8_t readerStyleMode,
+                              uint8_t textRenderMode, bool readerBoldSwap);
   uint32_t onPageComplete(std::unique_ptr<Page> page);
 
  public:
@@ -37,12 +39,16 @@ class Section {
   ~Section() = default;
   bool loadSectionFile(int fontId, float lineCompression,
                        uint8_t extraParagraphSpacingLevel, uint8_t paragraphAlignment,
-                       uint16_t viewportWidth, uint16_t viewportHeight, bool hyphenationEnabled, bool embeddedStyle,
+                       uint16_t viewportWidth, uint16_t viewportHeight, bool hyphenationEnabled,
+                       uint8_t wordSpacingPercent, uint8_t firstLineIndentMode,
+                       uint8_t readerStyleMode, uint8_t textRenderMode,
                        bool readerBoldSwap);
   bool clearCache() const;
   bool createSectionFile(int fontId, float lineCompression,
                          uint8_t extraParagraphSpacingLevel, uint8_t paragraphAlignment,
-                         uint16_t viewportWidth, uint16_t viewportHeight, bool hyphenationEnabled, bool embeddedStyle,
+                         uint16_t viewportWidth, uint16_t viewportHeight, bool hyphenationEnabled,
+                         uint8_t wordSpacingPercent, uint8_t firstLineIndentMode,
+                         uint8_t readerStyleMode, uint8_t textRenderMode,
                          bool readerBoldSwap, const std::function<void(int)>& progressFn = nullptr);
   std::unique_ptr<Page> loadPageFromSectionFile();
   int getPageForAnchor(const std::string& anchor) const;

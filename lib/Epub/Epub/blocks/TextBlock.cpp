@@ -15,11 +15,14 @@ void TextBlock::render(const GfxRenderer& renderer, const int fontId, const int 
   for (size_t i = 0; i < words.size(); i++) {
     const int wordX = wordXpos[i] + x;
     const EpdFontFamily::Style currentStyle = wordStyles[i];
-    renderer.drawText(fontId, wordX, y, words[i].c_str(), true, currentStyle);
+    renderer.drawTextSpaced(fontId, wordX, y, words[i].c_str(),
+                            blockStyle.letterSpacing, true, currentStyle);
 
     if ((currentStyle & EpdFontFamily::UNDERLINE) != 0) {
       const std::string& w = words[i];
-      const int fullWordWidth = renderer.getTextWidth(fontId, w.c_str(), currentStyle);
+      const int fullWordWidth =
+          renderer.getTextWidthSpaced(fontId, w.c_str(), blockStyle.letterSpacing,
+                                      currentStyle);
       // y is the top of the text line; add ascender to reach baseline, then offset 2px below
       const int underlineY = y + renderer.getFontAscenderSize(fontId) + 2;
 
@@ -30,8 +33,10 @@ void TextBlock::render(const GfxRenderer& renderer, const int fontId, const int 
       if (w.size() >= 3 && static_cast<uint8_t>(w[0]) == 0xE2 && static_cast<uint8_t>(w[1]) == 0x80 &&
           static_cast<uint8_t>(w[2]) == 0x83) {
         const char* visiblePtr = w.c_str() + 3;
-        const int prefixWidth = renderer.getTextAdvanceX(fontId, "\xe2\x80\x83");
-        const int visibleWidth = renderer.getTextWidth(fontId, visiblePtr, currentStyle);
+        const int prefixWidth = renderer.getTextAdvanceXSpaced(
+            fontId, "\xe2\x80\x83", blockStyle.letterSpacing, currentStyle);
+        const int visibleWidth = renderer.getTextWidthSpaced(
+            fontId, visiblePtr, blockStyle.letterSpacing, currentStyle);
         startX = wordX + prefixWidth;
         underlineWidth = visibleWidth;
       }
@@ -67,6 +72,12 @@ bool TextBlock::serialize(FsFile& file) const {
   serialization::writePod(file, blockStyle.paddingRight);
   serialization::writePod(file, blockStyle.textIndent);
   serialization::writePod(file, blockStyle.textIndentDefined);
+  serialization::writePod(file, blockStyle.letterSpacing);
+  serialization::writePod(file, blockStyle.wordSpacing);
+  serialization::writePod(file, blockStyle.lineHeightPercent);
+  serialization::writePod(file, blockStyle.letterSpacingDefined);
+  serialization::writePod(file, blockStyle.wordSpacingDefined);
+  serialization::writePod(file, blockStyle.lineHeightDefined);
 
   return true;
 }
@@ -108,6 +119,12 @@ std::unique_ptr<TextBlock> TextBlock::deserialize(FsFile& file) {
   serialization::readPod(file, blockStyle.paddingRight);
   serialization::readPod(file, blockStyle.textIndent);
   serialization::readPod(file, blockStyle.textIndentDefined);
+  serialization::readPod(file, blockStyle.letterSpacing);
+  serialization::readPod(file, blockStyle.wordSpacing);
+  serialization::readPod(file, blockStyle.lineHeightPercent);
+  serialization::readPod(file, blockStyle.letterSpacingDefined);
+  serialization::readPod(file, blockStyle.wordSpacingDefined);
+  serialization::readPod(file, blockStyle.lineHeightDefined);
 
   return std::unique_ptr<TextBlock>(
       new TextBlock(std::move(words), std::move(wordXpos), std::move(wordStyles), blockStyle));

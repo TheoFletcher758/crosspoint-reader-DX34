@@ -657,6 +657,7 @@ void EpubReaderActivity::loop() {
   } else {
     if (section->currentPage < section->pageCount - 1) {
       section->currentPage++;
+      addSessionPagesRead();
       progressDirty = true;
       lastProgressChangeMs = millis();
       flushProgressIfNeeded(true);
@@ -665,7 +666,12 @@ void EpubReaderActivity::loop() {
       {
         RenderLock lock(*this);
         nextPageNumber = 0;
+        const bool hasNextSection =
+            epub && currentSpineIndex + 1 < epub->getSpineItemsCount();
         currentSpineIndex++;
+        if (hasNextSection) {
+          addSessionPagesRead();
+        }
         saveProgress(currentSpineIndex, nextPageNumber, 1);
         lastSavedSpineIndex = currentSpineIndex;
         lastSavedPage = nextPageNumber;
@@ -1233,7 +1239,9 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
             SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
             SETTINGS.extraParagraphSpacingLevel, SETTINGS.paragraphAlignment,
             viewportWidth, viewportHeight, false,
-            SETTINGS.embeddedStyle, SETTINGS.readerBoldSwap != 0)) {
+            SETTINGS.wordSpacingPercent, SETTINGS.firstLineIndentMode,
+            SETTINGS.readerStyleMode, SETTINGS.textRenderMode,
+            SETTINGS.readerBoldSwap != 0)) {
       LOG_DBG("ERS", "Cache not found, building...");
       builtSection = true;
 
@@ -1246,7 +1254,9 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
               SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
               SETTINGS.extraParagraphSpacingLevel, SETTINGS.paragraphAlignment,
               viewportWidth, viewportHeight, false,
-              SETTINGS.embeddedStyle, SETTINGS.readerBoldSwap != 0, progressFn)) {
+              SETTINGS.wordSpacingPercent, SETTINGS.firstLineIndentMode,
+              SETTINGS.readerStyleMode, SETTINGS.textRenderMode,
+              SETTINGS.readerBoldSwap != 0, progressFn)) {
         LOG_ERR("ERS", "Failed to persist page data to SD");
         section.reset();
         return;
@@ -1437,15 +1447,28 @@ void EpubReaderActivity::flushProgressIfNeeded(const bool force) {
   progressDirty = false;
 }
 
+void EpubReaderActivity::addSessionPagesRead(const uint32_t amount) {
+  APP_STATE.sessionPagesRead += amount;
+}
+
 void EpubReaderActivity::renderContents(std::unique_ptr<Page> page,
                                         const int orientedMarginTop,
                                         const int orientedMarginRight,
                                         const int orientedMarginBottom,
                                         const int orientedMarginLeft,
                                         const StatusBarLayout& statusBarLayout) {
-  // Reader text AA is intentionally disabled: render EPUB pages in BW only.
-  // Force special handling for pages with images when anti-aliasing is on
-  bool imagePageWithAA = page->hasImages() && SETTINGS.textAntiAliasing;
+  const bool smoothText =
+      SETTINGS.textRenderMode ==
+          CrossPointSettings::TEXT_RENDER_SMOOTH &&
+      !page->hasImages();
+  const bool imagePageWithSmooth =
+      page->hasImages() &&
+      SETTINGS.textRenderMode ==
+          CrossPointSettings::TEXT_RENDER_SMOOTH;
+  renderer.setRenderMode(GfxRenderer::BW);
+  renderer.setTextDarkeningEnabled(
+      SETTINGS.textRenderMode ==
+      CrossPointSettings::TEXT_RENDER_DARK);
 
   const int viewportHeight =
       renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom;
@@ -1463,7 +1486,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page,
   renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
                   orientedMarginLeft);
 
-  if (imagePageWithAA) {
+  if (imagePageWithSmooth) {
     // Double FAST_REFRESH with selective image blanking
     int16_t imgX, imgY, imgW, imgH;
     if (page->getImageBoundingBox(imgX, imgY, imgW, imgH)) {
@@ -1487,6 +1510,31 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page,
     renderer.displayBuffer();
     pagesUntilFullRefresh--;
   }
+
+  if (smoothText && renderer.storeBwBuffer()) {
+    renderer.setTextDarkeningEnabled(false);
+    renderer.clearScreen(0x00);
+    renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
+    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft,
+                 contentY);
+    renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
+                    orientedMarginLeft);
+    renderer.copyGrayscaleLsbBuffers();
+
+    renderer.clearScreen(0x00);
+    renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
+    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft,
+                 contentY);
+    renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
+                    orientedMarginLeft);
+    renderer.copyGrayscaleMsbBuffers();
+
+    renderer.displayGrayBuffer();
+    renderer.setRenderMode(GfxRenderer::BW);
+    renderer.restoreBwBuffer();
+  }
+
+  renderer.setTextDarkeningEnabled(false);
 }
 
 void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,

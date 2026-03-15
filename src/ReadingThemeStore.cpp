@@ -74,7 +74,10 @@ ReadingTheme ReadingThemeStore::fromSettings(const std::string& name,
   theme.screenMarginBottom = settings.screenMarginBottom;
   theme.paragraphAlignment = settings.paragraphAlignment;
   theme.extraParagraphSpacingLevel = settings.extraParagraphSpacingLevel;
-  theme.embeddedStyle = settings.embeddedStyle;
+  theme.wordSpacingPercent = settings.wordSpacingPercent;
+  theme.firstLineIndentMode = settings.firstLineIndentMode;
+  theme.readerStyleMode = settings.readerStyleMode;
+  theme.textRenderMode = settings.textRenderMode;
   theme.hyphenationEnabled = settings.hyphenationEnabled;
   theme.statusBarEnabled = settings.statusBarEnabled;
   theme.statusBarShowBattery = settings.statusBarShowBattery;
@@ -126,7 +129,23 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
       theme.extraParagraphSpacingLevel, 0,
       CrossPointSettings::EXTRA_PARAGRAPH_SPACING_COUNT - 1,
       CrossPointSettings::EXTRA_SPACING_M);
-  settings.embeddedStyle = theme.embeddedStyle ? 1 : 0;
+  settings.wordSpacingPercent = clampRange(theme.wordSpacingPercent, 80, 140, 100);
+  settings.firstLineIndentMode = clampRange(
+      theme.firstLineIndentMode, 0,
+      CrossPointSettings::FIRST_LINE_INDENT_MODE_COUNT - 1,
+      CrossPointSettings::INDENT_BOOK);
+  settings.readerStyleMode = clampRange(
+      theme.readerStyleMode, 0,
+      CrossPointSettings::READER_STYLE_MODE_COUNT - 1,
+      CrossPointSettings::READER_STYLE_HYBRID);
+  settings.textRenderMode = clampRange(
+      theme.textRenderMode, 0,
+      CrossPointSettings::TEXT_RENDER_MODE_COUNT - 1,
+      CrossPointSettings::TEXT_RENDER_CRISP);
+  settings.embeddedStyle =
+      settings.readerStyleMode == CrossPointSettings::READER_STYLE_HYBRID ? 1 : 0;
+  settings.textAntiAliasing =
+      settings.textRenderMode == CrossPointSettings::TEXT_RENDER_SMOOTH ? 1 : 0;
   settings.hyphenationEnabled = theme.hyphenationEnabled ? 1 : 0;
   settings.statusBarEnabled = theme.statusBarEnabled ? 1 : 0;
   settings.statusBarShowBattery = theme.statusBarShowBattery ? 1 : 0;
@@ -196,7 +215,10 @@ bool ReadingThemeStore::matchesCurrent(const ReadingTheme& theme) const {
          current.paragraphAlignment == theme.paragraphAlignment &&
          current.extraParagraphSpacingLevel ==
              theme.extraParagraphSpacingLevel &&
-         current.embeddedStyle == theme.embeddedStyle &&
+         current.wordSpacingPercent == theme.wordSpacingPercent &&
+         current.firstLineIndentMode == theme.firstLineIndentMode &&
+         current.readerStyleMode == theme.readerStyleMode &&
+         current.textRenderMode == theme.textRenderMode &&
          current.hyphenationEnabled == theme.hyphenationEnabled &&
          current.statusBarEnabled == theme.statusBarEnabled &&
          current.statusBarShowBattery == theme.statusBarShowBattery &&
@@ -385,7 +407,19 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
       theme.extraParagraphSpacingLevel, 0,
       CrossPointSettings::EXTRA_PARAGRAPH_SPACING_COUNT - 1,
       CrossPointSettings::EXTRA_SPACING_M);
-  normalized.embeddedStyle = theme.embeddedStyle ? 1 : 0;
+  normalized.wordSpacingPercent = clampRange(theme.wordSpacingPercent, 80, 140, 100);
+  normalized.firstLineIndentMode = clampRange(
+      theme.firstLineIndentMode, 0,
+      CrossPointSettings::FIRST_LINE_INDENT_MODE_COUNT - 1,
+      CrossPointSettings::INDENT_BOOK);
+  normalized.readerStyleMode = clampRange(
+      theme.readerStyleMode, 0,
+      CrossPointSettings::READER_STYLE_MODE_COUNT - 1,
+      CrossPointSettings::READER_STYLE_HYBRID);
+  normalized.textRenderMode = clampRange(
+      theme.textRenderMode, 0,
+      CrossPointSettings::TEXT_RENDER_MODE_COUNT - 1,
+      CrossPointSettings::TEXT_RENDER_CRISP);
   normalized.hyphenationEnabled = theme.hyphenationEnabled ? 1 : 0;
   normalized.statusBarEnabled = theme.statusBarEnabled ? 1 : 0;
   normalized.statusBarShowBattery = theme.statusBarShowBattery ? 1 : 0;

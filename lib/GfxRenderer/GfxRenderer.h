@@ -44,6 +44,7 @@ private:
   RenderMode renderMode;
   Orientation orientation;
   bool fadingFix;
+  bool textDarkeningEnabled;
   uint8_t *frameBuffer = nullptr;
   uint8_t *bwBufferChunks[BW_BUFFER_NUM_CHUNKS] = {nullptr};
   std::map<int, EpdFontFamily> fontMap;
@@ -57,7 +58,7 @@ private:
 public:
   explicit GfxRenderer(HalDisplay &halDisplay)
       : display(halDisplay), renderMode(BW), orientation(Portrait),
-        fadingFix(false) {}
+        fadingFix(false), textDarkeningEnabled(false) {}
   ~GfxRenderer() { freeBwBufferChunks(); }
 
   static constexpr int VIEWABLE_MARGIN_TOP = 9;
@@ -127,15 +128,24 @@ public:
   // Text
   int getTextWidth(int fontId, const char *text,
                    EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
+  int getTextWidthSpaced(
+      int fontId, const char *text, int letterSpacing,
+      EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   void
   drawCenteredText(int fontId, int y, const char *text, bool black = true,
                    EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   void drawText(int fontId, int x, int y, const char *text, bool black = true,
                 EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
+  void drawTextSpaced(int fontId, int x, int y, const char *text,
+                      int letterSpacing, bool black = true,
+                      EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   int getSpaceWidth(int fontId,
                     EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   int getTextAdvanceX(
       int fontId, const char *text,
+      EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
+  int getTextAdvanceXSpaced(
+      int fontId, const char *text, int letterSpacing,
       EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   int getFontAscenderSize(int fontId) const;
   int getLineHeight(int fontId) const;
@@ -152,6 +162,10 @@ public:
   // Grayscale functions
   void setRenderMode(const RenderMode mode) { this->renderMode = mode; }
   RenderMode getRenderMode() const { return renderMode; }
+  void setTextDarkeningEnabled(const bool enabled) {
+    textDarkeningEnabled = enabled;
+  }
+  bool isTextDarkeningEnabled() const { return textDarkeningEnabled; }
   void copyGrayscaleLsbBuffers() const;
   void copyGrayscaleMsbBuffers() const;
   void displayGrayBuffer() const;

@@ -154,6 +154,7 @@ void waitForPowerRelease() {
 // Enter deep sleep mode
 void enterDeepSleep() {
   APP_STATE.lastSleepFromReader = currentActivity && currentActivity->isReaderActivity();
+  APP_STATE.sessionPagesRead = 0;
   APP_STATE.saveToFile();
   exitActivity();
   enterNewActivity(new SleepActivity(renderer, mappedInputManager));
@@ -340,6 +341,7 @@ void setup() {
 
   bootActivity->setProgress(32, "Restoring state");
   APP_STATE.loadFromFile();
+  APP_STATE.sessionPagesRead = 0;
   bootActivity->setProgress(56, "Refreshing sleep cache");
   // FORCE trimming early if we were already in an OOM situation from a large playlist
   SleepActivity::trimSleepFolderToLimit();

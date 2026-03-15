@@ -416,6 +416,7 @@ void TxtReaderActivity::loop() {
     requestUpdate();
   } else if (nextTriggered && currentPage < totalPages - 1) {
     currentPage++;
+    APP_STATE.sessionPagesRead++;
     progressDirty = true;
     lastProgressChangeMs = millis();
     flushProgressIfNeeded(true);
@@ -970,6 +971,13 @@ void TxtReaderActivity::renderPage() {
   const StatusBarLayout statusBarLayout =
       buildStatusBarLayout(usableWidth, statusBarTopReserved,
                            statusBarBottomReserved, resolvedTitleLineCount);
+  const bool smoothText =
+      SETTINGS.textRenderMode ==
+      CrossPointSettings::TEXT_RENDER_SMOOTH;
+  renderer.setRenderMode(GfxRenderer::BW);
+  renderer.setTextDarkeningEnabled(
+      SETTINGS.textRenderMode ==
+      CrossPointSettings::TEXT_RENDER_DARK);
 
   // Render text lines with alignment
   auto renderLines = [&]() {
@@ -1019,19 +1027,21 @@ void TxtReaderActivity::renderPage() {
     pagesUntilFullRefresh--;
   }
 
-  // Reader text AA is intentionally disabled (BW only in reader).
-  if (false) {
+  if (smoothText && renderer.storeBwBuffer()) {
     // Save BW buffer for restoration after grayscale pass
-    renderer.storeBwBuffer();
-
+    renderer.setTextDarkeningEnabled(false);
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
     renderLines();
+    renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
+                    orientedMarginLeft);
     renderer.copyGrayscaleLsbBuffers();
 
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
     renderLines();
+    renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
+                    orientedMarginLeft);
     renderer.copyGrayscaleMsbBuffers();
 
     renderer.displayGrayBuffer();
@@ -1040,6 +1050,7 @@ void TxtReaderActivity::renderPage() {
     // Restore BW buffer
     renderer.restoreBwBuffer();
   }
+  renderer.setTextDarkeningEnabled(false);
 }
 
 void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,

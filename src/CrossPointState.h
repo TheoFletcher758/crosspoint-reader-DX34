@@ -20,6 +20,7 @@ class CrossPointState {
   std::string lastSleepWallpaperPath;
   std::vector<std::string> favoriteBmpPaths;
   uint8_t readerActivityLoadCount = 0;
+  uint32_t sessionPagesRead = 0;
   bool lastSleepFromReader = false;
   ~CrossPointState() = default;
 

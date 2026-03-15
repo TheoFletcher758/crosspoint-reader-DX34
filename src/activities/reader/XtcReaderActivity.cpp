@@ -217,9 +217,13 @@ void XtcReaderActivity::loop() {
     flushProgressIfNeeded(true);
     requestUpdate();
   } else if (nextTriggered) {
+    const uint32_t previousPage = currentPage;
     currentPage += skipAmount;
     if (currentPage >= xtc->getPageCount()) {
       currentPage = xtc->getPageCount(); // Allow showing "End of book"
+    }
+    if (currentPage > previousPage) {
+      APP_STATE.sessionPagesRead += currentPage - previousPage;
     }
     progressDirty = true;
     lastProgressChangeMs = millis();

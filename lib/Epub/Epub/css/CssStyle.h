@@ -69,6 +69,9 @@ struct CssPropertyFlags {
   uint16_t paddingBottom : 1;
   uint16_t paddingLeft : 1;
   uint16_t paddingRight : 1;
+  uint16_t lineHeight : 1;
+  uint16_t letterSpacing : 1;
+  uint16_t wordSpacing : 1;
 
   CssPropertyFlags()
       : textAlign(0),
@@ -83,17 +86,22 @@ struct CssPropertyFlags {
         paddingTop(0),
         paddingBottom(0),
         paddingLeft(0),
-        paddingRight(0) {}
+        paddingRight(0),
+        lineHeight(0),
+        letterSpacing(0),
+        wordSpacing(0) {}
 
   [[nodiscard]] bool anySet() const {
     return textAlign || fontStyle || fontWeight || textDecoration || textIndent || marginTop || marginBottom ||
-           marginLeft || marginRight || paddingTop || paddingBottom || paddingLeft || paddingRight;
+           marginLeft || marginRight || paddingTop || paddingBottom || paddingLeft || paddingRight || lineHeight ||
+           letterSpacing || wordSpacing;
   }
 
   void clearAll() {
     textAlign = fontStyle = fontWeight = textDecoration = textIndent = 0;
     marginTop = marginBottom = marginLeft = marginRight = 0;
     paddingTop = paddingBottom = paddingLeft = paddingRight = 0;
+    lineHeight = letterSpacing = wordSpacing = 0;
   }
 };
 
@@ -115,6 +123,9 @@ struct CssStyle {
   CssLength paddingBottom;  // Padding after
   CssLength paddingLeft;    // Padding left
   CssLength paddingRight;   // Padding right
+  CssLength lineHeight;     // Per-paragraph line height
+  CssLength letterSpacing;  // Per-glyph spacing
+  CssLength wordSpacing;    // Additional spacing between words
 
   CssPropertyFlags defined;  // Tracks which properties were explicitly set
 
@@ -173,6 +184,18 @@ struct CssStyle {
       paddingRight = base.paddingRight;
       defined.paddingRight = 1;
     }
+    if (base.hasLineHeight()) {
+      lineHeight = base.lineHeight;
+      defined.lineHeight = 1;
+    }
+    if (base.hasLetterSpacing()) {
+      letterSpacing = base.letterSpacing;
+      defined.letterSpacing = 1;
+    }
+    if (base.hasWordSpacing()) {
+      wordSpacing = base.wordSpacing;
+      defined.wordSpacing = 1;
+    }
   }
 
   [[nodiscard]] bool hasTextAlign() const { return defined.textAlign; }
@@ -188,6 +211,9 @@ struct CssStyle {
   [[nodiscard]] bool hasPaddingBottom() const { return defined.paddingBottom; }
   [[nodiscard]] bool hasPaddingLeft() const { return defined.paddingLeft; }
   [[nodiscard]] bool hasPaddingRight() const { return defined.paddingRight; }
+  [[nodiscard]] bool hasLineHeight() const { return defined.lineHeight; }
+  [[nodiscard]] bool hasLetterSpacing() const { return defined.letterSpacing; }
+  [[nodiscard]] bool hasWordSpacing() const { return defined.wordSpacing; }
 
   void reset() {
     textAlign = CssTextAlign::Left;
@@ -197,6 +223,9 @@ struct CssStyle {
     textIndent = CssLength{};
     marginTop = marginBottom = marginLeft = marginRight = CssLength{};
     paddingTop = paddingBottom = paddingLeft = paddingRight = CssLength{};
+    lineHeight = CssLength{};
+    letterSpacing = CssLength{};
+    wordSpacing = CssLength{};
     defined.clearAll();
   }
 };

@@ -97,6 +97,7 @@ bool ReaderSettingsActivity::isPopupValueSetting(
     return false;
   }
   return setting.valuePtr == &CrossPointSettings::lineSpacingPercent ||
+         setting.valuePtr == &CrossPointSettings::wordSpacingPercent ||
          setting.valuePtr == &CrossPointSettings::screenMarginHorizontal ||
          setting.valuePtr == &CrossPointSettings::screenMarginTop ||
          setting.valuePtr == &CrossPointSettings::screenMarginBottom;
@@ -169,7 +170,8 @@ std::string ReaderSettingsActivity::currentValueEditText() const {
 
   std::string valueText = std::to_string(valueEditDraft);
   const auto& setting = (*settings)[valueEditSettingIndex];
-  if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
+  if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent ||
+      setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
     valueText += "%";
   }
   return valueText;

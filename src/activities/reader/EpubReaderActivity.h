@@ -84,6 +84,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   void reloadCurrentSectionForDisplaySettings();
   void openReaderMenu();
   void toggleReaderBoldSwap();
+  void addSessionPagesRead(uint32_t amount = 1);
 
  public:
   explicit EpubReaderActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::unique_ptr<Epub> epub,

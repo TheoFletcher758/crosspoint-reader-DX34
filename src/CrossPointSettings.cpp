@@ -449,6 +449,10 @@ bool CrossPointSettings::loadFromBinaryFile() {
 
   // Binary settings only store legacy 3-step spacing; map it to percent.
   lineSpacingPercent = legacyLineSpacingToPercent(lineSpacing);
+  wordSpacingPercent = 100;
+  firstLineIndentMode = INDENT_BOOK;
+  readerStyleMode = embeddedStyle ? READER_STYLE_HYBRID : READER_STYLE_USER;
+  textRenderMode = textAntiAliasing ? TEXT_RENDER_SMOOTH : TEXT_RENDER_CRISP;
 
   inputFile.close();
   LOG_DBG("CPS", "Settings loaded from binary file");

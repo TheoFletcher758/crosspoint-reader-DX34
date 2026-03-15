@@ -156,7 +156,10 @@ void ChapterHtmlSlimParser::startNewTextBlock(const BlockStyle& blockStyle) {
 
     makePages();
   }
-  currentTextBlock.reset(new ParsedText(extraParagraphSpacingLevel != 0, hyphenationEnabled, blockStyle));
+  currentTextBlock.reset(
+      new ParsedText(extraParagraphSpacingLevel != 0, hyphenationEnabled,
+                     blockStyle, wordSpacingPercent, firstLineIndentMode,
+                     usePublisherStyles));
 }
 
 void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char* name, const XML_Char** atts) {
@@ -354,9 +357,11 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
 
   // Compute CSS style for this element
   CssStyle cssStyle;
-  if (self->cssParser) {
+  if (self->usePublisherStyles) {
     // Get combined tag + class styles
-    cssStyle = self->cssParser->resolveStyle(name, classAttr);
+    if (self->cssParser) {
+      cssStyle = self->cssParser->resolveStyle(name, classAttr);
+    }
     // Merge inline style (highest priority)
     if (!styleAttr.empty()) {
       CssStyle inlineStyle = CssParser::parseInlineStyle(styleAttr);
@@ -372,7 +377,7 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
     self->currentCssStyle = cssStyle;
     auto headerBlockStyle = BlockStyle::fromCssStyle(cssStyle, emSize, CssTextAlign::Center, self->viewportWidth);
     headerBlockStyle.textAlignDefined = true;
-    if (self->embeddedStyle && cssStyle.hasTextAlign()) {
+    if (self->usePublisherStyles && cssStyle.hasTextAlign()) {
       headerBlockStyle.alignment = cssStyle.textAlign;
     }
     self->startNewTextBlock(headerBlockStyle);
@@ -775,7 +780,8 @@ bool ChapterHtmlSlimParser::parseAndBuildPages() {
 }
 
 void ChapterHtmlSlimParser::addLineToPage(std::shared_ptr<TextBlock> line) {
-  const int lineHeight = renderer.getLineHeight(fontId) * lineCompression;
+  const int baseLineHeight = renderer.getLineHeight(fontId) * lineCompression;
+  const int lineHeight = line->getBlockStyle().resolveLineHeight(baseLineHeight);
 
   if (!currentPage) {
     currentPage.reset(new Page());
@@ -807,10 +813,11 @@ void ChapterHtmlSlimParser::makePages() {
     currentPageNextY = 0;
   }
 
-  const int lineHeight = renderer.getLineHeight(fontId) * lineCompression;
+  const int baseLineHeight = renderer.getLineHeight(fontId) * lineCompression;
 
   // Apply top spacing before the paragraph (stored in pixels)
   const BlockStyle& blockStyle = currentTextBlock->getBlockStyle();
+  const int blockLineHeight = blockStyle.resolveLineHeight(baseLineHeight);
   if (blockStyle.marginTop > 0) {
     currentPageNextY += blockStyle.marginTop;
   }
@@ -839,13 +846,13 @@ void ChapterHtmlSlimParser::makePages() {
   int extraParagraphGap = 0;
   switch (extraParagraphSpacingLevel) {
     case 1: // S
-      extraParagraphGap = lineHeight / 6;
+      extraParagraphGap = blockLineHeight / 6;
       break;
     case 2: // M
-      extraParagraphGap = lineHeight / 4;
+      extraParagraphGap = blockLineHeight / 4;
       break;
     case 3: // L
-      extraParagraphGap = lineHeight / 3;
+      extraParagraphGap = blockLineHeight / 3;
       break;
     case 0: // Off
     default:

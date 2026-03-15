@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 
 #include "Epub/css/CssStyle.h"
@@ -20,13 +21,25 @@ struct BlockStyle {
   int16_t paddingLeft = 0;    // treated same as margin for rendering
   int16_t paddingRight = 0;   // treated same as margin for rendering
   int16_t textIndent = 0;
+  int16_t letterSpacing = 0;
+  int16_t wordSpacing = 0;
+  uint16_t lineHeightPercent = 100;
   bool textIndentDefined = false;  // true if text-indent was explicitly set in CSS
   bool textAlignDefined = false;   // true if text-align was explicitly set in CSS
+  bool letterSpacingDefined = false;
+  bool wordSpacingDefined = false;
+  bool lineHeightDefined = false;
 
   // Combined horizontal insets (margin + padding)
   [[nodiscard]] int16_t leftInset() const { return marginLeft + paddingLeft; }
   [[nodiscard]] int16_t rightInset() const { return marginRight + paddingRight; }
   [[nodiscard]] int16_t totalHorizontalInset() const { return leftInset() + rightInset(); }
+  [[nodiscard]] int resolveLineHeight(const int baseLineHeight) const {
+    if (!lineHeightDefined || lineHeightPercent == 100) {
+      return baseLineHeight;
+    }
+    return std::max(1, (baseLineHeight * static_cast<int>(lineHeightPercent)) / 100);
+  }
 
   // Combine with another block style. Useful for parent -> child styles, where the child style should be
   // applied on top of the parent's style to get the combined style.
@@ -58,6 +71,27 @@ struct BlockStyle {
       combinedBlockStyle.alignment = alignment;
       combinedBlockStyle.textAlignDefined = textAlignDefined;
     }
+    if (child.letterSpacingDefined) {
+      combinedBlockStyle.letterSpacing = child.letterSpacing;
+      combinedBlockStyle.letterSpacingDefined = true;
+    } else {
+      combinedBlockStyle.letterSpacing = letterSpacing;
+      combinedBlockStyle.letterSpacingDefined = letterSpacingDefined;
+    }
+    if (child.wordSpacingDefined) {
+      combinedBlockStyle.wordSpacing = child.wordSpacing;
+      combinedBlockStyle.wordSpacingDefined = true;
+    } else {
+      combinedBlockStyle.wordSpacing = wordSpacing;
+      combinedBlockStyle.wordSpacingDefined = wordSpacingDefined;
+    }
+    if (child.lineHeightDefined) {
+      combinedBlockStyle.lineHeightPercent = child.lineHeightPercent;
+      combinedBlockStyle.lineHeightDefined = true;
+    } else {
+      combinedBlockStyle.lineHeightPercent = lineHeightPercent;
+      combinedBlockStyle.lineHeightDefined = lineHeightDefined;
+    }
     return combinedBlockStyle;
   }
 
@@ -84,6 +118,27 @@ struct BlockStyle {
     if (cssStyle.hasTextIndent() && cssStyle.textIndent.isResolvable(vw)) {
       blockStyle.textIndent = cssStyle.textIndent.toPixelsInt16(emSize, vw);
       blockStyle.textIndentDefined = true;
+    }
+    if (cssStyle.hasLetterSpacing()) {
+      blockStyle.letterSpacing = cssStyle.letterSpacing.toPixelsInt16(emSize);
+      blockStyle.letterSpacingDefined = true;
+    }
+    if (cssStyle.hasWordSpacing()) {
+      blockStyle.wordSpacing = cssStyle.wordSpacing.toPixelsInt16(emSize);
+      blockStyle.wordSpacingDefined = true;
+    }
+    if (cssStyle.hasLineHeight()) {
+      float lineHeightPx = 0.0f;
+      if (cssStyle.lineHeight.unit == CssUnit::Percent) {
+        lineHeightPx = (cssStyle.lineHeight.value * emSize) / 100.0f;
+      } else {
+        lineHeightPx = cssStyle.lineHeight.toPixels(emSize, vw);
+      }
+      if (lineHeightPx > 0.0f && emSize > 0.0f) {
+        blockStyle.lineHeightPercent = static_cast<uint16_t>(
+            std::max(40.0f, std::min(300.0f, (lineHeightPx * 100.0f) / emSize)));
+        blockStyle.lineHeightDefined = true;
+      }
     }
     blockStyle.textAlignDefined = cssStyle.hasTextAlign();
     // User setting overrides CSS, unless "Book's Style" alignment setting is selected

@@ -83,7 +83,14 @@ void writeReadingThemeObject(JsonObject obj, const ReadingTheme& theme) {
   obj["screenMarginBottom"] = theme.screenMarginBottom;
   obj["paragraphAlignment"] = theme.paragraphAlignment;
   obj["extraParagraphSpacingLevel"] = theme.extraParagraphSpacingLevel;
-  obj["embeddedStyle"] = theme.embeddedStyle;
+  obj["wordSpacingPercent"] = theme.wordSpacingPercent;
+  obj["firstLineIndentMode"] = theme.firstLineIndentMode;
+  obj["readerStyleMode"] = theme.readerStyleMode;
+  obj["textRenderMode"] = theme.textRenderMode;
+  obj["embeddedStyle"] =
+      theme.readerStyleMode == CrossPointSettings::READER_STYLE_HYBRID;
+  obj["textAntiAliasing"] =
+      theme.textRenderMode == CrossPointSettings::TEXT_RENDER_SMOOTH;
   obj["hyphenationEnabled"] = theme.hyphenationEnabled;
   obj["statusBarEnabled"] = theme.statusBarEnabled;
   obj["statusBarShowBattery"] = theme.statusBarShowBattery;
@@ -123,7 +130,21 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
   theme.extraParagraphSpacingLevel =
       obj["extraParagraphSpacingLevel"] |
       (uint8_t)CrossPointSettings::EXTRA_SPACING_M;
-  theme.embeddedStyle = obj["embeddedStyle"] | (uint8_t)1;
+  theme.wordSpacingPercent = obj["wordSpacingPercent"] | (uint8_t)100;
+  theme.firstLineIndentMode =
+      obj["firstLineIndentMode"] | (uint8_t)CrossPointSettings::INDENT_BOOK;
+  theme.readerStyleMode =
+      obj["readerStyleMode"] |
+      ((obj["embeddedStyle"] | (uint8_t)1)
+           ? (uint8_t)CrossPointSettings::READER_STYLE_HYBRID
+           : (uint8_t)CrossPointSettings::READER_STYLE_USER);
+  theme.textRenderMode =
+      obj["textRenderMode"] |
+      (obj["textAntiAliasing"].isNull()
+           ? (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP
+           : ((obj["textAntiAliasing"] | (uint8_t)0)
+                  ? (uint8_t)CrossPointSettings::TEXT_RENDER_SMOOTH
+                  : (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP));
   theme.hyphenationEnabled = obj["hyphenationEnabled"] | (uint8_t)0;
   theme.statusBarEnabled = obj["statusBarEnabled"] | (uint8_t)1;
   theme.statusBarShowBattery = obj["statusBarShowBattery"] | (uint8_t)1;
@@ -359,6 +380,7 @@ bool JsonSettingsIO::saveState(const CrossPointState &s, const char *path) {
   doc["lastShownSleepFilename"] = s.lastShownSleepFilename;
   doc["lastSleepWallpaperPath"] = s.lastSleepWallpaperPath;
   doc["readerActivityLoadCount"] = s.readerActivityLoadCount;
+  doc["sessionPagesRead"] = s.sessionPagesRead;
   doc["lastSleepFromReader"] = s.lastSleepFromReader;
   // Only persist the playlist for small collections. Large collections track
   // position by filename alone to avoid heap exhaustion and huge state files.
@@ -391,6 +413,7 @@ bool JsonSettingsIO::loadState(CrossPointState &s, const char *json) {
   s.lastShownSleepFilename = doc["lastShownSleepFilename"] | std::string("");
   s.lastSleepWallpaperPath = doc["lastSleepWallpaperPath"] | std::string("");
   s.readerActivityLoadCount = doc["readerActivityLoadCount"] | (uint8_t)0;
+  s.sessionPagesRead = doc["sessionPagesRead"] | (uint32_t)0;
   s.lastSleepFromReader = doc["lastSleepFromReader"] | false;
   s.sleepImagePlaylist.clear();
   if (doc["sleepImagePlaylist"].is<JsonArray>()) {
@@ -454,7 +477,12 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   // Legacy compatibility key for older builds that still expect a toggle.
   doc["extraParagraphSpacing"] =
       s.extraParagraphSpacingLevel != CrossPointSettings::EXTRA_SPACING_OFF;
-  doc["textAntiAliasing"] = s.textAntiAliasing;
+  doc["wordSpacingPercent"] = s.wordSpacingPercent;
+  doc["firstLineIndentMode"] = s.firstLineIndentMode;
+  doc["readerStyleMode"] = s.readerStyleMode;
+  doc["textRenderMode"] = s.textRenderMode;
+  doc["textAntiAliasing"] =
+      s.textRenderMode == CrossPointSettings::TEXT_RENDER_SMOOTH;
   doc["shortPwrBtn"] = s.shortPwrBtn;
   doc["orientation"] = s.orientation;
   doc["sideButtonLayout"] = s.sideButtonLayout;
@@ -481,7 +509,8 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["hyphenationEnabled"] = s.hyphenationEnabled;
   doc["readerBoldSwap"] = s.readerBoldSwap;
   doc["fadingFix"] = s.fadingFix;
-  doc["embeddedStyle"] = s.embeddedStyle;
+  doc["embeddedStyle"] =
+      s.readerStyleMode == CrossPointSettings::READER_STYLE_HYBRID;
   doc["debugBorders"] = s.debugBorders;
 
   String json;
@@ -660,7 +689,56 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
     if (needsResave)
       *needsResave = true;
   }
-  s.textAntiAliasing = doc["textAntiAliasing"] | (uint8_t)1;
+  if (!doc["wordSpacingPercent"].isNull()) {
+    const uint8_t parsed = doc["wordSpacingPercent"] | (uint8_t)100;
+    if (parsed < 80) {
+      s.wordSpacingPercent = 80;
+    } else if (parsed > 140) {
+      s.wordSpacingPercent = 140;
+    } else {
+      s.wordSpacingPercent = parsed;
+    }
+  } else {
+    s.wordSpacingPercent = 100;
+    if (needsResave) {
+      *needsResave = true;
+    }
+  }
+  s.firstLineIndentMode = clamp(
+      doc["firstLineIndentMode"] | (uint8_t)S::INDENT_BOOK,
+      S::FIRST_LINE_INDENT_MODE_COUNT, S::INDENT_BOOK);
+  if (doc["readerStyleMode"].isNull()) {
+    s.readerStyleMode =
+        (doc["embeddedStyle"] | (uint8_t)1)
+            ? (uint8_t)S::READER_STYLE_HYBRID
+            : (uint8_t)S::READER_STYLE_USER;
+    if (needsResave) {
+      *needsResave = true;
+    }
+  } else {
+    s.readerStyleMode = clamp(
+        doc["readerStyleMode"] | (uint8_t)S::READER_STYLE_HYBRID,
+        S::READER_STYLE_MODE_COUNT, S::READER_STYLE_HYBRID);
+  }
+  if (doc["textRenderMode"].isNull()) {
+    if (doc["textAntiAliasing"].isNull()) {
+      s.textRenderMode = (uint8_t)S::TEXT_RENDER_CRISP;
+    } else {
+      s.textRenderMode =
+          (doc["textAntiAliasing"] | (uint8_t)0)
+              ? (uint8_t)S::TEXT_RENDER_SMOOTH
+              : (uint8_t)S::TEXT_RENDER_CRISP;
+    }
+    if (needsResave) {
+      *needsResave = true;
+    }
+  } else {
+    s.textRenderMode = clamp(
+        doc["textRenderMode"] | (uint8_t)S::TEXT_RENDER_CRISP,
+        S::TEXT_RENDER_MODE_COUNT, S::TEXT_RENDER_CRISP);
+  }
+  s.textAntiAliasing =
+      s.textRenderMode == S::TEXT_RENDER_SMOOTH ? (uint8_t)1 : (uint8_t)0;
   s.shortPwrBtn = clamp(doc["shortPwrBtn"] | (uint8_t)S::IGNORE,
                         S::SHORT_PWRBTN_COUNT, S::IGNORE);
   s.orientation = clamp(doc["orientation"] | (uint8_t)S::PORTRAIT,
@@ -741,7 +819,8 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
   s.hyphenationEnabled = doc["hyphenationEnabled"] | (uint8_t)0;
   s.readerBoldSwap = doc["readerBoldSwap"] | (uint8_t)0;
   s.fadingFix = doc["fadingFix"] | (uint8_t)0;
-  s.embeddedStyle = doc["embeddedStyle"] | (uint8_t)1;
+  s.embeddedStyle =
+      s.readerStyleMode == S::READER_STYLE_HYBRID ? (uint8_t)1 : (uint8_t)0;
   s.debugBorders = doc["debugBorders"] | (uint8_t)0;
 
   const char *url = doc["opdsServerUrl"] | "";

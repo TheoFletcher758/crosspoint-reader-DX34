@@ -33,13 +33,15 @@ void stripSoftHyphensInPlace(std::string &word) {
 uint16_t measureWordWidth(const GfxRenderer &renderer, const int fontId,
                           const std::string &word,
                           const EpdFontFamily::Style style,
+                          const int letterSpacing,
                           const bool appendHyphen = false) {
   if (word.size() == 1 && word[0] == ' ' && !appendHyphen) {
     return renderer.getSpaceWidth(fontId);
   }
   const bool hasSoftHyphen = containsSoftHyphen(word);
   if (!hasSoftHyphen && !appendHyphen) {
-    return renderer.getTextWidth(fontId, word.c_str(), style);
+    return renderer.getTextWidthSpaced(fontId, word.c_str(), letterSpacing,
+                                       style);
   }
 
   std::string sanitized = word;
@@ -49,7 +51,21 @@ uint16_t measureWordWidth(const GfxRenderer &renderer, const int fontId,
   if (appendHyphen) {
     sanitized.push_back('-');
   }
-  return renderer.getTextWidth(fontId, sanitized.c_str(), style);
+  return renderer.getTextWidthSpaced(fontId, sanitized.c_str(), letterSpacing,
+                                     style);
+}
+
+float indentMultiplierForMode(const uint8_t indentMode) {
+  switch (indentMode) {
+  case 2:
+    return 0.6f;
+  case 3:
+    return 1.0f;
+  case 4:
+    return 1.4f;
+  default:
+    return 0.0f;
+  }
 }
 
 } // namespace
@@ -79,10 +95,13 @@ void ParsedText::layoutAndExtractLines(
   }
 
   // Apply fixed transforms before any per-line layout work.
-  applyParagraphIndent();
+  applyParagraphIndent(renderer, fontId);
 
   const int pageWidth = viewportWidth;
-  const int spaceWidth = renderer.getSpaceWidth(fontId);
+  const int baseSpaceWidth =
+      (renderer.getSpaceWidth(fontId) * static_cast<int>(wordSpacingPercent)) /
+      100;
+  const int spaceWidth = std::max(0, baseSpaceWidth + blockStyle.wordSpacing);
   auto wordWidths = calculateWordWidths(renderer, fontId);
 
   std::vector<size_t> lineBreakIndices = computeLineBreaks(renderer, fontId, pageWidth, spaceWidth, wordWidths, wordContinues);
@@ -111,7 +130,8 @@ ParsedText::calculateWordWidths(const GfxRenderer &renderer, const int fontId) {
 
   for (size_t i = 0; i < words.size(); ++i) {
     wordWidths.push_back(
-        measureWordWidth(renderer, fontId, words[i], wordStyles[i]));
+        measureWordWidth(renderer, fontId, words[i], wordStyles[i],
+                         blockStyle.letterSpacing));
   }
 
   return wordWidths;
@@ -231,12 +251,28 @@ ParsedText::computeLineBreaks(const GfxRenderer &renderer, const int fontId,
   return lineBreakIndices;
 }
 
-void ParsedText::applyParagraphIndent() {
+void ParsedText::applyParagraphIndent(const GfxRenderer &renderer,
+                                      const int fontId) {
   if (words.empty()) {
     return;
   }
 
-  if (blockStyle.textIndentDefined) {
+  if (firstLineIndentMode == 1) {
+    blockStyle.textIndent = 0;
+    blockStyle.textIndentDefined = true;
+    return;
+  }
+
+  const float forcedIndentMultiplier = indentMultiplierForMode(firstLineIndentMode);
+  if (forcedIndentMultiplier > 0.0f) {
+    const int emWidth = renderer.getTextAdvanceX(fontId, "\xe2\x80\x83");
+    blockStyle.textIndent = static_cast<int16_t>(
+        std::lround(static_cast<float>(emWidth) * forcedIndentMultiplier));
+    blockStyle.textIndentDefined = true;
+    return;
+  }
+
+  if (blockStyle.textIndentDefined && usePublisherStyles) {
     // CSS text-indent is explicitly set (even if 0) - don't use fallback
     // EmSpace The actual indent positioning is handled in extractLine()
   } else if (blockStyle.alignment == CssTextAlign::Justify ||

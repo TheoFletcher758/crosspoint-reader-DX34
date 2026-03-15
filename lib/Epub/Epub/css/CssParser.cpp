@@ -252,6 +252,32 @@ void CssParser::parseDeclarationIntoStyle(const std::string& decl, CssStyle& sty
   } else if (propNameBuf == "text-indent") {
     style.textIndent = interpretLength(propValueBuf);
     style.defined.textIndent = 1;
+  } else if (propNameBuf == "line-height") {
+    if (propValueBuf == "normal") {
+      style.lineHeight = CssLength(1.2f, CssUnit::Em);
+    } else {
+      CssLength interpreted = interpretLength(propValueBuf);
+      if (interpreted.unit == CssUnit::Pixels &&
+          propValueBuf.find_first_not_of("+-0123456789.") == std::string::npos) {
+        interpreted.unit = CssUnit::Em;
+      }
+      style.lineHeight = interpreted;
+    }
+    style.defined.lineHeight = 1;
+  } else if (propNameBuf == "letter-spacing") {
+    if (propValueBuf == "normal") {
+      style.letterSpacing = CssLength{};
+    } else {
+      style.letterSpacing = interpretLength(propValueBuf);
+    }
+    style.defined.letterSpacing = 1;
+  } else if (propNameBuf == "word-spacing") {
+    if (propValueBuf == "normal") {
+      style.wordSpacing = CssLength{};
+    } else {
+      style.wordSpacing = interpretLength(propValueBuf);
+    }
+    style.defined.wordSpacing = 1;
   } else if (propNameBuf == "margin-top") {
     style.marginTop = interpretLength(propValueBuf);
     style.defined.marginTop = 1;
@@ -562,7 +588,7 @@ CssStyle CssParser::parseInlineStyle(const std::string& styleValue) { return par
 // Cache serialization
 
 // Cache format version - increment when format changes
-constexpr uint8_t CSS_CACHE_VERSION = 2;
+constexpr uint8_t CSS_CACHE_VERSION = 3;
 constexpr char rulesCache[] = "/css_rules.cache";
 
 bool CssParser::hasCache() const { return Storage.exists((cachePath + rulesCache).c_str()); }
@@ -617,6 +643,9 @@ bool CssParser::saveToCache() const {
     writeLength(style.paddingBottom);
     writeLength(style.paddingLeft);
     writeLength(style.paddingRight);
+    writeLength(style.lineHeight);
+    writeLength(style.letterSpacing);
+    writeLength(style.wordSpacing);
 
     // Write defined flags as uint16_t
     uint16_t definedBits = 0;
@@ -633,6 +662,9 @@ bool CssParser::saveToCache() const {
     if (style.defined.paddingBottom) definedBits |= 1 << 10;
     if (style.defined.paddingLeft) definedBits |= 1 << 11;
     if (style.defined.paddingRight) definedBits |= 1 << 12;
+    if (style.defined.lineHeight) definedBits |= 1 << 13;
+    if (style.defined.letterSpacing) definedBits |= 1 << 14;
+    if (style.defined.wordSpacing) definedBits |= 1 << 15;
     file.write(reinterpret_cast<const uint8_t*>(&definedBits), sizeof(definedBits));
   }
 
@@ -734,7 +766,8 @@ bool CssParser::loadFromCache() {
 
     if (!readLength(style.textIndent) || !readLength(style.marginTop) || !readLength(style.marginBottom) ||
         !readLength(style.marginLeft) || !readLength(style.marginRight) || !readLength(style.paddingTop) ||
-        !readLength(style.paddingBottom) || !readLength(style.paddingLeft) || !readLength(style.paddingRight)) {
+        !readLength(style.paddingBottom) || !readLength(style.paddingLeft) || !readLength(style.paddingRight) ||
+        !readLength(style.lineHeight) || !readLength(style.letterSpacing) || !readLength(style.wordSpacing)) {
       rulesBySelector_.clear();
       file.close();
       return false;
@@ -760,6 +793,9 @@ bool CssParser::loadFromCache() {
     style.defined.paddingBottom = (definedBits & 1 << 10) != 0;
     style.defined.paddingLeft = (definedBits & 1 << 11) != 0;
     style.defined.paddingRight = (definedBits & 1 << 12) != 0;
+    style.defined.lineHeight = (definedBits & 1 << 13) != 0;
+    style.defined.letterSpacing = (definedBits & 1 << 14) != 0;
+    style.defined.wordSpacing = (definedBits & 1 << 15) != 0;
 
     rulesBySelector_[selector] = style;
   }

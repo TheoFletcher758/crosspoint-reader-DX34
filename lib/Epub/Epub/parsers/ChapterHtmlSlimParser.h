@@ -45,8 +45,10 @@ class ChapterHtmlSlimParser {
   uint16_t viewportWidth;
   uint16_t viewportHeight;
   bool hyphenationEnabled;
+  uint8_t wordSpacingPercent;
+  uint8_t firstLineIndentMode;
+  bool usePublisherStyles;
   const CssParser* cssParser;
-  bool embeddedStyle;
   std::string contentBase;
   std::string imageBasePath;
   int imageCounter = 0;
@@ -84,9 +86,12 @@ class ChapterHtmlSlimParser {
                                  const uint8_t extraParagraphSpacingLevel,
                                  const uint8_t paragraphAlignment, const uint16_t viewportWidth,
                                  const uint16_t viewportHeight, const bool hyphenationEnabled,
+                                 const uint8_t wordSpacingPercent,
+                                 const uint8_t firstLineIndentMode,
+                                 const bool usePublisherStyles,
                                  const std::function<void(std::unique_ptr<Page>)>& completePageFn,
                                  const std::function<void(const std::string&, uint16_t)>& anchorPageFn,
-                                 const bool embeddedStyle, const std::string& contentBase,
+                                 const std::string& contentBase,
                                  const std::string& imageBasePath, const std::function<void(int)>& progressFn = nullptr,
                                  const CssParser* cssParser = nullptr)
 
@@ -100,11 +105,13 @@ class ChapterHtmlSlimParser {
         viewportWidth(viewportWidth),
         viewportHeight(viewportHeight),
         hyphenationEnabled(hyphenationEnabled),
+        wordSpacingPercent(wordSpacingPercent),
+        firstLineIndentMode(firstLineIndentMode),
+        usePublisherStyles(usePublisherStyles),
         completePageFn(completePageFn),
         anchorPageFn(anchorPageFn),
         progressFn(progressFn),
         cssParser(cssParser),
-        embeddedStyle(embeddedStyle),
         contentBase(contentBase),
         imageBasePath(imageBasePath) {}
 

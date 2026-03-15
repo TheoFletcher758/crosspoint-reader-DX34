@@ -312,6 +312,14 @@ void HomeActivity::render(Activity::RenderLock &&) {
     warningBottomY = warningY + renderer.getLineHeight(SMALL_FONT_ID) + 4;
   }
 
+  const int sessionStatY = warningBottomY + 4;
+  const std::string sessionPagesText =
+      std::string(tr(STR_SESSION_PAGES)) + ": " +
+      std::to_string(APP_STATE.sessionPagesRead);
+  renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding, sessionStatY,
+                    sessionPagesText.c_str());
+  warningBottomY = sessionStatY + renderer.getLineHeight(SMALL_FONT_ID) + 6;
+
   // Build menu items dynamically
   std::vector<const char *> menuItems = {
       tr(STR_BROWSE_FILES), tr(STR_FILE_TRANSFER), tr(STR_SETTINGS_TITLE)};

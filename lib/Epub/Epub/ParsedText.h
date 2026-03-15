@@ -18,8 +18,11 @@ class ParsedText {
   std::vector<bool> wordContinues;  // true = word attaches to previous (no space before it)
   BlockStyle blockStyle;
   bool extraParagraphSpacing;
+  uint8_t wordSpacingPercent;
+  uint8_t firstLineIndentMode;
+  bool usePublisherStyles;
 
-  void applyParagraphIndent();
+  void applyParagraphIndent(const GfxRenderer& renderer, int fontId);
   std::vector<size_t> computeLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth, int spaceWidth,
                                         std::vector<uint16_t>& wordWidths, std::vector<bool>& continuesVec);
   void extractLine(size_t breakIndex, int pageWidth, int spaceWidth, const std::vector<uint16_t>& wordWidths,
@@ -29,8 +32,13 @@ class ParsedText {
 
  public:
   explicit ParsedText(const bool extraParagraphSpacing, const bool /*hyphenationEnabled*/ = false,
-                      const BlockStyle& blockStyle = BlockStyle())
-      : blockStyle(blockStyle), extraParagraphSpacing(extraParagraphSpacing) {}
+                      const BlockStyle& blockStyle = BlockStyle(), const uint8_t wordSpacingPercent = 100,
+                      const uint8_t firstLineIndentMode = 0, const bool usePublisherStyles = true)
+      : blockStyle(blockStyle),
+        extraParagraphSpacing(extraParagraphSpacing),
+        wordSpacingPercent(wordSpacingPercent),
+        firstLineIndentMode(firstLineIndentMode),
+        usePublisherStyles(usePublisherStyles) {}
   ~ParsedText() = default;
 
   void addWord(std::string word, EpdFontFamily::Style fontStyle, bool underline = false, bool attachToPrevious = false);

@@ -17,7 +17,10 @@ struct ReadingTheme {
   uint8_t screenMarginBottom = 20;
   uint8_t paragraphAlignment = CrossPointSettings::JUSTIFIED;
   uint8_t extraParagraphSpacingLevel = CrossPointSettings::EXTRA_SPACING_M;
-  uint8_t embeddedStyle = 1;
+  uint8_t wordSpacingPercent = 100;
+  uint8_t firstLineIndentMode = CrossPointSettings::INDENT_BOOK;
+  uint8_t readerStyleMode = CrossPointSettings::READER_STYLE_HYBRID;
+  uint8_t textRenderMode = CrossPointSettings::TEXT_RENDER_CRISP;
   uint8_t hyphenationEnabled = 0;
   uint8_t statusBarEnabled = 1;
   uint8_t statusBarShowBattery = 1;

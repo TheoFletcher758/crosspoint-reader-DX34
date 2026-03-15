@@ -155,6 +155,25 @@ public:
     BOOK_STYLE = 4,
     PARAGRAPH_ALIGNMENT_COUNT
   };
+  enum FIRST_LINE_INDENT_MODE {
+    INDENT_BOOK = 0,
+    INDENT_OFF = 1,
+    INDENT_SMALL = 2,
+    INDENT_MEDIUM = 3,
+    INDENT_LARGE = 4,
+    FIRST_LINE_INDENT_MODE_COUNT
+  };
+  enum READER_STYLE_MODE {
+    READER_STYLE_USER = 0,
+    READER_STYLE_HYBRID = 1,
+    READER_STYLE_MODE_COUNT
+  };
+  enum TEXT_RENDER_MODE {
+    TEXT_RENDER_CRISP = 0,
+    TEXT_RENDER_DARK = 1,
+    TEXT_RENDER_SMOOTH = 2,
+    TEXT_RENDER_MODE_COUNT
+  };
   enum EXTRA_PARAGRAPH_SPACING_LEVEL {
     EXTRA_SPACING_OFF = 0,
     EXTRA_SPACING_S = 1,
@@ -232,6 +251,11 @@ public:
   uint8_t statusBarProgressStyle = STATUS_BAR_THICK;
   // Text rendering settings
   uint8_t extraParagraphSpacingLevel = EXTRA_SPACING_M;
+  uint8_t wordSpacingPercent = 100;
+  uint8_t firstLineIndentMode = INDENT_BOOK;
+  uint8_t readerStyleMode = READER_STYLE_HYBRID;
+  uint8_t textRenderMode = TEXT_RENDER_CRISP;
+  // Legacy compatibility field migrated into textRenderMode.
   uint8_t textAntiAliasing = 1;
   // Short power button click behaviour
   uint8_t shortPwrBtn = IGNORE;
@@ -282,8 +306,7 @@ public:
   uint8_t longPressChapterSkip = 1;
   // Sunlight fading compensation
   uint8_t fadingFix = 0;
-  // Use book's embedded CSS styles for EPUB rendering (1 = enabled, 0 =
-  // disabled)
+  // Legacy compatibility field migrated into readerStyleMode.
   uint8_t embeddedStyle = 1;
   // Draw dotted debug borders around reader and status bar viewports
   uint8_t debugBorders = 0;
