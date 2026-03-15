@@ -126,11 +126,9 @@ public:
     LEGACY_REMOVED_FAMILY_2 = 3,
     FONT_FAMILY_COUNT
   };
-  // Reader font sizes are family-dependent:
-  // ChareInk uses 13, 14, 15, 16, 17, 18, and 19.
-  // Bookerly uses 17, 18, and 19.
-  // The enum keeps the legacy FREESERIF slot so older saved settings still map
-  // into the current serif family.
+  // Reader font sizes use ChareInk only.
+  // Legacy family enum values stay available so older saved settings can still
+  // deserialize and normalize safely back to ChareInk.
   enum FONT_SIZE {
     MEDIUM = 0,   // legacy 15 -> normalize to 16
     LARGE = 1,    // legacy 17

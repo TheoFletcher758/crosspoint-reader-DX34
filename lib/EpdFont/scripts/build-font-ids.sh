@@ -8,10 +8,6 @@ font_id() {
   ruby -rdigest -e 'puts(ARGV.map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16)}.sum % (2**32) - (2**31))' "$@"
 }
 
-echo "#define FREESERIF_19_FONT_ID ($(font_id ./freeserif_19_regular.h ./freeserif_19_bold.h ./freeserif_19_italic.h))"
-echo "#define FREESERIF_21_FONT_ID ($(font_id ./freeserif_21_regular.h ./freeserif_21_bold.h ./freeserif_21_italic.h))"
-echo "#define FREESERIF_23_FONT_ID ($(font_id ./freeserif_23_regular.h ./freeserif_23_bold.h ./freeserif_23_italic.h))"
-echo ""
 echo "#define CHAREINK_13_FONT_ID ($(font_id ./chareink_13_regular.h ./chareink_13_bold.h ./chareink_13_italic.h))"
 echo "#define CHAREINK_14_FONT_ID ($(font_id ./chareink_14_regular.h ./chareink_14_bold.h ./chareink_14_italic.h))"
 echo "#define CHAREINK_15_FONT_ID ($(font_id ./chareink_15_regular.h ./chareink_15_bold.h ./chareink_15_italic.h))"

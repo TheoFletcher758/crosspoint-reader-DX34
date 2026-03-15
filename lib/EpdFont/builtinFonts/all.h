@@ -22,16 +22,6 @@
 #include <builtinFonts/chareink_19_bold.h>
 #include <builtinFonts/chareink_19_italic.h>
 
-#include <builtinFonts/bookerly_17_regular.h>
-#include <builtinFonts/bookerly_17_bold.h>
-#include <builtinFonts/bookerly_17_italic.h>
-#include <builtinFonts/bookerly_18_regular.h>
-#include <builtinFonts/bookerly_18_bold.h>
-#include <builtinFonts/bookerly_18_italic.h>
-#include <builtinFonts/bookerly_19_regular.h>
-#include <builtinFonts/bookerly_19_bold.h>
-#include <builtinFonts/bookerly_19_italic.h>
-
 #include <builtinFonts/unifont_14_regular.h>
 #include <builtinFonts/unifont_18_regular.h>
 

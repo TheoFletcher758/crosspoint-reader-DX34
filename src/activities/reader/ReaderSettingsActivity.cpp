@@ -26,21 +26,8 @@ int getValueEditHoldStep(const MappedInputManager& mappedInput) {
 }
 
 int readerFontIdFor(const uint8_t family, const uint8_t fontSize) {
-  const uint8_t normalizedFamily =
-      CrossPointSettings::normalizeFontFamily(family);
   const uint8_t normalizedFontSize =
       CrossPointSettings::normalizeFontSizeForFamily(family, fontSize);
-  if (normalizedFamily == CrossPointSettings::FREESERIF) {
-    switch (normalizedFontSize) {
-      case CrossPointSettings::MEDIUM:
-        return FREESERIF_19_FONT_ID;
-      case CrossPointSettings::LARGE:
-        return FREESERIF_21_FONT_ID;
-      case CrossPointSettings::X_LARGE:
-      default:
-        return FREESERIF_23_FONT_ID;
-    }
-  }
 
   switch (normalizedFontSize) {
     case CrossPointSettings::SIZE_13:
@@ -58,7 +45,7 @@ int readerFontIdFor(const uint8_t family, const uint8_t fontSize) {
     case CrossPointSettings::X_LARGE:
     default:
       return CHAREINK_19_FONT_ID;
-  }
+    }
 }
 }  // namespace
 
