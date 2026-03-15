@@ -128,9 +128,9 @@ public:
   };
   // Reader font sizes are family-dependent:
   // ChareInk uses 13, 14, 15, 16, 17, 18, and 19.
-  // FreeSerif uses 19, 21, and 23.
-  // The FreeSerif family reuses the former Bookerly enum value so older saved
-  // settings migrate into the new serif family automatically.
+  // Bookerly uses 17, 18, and 19.
+  // The enum keeps the legacy FREESERIF slot so older saved settings still map
+  // into the current serif family.
   enum FONT_SIZE {
     MEDIUM = 0,   // legacy 15 -> normalize to 16
     LARGE = 1,    // legacy 17

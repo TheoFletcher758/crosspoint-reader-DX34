@@ -612,12 +612,12 @@ uint8_t CrossPointSettings::fontSizeToPointSize(const uint8_t family,
   }
   switch (normalizeFontSizeForFamily(family, fontSize)) {
   case MEDIUM:
-    return 19;
+    return 17;
   case LARGE:
-    return 21;
+    return 18;
   case X_LARGE:
   default:
-    return 23;
+    return 19;
   }
 }
 
