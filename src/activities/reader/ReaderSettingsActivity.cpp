@@ -49,6 +49,10 @@ int readerFontIdFor(const uint8_t family, const uint8_t fontSize) {
 }
 }  // namespace
 
+bool ReaderSettingsActivity::isTxtContext() const {
+  return bookCachePath.find("/txt_") != std::string::npos;
+}
+
 void ReaderSettingsActivity::persistSettings(const char* context) {
   if (!SETTINGS.saveToFile()) {
     LOG_ERR("RSET", "Failed to save settings (%s)", context);
@@ -189,14 +193,28 @@ void ReaderSettingsActivity::buildSettingsList() {
           setting.valuePtr == &CrossPointSettings::textAntiAliasing) {
         continue;
       }
+      if (isTxtContext() &&
+          setting.valuePtr == &CrossPointSettings::paragraphAlignment) {
+        setting.enumValues.resize(4);
+        if (SETTINGS.paragraphAlignment ==
+            CrossPointSettings::BOOK_STYLE) {
+          SETTINGS.paragraphAlignment = CrossPointSettings::JUSTIFIED;
+        }
+      }
+      if (isTxtContext() &&
+          setting.valuePtr == &CrossPointSettings::readerStyleMode) {
+        continue;
+      }
       readerSettings.push_back(std::move(setting));
     } else if (setting.category == StrId::STR_STATUS_BAR) {
       statusBarSettings.push_back(std::move(setting));
     }
   }
 
-  readerSettings.push_back(SettingInfo::Toggle(
-      StrId::STR_HYPHENATION, &CrossPointSettings::hyphenationEnabled));
+  if (!isTxtContext()) {
+    readerSettings.push_back(SettingInfo::Toggle(
+        StrId::STR_HYPHENATION, &CrossPointSettings::hyphenationEnabled));
+  }
 
   if (CrossPointSettings::isSingleSizeFontFamily(SETTINGS.fontFamily)) {
     readerSettings.erase(

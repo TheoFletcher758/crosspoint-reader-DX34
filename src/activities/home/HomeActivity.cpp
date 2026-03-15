@@ -30,6 +30,20 @@
 namespace {
 constexpr const char *seeMoreLabel = "See all...";
 
+enum class HomeMenuAction : uint8_t {
+  ResetPages,
+  BrowseFiles,
+  OpdsBrowser,
+  FileTransfer,
+  Settings,
+};
+
+struct HomeMenuItem {
+  const char *label;
+  HomeMenuAction action;
+  bool emphasized;
+};
+
 std::string getHomeHeaderVersionLabel() {
   const std::string rawVersion = CROSSPOINT_VERSION;
   const size_t dashPos = rawVersion.find_last_of('-');
@@ -40,16 +54,28 @@ std::string getHomeHeaderVersionLabel() {
   return "DX34 [" + semver + "]";
 }
 
+std::vector<HomeMenuItem> buildHomeMenuItems(bool hasOpdsUrl) {
+  std::vector<HomeMenuItem> items;
+  items.reserve(hasOpdsUrl ? 5 : 4);
+  items.push_back(
+      {tr(STR_RESET_PAGES), HomeMenuAction::ResetPages, true});
+  items.push_back(
+      {tr(STR_BROWSE_FILES), HomeMenuAction::BrowseFiles, false});
+  if (hasOpdsUrl) {
+    items.push_back(
+        {tr(STR_OPDS_BROWSER), HomeMenuAction::OpdsBrowser, false});
+  }
+  items.push_back(
+      {tr(STR_FILE_TRANSFER), HomeMenuAction::FileTransfer, false});
+  items.push_back({tr(STR_SETTINGS_TITLE), HomeMenuAction::Settings, false});
+  return items;
+}
+
 } // namespace
 
 int HomeActivity::getMenuItemCount() const {
-  const int recentSlots = getRecentSlotCount();
-  int count = 3; // Browse files, file transfer, settings
-  count += recentSlots;
-  if (hasOpdsUrl) {
-    count++;
-  }
-  return count;
+  return getRecentSlotCount() +
+         static_cast<int>(buildHomeMenuItems(hasOpdsUrl).size());
 }
 
 int HomeActivity::getRecentSlotCount() const {
@@ -243,6 +269,7 @@ void HomeActivity::freeCoverBuffer() {
 
 void HomeActivity::loop() {
   const int recentSlots = getRecentSlotCount();
+  const auto menuItems = buildHomeMenuItems(hasOpdsUrl);
   const int menuCount = getMenuItemCount();
 
   buttonNavigator.onNext([this, menuCount] {
@@ -256,14 +283,6 @@ void HomeActivity::loop() {
   });
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    // Calculate dynamic indices based on which options are available
-    int idx = 0;
-    int menuSelectedIndex = selectorIndex - recentSlots;
-    const int myLibraryIdx = idx++;
-    const int opdsLibraryIdx = hasOpdsUrl ? idx++ : -1;
-    const int fileTransferIdx = idx++;
-    const int settingsIdx = idx++;
-
     if (selectorIndex < recentBooks.size()) {
       const std::string &selectedPath = recentBooks[selectorIndex].path;
       if (selectedPath.empty()) {
@@ -273,14 +292,32 @@ void HomeActivity::loop() {
       }
     } else if (selectorIndex < recentSlots) {
       onMyLibraryOpen();
-    } else if (menuSelectedIndex == myLibraryIdx) {
-      onMyLibraryOpen();
-    } else if (menuSelectedIndex == opdsLibraryIdx) {
-      onOpdsBrowserOpen();
-    } else if (menuSelectedIndex == fileTransferIdx) {
-      onFileTransferOpen();
-    } else if (menuSelectedIndex == settingsIdx) {
-      onSettingsOpen();
+    } else {
+      const int menuSelectedIndex = selectorIndex - recentSlots;
+      if (menuSelectedIndex < 0 ||
+          menuSelectedIndex >= static_cast<int>(menuItems.size())) {
+        return;
+      }
+
+      switch (menuItems[menuSelectedIndex].action) {
+      case HomeMenuAction::ResetPages:
+        APP_STATE.sessionPagesRead = 0;
+        APP_STATE.saveToFile();
+        requestUpdate();
+        break;
+      case HomeMenuAction::BrowseFiles:
+        onMyLibraryOpen();
+        break;
+      case HomeMenuAction::OpdsBrowser:
+        onOpdsBrowserOpen();
+        break;
+      case HomeMenuAction::FileTransfer:
+        onFileTransferOpen();
+        break;
+      case HomeMenuAction::Settings:
+        onSettingsOpen();
+        break;
+      }
     }
   }
 }
@@ -298,36 +335,33 @@ void HomeActivity::render(Activity::RenderLock &&) {
                  Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding},
                  nullptr);
   const std::string homeVersionLabel = getHomeHeaderVersionLabel();
-  renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding,
-                    metrics.topPadding + 5, homeVersionLabel.c_str());
+  const int versionY = metrics.topPadding + 5;
+  renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding, versionY,
+                    homeVersionLabel.c_str());
 
-  int warningBottomY = metrics.homeTopPadding;
+  int warningBottomY =
+      versionY + renderer.getLineHeight(SMALL_FONT_ID) + 12;
   if (sleepFavoritesFull) {
-    const int warningY = metrics.topPadding + 20;
+    const int warningY = warningBottomY;
     const int warningWidth = pageWidth - metrics.contentSidePadding * 2;
     const std::string warningText = renderer.truncatedText(
         SMALL_FONT_ID, FavoriteBmp::limitReachedHomeMessage(), warningWidth);
     renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding, warningY,
                       warningText.c_str());
-    warningBottomY = warningY + renderer.getLineHeight(SMALL_FONT_ID) + 4;
+    warningBottomY = warningY + renderer.getLineHeight(SMALL_FONT_ID) + 8;
   }
 
-  const int sessionStatY = warningBottomY + 4;
+  const int sessionStatFont = UI_10_FONT_ID;
+  const int sessionStatY = warningBottomY;
   const std::string sessionPagesText =
       std::string(tr(STR_SESSION_PAGES)) + ": " +
       std::to_string(APP_STATE.sessionPagesRead);
-  renderer.drawText(SMALL_FONT_ID, metrics.contentSidePadding, sessionStatY,
+  renderer.drawText(sessionStatFont, metrics.contentSidePadding, sessionStatY,
                     sessionPagesText.c_str());
-  warningBottomY = sessionStatY + renderer.getLineHeight(SMALL_FONT_ID) + 6;
+  warningBottomY =
+      sessionStatY + renderer.getLineHeight(sessionStatFont) + 12;
 
-  // Build menu items dynamically
-  std::vector<const char *> menuItems = {
-      tr(STR_BROWSE_FILES), tr(STR_FILE_TRANSFER), tr(STR_SETTINGS_TITLE)};
-  if (hasOpdsUrl) {
-    // Insert OPDS Browser after Browse Files.
-    menuItems.insert(menuItems.begin() + 1, tr(STR_OPDS_BROWSER));
-  }
-
+  const auto menuItems = buildHomeMenuItems(hasOpdsUrl);
   const int menuCount = static_cast<int>(menuItems.size());
   const int menuBlockHeight =
       metrics.verticalSpacing + menuCount * metrics.menuRowHeight +
@@ -345,11 +379,41 @@ void HomeActivity::render(Activity::RenderLock &&) {
       selectorIndex, coverRendered, coverBufferStored, bufferRestored,
       std::bind(&HomeActivity::storeCoverBuffer, this));
 
-  GUI.drawButtonMenu(
-      renderer, Rect{0, menuY, pageWidth, menuBlockHeight}, menuCount,
-      selectorIndex - recentSlots,
-      [&menuItems](int index) { return std::string(menuItems[index]); },
-      nullptr);
+  for (int i = 0; i < menuCount; ++i) {
+    const int tileY =
+        metrics.verticalSpacing + menuY +
+        i * (metrics.menuRowHeight + metrics.menuSpacing);
+    const int tileX = metrics.contentSidePadding;
+    const int tileWidth = pageWidth - metrics.contentSidePadding * 2;
+    const bool selected = selectorIndex - recentSlots == i;
+    const bool emphasized = menuItems[i].emphasized;
+    const auto textStyle =
+        (emphasized && selected) ? EpdFontFamily::BOLD
+                                 : EpdFontFamily::REGULAR;
+
+    if (emphasized) {
+      if (selected) {
+        renderer.drawRect(tileX, tileY, tileWidth, metrics.menuRowHeight, 2,
+                          true);
+      } else {
+        renderer.fillRect(tileX, tileY, tileWidth, metrics.menuRowHeight);
+      }
+    } else if (selected) {
+      renderer.fillRect(tileX, tileY, tileWidth, metrics.menuRowHeight);
+    } else {
+      renderer.drawRect(tileX, tileY, tileWidth, metrics.menuRowHeight);
+    }
+
+    const int textWidth =
+        renderer.getTextWidth(UI_10_FONT_ID, menuItems[i].label, textStyle);
+    const int textX = (pageWidth - textWidth) / 2;
+    const int textY =
+        tileY +
+        (metrics.menuRowHeight - renderer.getLineHeight(UI_10_FONT_ID)) / 2;
+    const bool blackText = emphasized ? selected : !selected;
+    renderer.drawText(UI_10_FONT_ID, textX, textY, menuItems[i].label,
+                      blackText, textStyle);
+  }
 
   const auto labels = mappedInput.mapLabels("", tr(STR_SELECT), tr(STR_DIR_UP),
                                             tr(STR_DIR_DOWN));

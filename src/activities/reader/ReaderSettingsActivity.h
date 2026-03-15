@@ -49,6 +49,7 @@ class ReaderSettingsActivity final : public Activity {
   const std::function<void(bool)> onClose;
 
   void buildSettingsList();
+  bool isTxtContext() const;
   const std::vector<SettingInfo>* settingsForCategory(int categoryIndex) const;
   int findNextEditableRow(int startIndex, int direction) const;
   bool isPopupValueSetting(const SettingInfo& setting) const;

@@ -23,6 +23,11 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
     std::vector<std::string> titleLines;
     float progress = 0.0f;
   };
+  struct FlowLine {
+    std::string text;
+    bool firstInParagraph = false;
+    bool lastInParagraph = false;
+  };
 
   std::unique_ptr<Txt> txt;
 
@@ -34,10 +39,12 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   const std::function<void()> onGoHome;
   const std::function<void(const std::string&)> onOpenBook;
   bool recentSwitcherOpen = false;
-  bool pendingSingleBack = false;
-  unsigned long lastBackReleaseMs = 0;
+  bool pendingThemesOpen = false;
+  bool pendingSubactivityExit = false;
+  bool skipNextButtonCheck = false;
   bool confirmLongPressHandled = false;
   unsigned long lastConfirmReleaseMs = 0;
+  bool suppressNextConfirmRelease = false;
   bool progressDirty = false;
   unsigned long lastProgressChangeMs = 0;
   int lastObservedPage = -1;
@@ -47,10 +54,12 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
 
   // Streaming text reader - stores file offsets for each page
   std::vector<size_t> pageOffsets;  // File offset for start of each page
-  std::vector<std::string> currentPageLines;
+  std::vector<FlowLine> currentPageLines;
   int linesPerPage = 0;
   int viewportWidth = 0;
   bool initialized = false;
+  int pendingRelayoutPage = -1;
+  int pendingRelayoutPageCount = 0;
 
   // Cached settings for cache validation (different fonts/margins require re-indexing)
   int cachedFontId = 0;
@@ -58,6 +67,9 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   int cachedScreenMarginTop = 0;
   int cachedScreenMarginBottom = 0;
   uint8_t cachedParagraphAlignment = CrossPointSettings::LEFT_ALIGN;
+  uint8_t cachedLineSpacingPercent = 110;
+  uint8_t cachedWordSpacingPercent = 100;
+  uint8_t cachedFirstLineIndentMode = CrossPointSettings::INDENT_BOOK;
   int cachedTitleUsableWidth = -1;
   bool cachedTitleNoTitleTruncation = false;
   int cachedTitleMaxLines = -1;
@@ -68,6 +80,13 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
                        int orientedMarginLeft);
   void loadRecentSwitcherBooks();
   void renderRecentSwitcher();
+  void openReadingThemes();
+  void reloadCurrentLayoutForDisplaySettings();
+  int getReaderLineHeightPx() const;
+  int getTxtWordSpaceWidth() const;
+  int getTxtParagraphIndentPx() const;
+  int measureFlowLineWidth(const std::string& text) const;
+  void drawFlowLine(const FlowLine& line, int x, int y, int contentWidth) const;
   const std::vector<std::string>& getStatusBarTitleLines(int usableWidth,
                                                          bool noTitleTruncation,
                                                          int maxTitleLineCount);
@@ -77,7 +96,8 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
                                        int maxTitleLineCount);
 
   void initializeReader();
-  bool loadPageAtOffset(size_t offset, std::vector<std::string>& outLines, size_t& nextOffset);
+  bool loadPageAtOffset(size_t offset, std::vector<FlowLine>& outLines,
+                        size_t& nextOffset);
   void buildPageIndex();
   bool loadPageIndexCache();
   void savePageIndexCache() const;
