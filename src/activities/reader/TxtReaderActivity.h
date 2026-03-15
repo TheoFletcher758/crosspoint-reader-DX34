@@ -60,6 +60,7 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   uint8_t cachedParagraphAlignment = CrossPointSettings::LEFT_ALIGN;
   int cachedTitleUsableWidth = -1;
   bool cachedTitleNoTitleTruncation = false;
+  int cachedTitleMaxLines = -1;
   std::vector<std::string> cachedTitleLines;
 
   void renderPage();
@@ -68,10 +69,12 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   void loadRecentSwitcherBooks();
   void renderRecentSwitcher();
   const std::vector<std::string>& getStatusBarTitleLines(int usableWidth,
-                                                         bool noTitleTruncation);
+                                                         bool noTitleTruncation,
+                                                         int maxTitleLineCount);
   int getStatusBarReserveTitleLineCount(int usableWidth, bool noTitleTruncation);
   StatusBarLayout buildStatusBarLayout(int usableWidth, int topReservedHeight,
-                                       int bottomReservedHeight);
+                                       int bottomReservedHeight,
+                                       int maxTitleLineCount);
 
   void initializeReader();
   bool loadPageAtOffset(size_t offset, std::vector<std::string>& outLines, size_t& nextOffset);

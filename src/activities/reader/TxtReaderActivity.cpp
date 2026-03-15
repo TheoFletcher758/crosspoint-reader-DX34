@@ -13,6 +13,7 @@
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "MappedInputManager.h"
+#include "ReaderLayoutSafety.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -117,104 +118,24 @@ std::string formatPageCounterText(const uint8_t mode, const int currentPage,
 int computeStatusTextBlockHeight(const GfxRenderer &renderer,
                                  const bool showStatusTextRow,
                                  const int titleLineCount) {
-  const int statusTextHeight = renderer.getTextHeight(SMALL_FONT_ID);
-  int textBlockHeight = 0;
-  if (showStatusTextRow) {
-    textBlockHeight += statusTextHeight;
-  }
-  if (titleLineCount > 0) {
-    if (textBlockHeight > 0) {
-      textBlockHeight += statusTextLineGap;
-    }
-    textBlockHeight +=
-        titleLineCount * statusTextHeight +
-        (titleLineCount - 1) * statusTextLineGap;
-  }
-  return textBlockHeight;
+  return ReaderLayoutSafety::computeStatusTextBlockHeight(
+      renderer, showStatusTextRow, titleLineCount);
 }
 
 int computeStatusBarsHeight(const bool showBookProgressBar,
                             const bool showChapterProgressBar,
                             const int statusBarProgressHeight,
                             const bool includeTopMargin) {
-  const int activeBars =
-      (showBookProgressBar ? 1 : 0) + (showChapterProgressBar ? 1 : 0);
-  if (activeBars == 0) {
-    return 0;
-  }
-  constexpr int barGap = 0;
-  return activeBars * statusBarProgressHeight + (activeBars - 1) * barGap +
-         (includeTopMargin ? progressBarMarginTop : 0);
+  return ReaderLayoutSafety::computeStatusBarsHeight(
+      showBookProgressBar, showChapterProgressBar, statusBarProgressHeight,
+      includeTopMargin);
 }
 
 std::vector<std::string> wrapStatusText(const GfxRenderer &renderer,
                                         const int fontId,
                                         const std::string &text,
                                         const int maxWidth) {
-  if (text.empty()) {
-    return {};
-  }
-  if (maxWidth <= 0) {
-    return {text};
-  }
-
-  std::vector<std::string> lines;
-  size_t i = 0;
-  while (i < text.size()) {
-    while (i < text.size() && text[i] == ' ') {
-      i++;
-    }
-    if (i >= text.size()) {
-      break;
-    }
-
-    std::string line;
-    size_t lineEndPos = i;
-    while (lineEndPos < text.size()) {
-      size_t wordEnd = lineEndPos;
-      while (wordEnd < text.size() && text[wordEnd] != ' ') {
-        wordEnd++;
-      }
-      const std::string word = text.substr(lineEndPos, wordEnd - lineEndPos);
-      const std::string candidate = line.empty() ? word : (line + " " + word);
-
-      if (renderer.getTextWidth(fontId, candidate.c_str()) <= maxWidth) {
-        line = candidate;
-        lineEndPos = wordEnd;
-        while (lineEndPos < text.size() && text[lineEndPos] == ' ') {
-          lineEndPos++;
-        }
-        continue;
-      }
-
-      if (line.empty()) {
-        size_t fit = 1;
-        while (fit < word.size() &&
-               renderer.getTextWidth(fontId,
-                                     word.substr(0, fit + 1).c_str()) <=
-                   maxWidth) {
-          fit++;
-        }
-        line = word.substr(0, fit);
-        lineEndPos += fit;
-      }
-      break;
-    }
-
-    if (line.empty()) {
-      line = renderer.truncatedText(fontId, text.substr(i).c_str(), maxWidth);
-      lines.push_back(line);
-      break;
-    }
-
-    lines.push_back(line);
-    i = lineEndPos;
-  }
-
-  if (lines.empty()) {
-    lines.push_back(renderer.truncatedText(fontId, text.c_str(), maxWidth));
-  }
-  return lines;
+  return ReaderLayoutSafety::wrapText(renderer, fontId, text, maxWidth);
 }
 
 int computeStatusBarReservedHeight(const GfxRenderer &renderer,
@@ -222,23 +143,9 @@ int computeStatusBarReservedHeight(const GfxRenderer &renderer,
                                    const bool showBookProgressBar,
                                    const bool showChapterProgressBar,
                                    const int titleLineCount) {
-  const int textBlockHeight = computeStatusTextBlockHeight(
-      renderer, showStatusTextRow, titleLineCount);
-  const int barsHeight =
-      computeStatusBarsHeight(showBookProgressBar, showChapterProgressBar,
-                              SETTINGS.getStatusBarProgressBarHeight(),
-                              textBlockHeight > 0);
-  int reservedHeight = 0;
-  if (textBlockHeight > 0) {
-    reservedHeight += statusTextTopPadding + textBlockHeight;
-  }
-  if (barsHeight > 0) {
-    if (textBlockHeight > 0) {
-      reservedHeight += statusTextToBarsGap;
-    }
-    reservedHeight += barsHeight;
-  }
-  return reservedHeight;
+  return ReaderLayoutSafety::computeReservedHeight(
+      renderer, showStatusTextRow, showBookProgressBar, showChapterProgressBar,
+      titleLineCount, SETTINGS.getStatusBarProgressBarHeight());
 }
 } // namespace
 
@@ -279,6 +186,7 @@ void TxtReaderActivity::onEnter() {
   RECENT_BOOKS.addBook(filePath, fileName, "", "");
   cachedTitleUsableWidth = -1;
   cachedTitleNoTitleTruncation = false;
+  cachedTitleMaxLines = -1;
   cachedTitleLines.clear();
 
   // Trigger first update
@@ -299,14 +207,17 @@ void TxtReaderActivity::onExit() {
   APP_STATE.saveToFile();
   cachedTitleUsableWidth = -1;
   cachedTitleNoTitleTruncation = false;
+  cachedTitleMaxLines = -1;
   cachedTitleLines.clear();
   txt.reset();
 }
 
 const std::vector<std::string>& TxtReaderActivity::getStatusBarTitleLines(
-    const int usableWidth, const bool noTitleTruncation) {
+    const int usableWidth, const bool noTitleTruncation,
+    const int maxTitleLineCount) {
   if (cachedTitleUsableWidth == usableWidth &&
-      cachedTitleNoTitleTruncation == noTitleTruncation) {
+      cachedTitleNoTitleTruncation == noTitleTruncation &&
+      cachedTitleMaxLines == maxTitleLineCount) {
     return cachedTitleLines;
   }
 
@@ -315,33 +226,29 @@ const std::vector<std::string>& TxtReaderActivity::getStatusBarTitleLines(
     titleText = tr(STR_UNNAMED);
   }
 
-  if (noTitleTruncation) {
-    cachedTitleLines =
-        wrapStatusText(renderer, SMALL_FONT_ID, titleText, usableWidth);
-  } else {
-    if (renderer.getTextWidth(SMALL_FONT_ID, titleText.c_str()) > usableWidth) {
-      titleText = renderer.truncatedText(SMALL_FONT_ID, titleText.c_str(),
-                                         usableWidth);
-    }
-    cachedTitleLines = {titleText};
-  }
+  cachedTitleLines = ReaderLayoutSafety::buildTitleLines(
+      renderer, SMALL_FONT_ID, titleText, usableWidth, noTitleTruncation,
+      maxTitleLineCount);
 
   cachedTitleUsableWidth = usableWidth;
   cachedTitleNoTitleTruncation = noTitleTruncation;
+  cachedTitleMaxLines = maxTitleLineCount;
   return cachedTitleLines;
 }
 
 int TxtReaderActivity::getStatusBarReserveTitleLineCount(
     const int usableWidth, const bool noTitleTruncation) {
   return static_cast<int>(
-      getStatusBarTitleLines(usableWidth, noTitleTruncation).size());
+      getStatusBarTitleLines(usableWidth, noTitleTruncation, 1024).size());
 }
 
 TxtReaderActivity::StatusBarLayout TxtReaderActivity::buildStatusBarLayout(
     const int usableWidth, const int topReservedHeight,
-    const int bottomReservedHeight) {
+    const int bottomReservedHeight, const int maxTitleLineCount) {
   StatusBarLayout layout;
-  layout.usableWidth = std::max(0, usableWidth);
+  layout.usableWidth = ReaderLayoutSafety::clampViewportDimension(
+      usableWidth, ReaderLayoutSafety::kMinViewportWidth, "TRS",
+      "status width");
   layout.topReservedHeight = topReservedHeight;
   layout.bottomReservedHeight = bottomReservedHeight;
   if (!SETTINGS.statusBarEnabled) {
@@ -376,7 +283,8 @@ TxtReaderActivity::StatusBarLayout TxtReaderActivity::buildStatusBarLayout(
 
   if (SETTINGS.statusBarShowChapterTitle) {
     layout.titleLines = getStatusBarTitleLines(
-        layout.usableWidth, SETTINGS.statusBarNoTitleTruncation);
+        layout.usableWidth, SETTINGS.statusBarNoTitleTruncation,
+        maxTitleLineCount);
   }
 
   return layout;
@@ -544,6 +452,9 @@ void TxtReaderActivity::initializeReader() {
   cachedScreenMarginTop = SETTINGS.screenMarginTop;
   cachedScreenMarginBottom = SETTINGS.screenMarginBottom;
   cachedParagraphAlignment = SETTINGS.paragraphAlignment;
+  const int lineHeight = renderer.getLineHeight(cachedFontId);
+  const int minContentHeight = std::max(ReaderLayoutSafety::kMinViewportHeight,
+                                        lineHeight * 2);
 
   // Calculate viewport dimensions
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom,
@@ -561,7 +472,9 @@ void TxtReaderActivity::initializeReader() {
   int statusBarBottomReserved = 0;
   if (SETTINGS.statusBarEnabled) {
     const int usableWidth =
-        renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
+        ReaderLayoutSafety::clampViewportDimension(
+            renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight,
+            ReaderLayoutSafety::kMinViewportWidth, "TRS", "usable width");
     const bool showTopStatusTextRow =
         (SETTINGS.statusBarShowBattery &&
          statusBarItemIsTop(SETTINGS.statusBarBatteryPosition)) ||
@@ -599,20 +512,33 @@ void TxtReaderActivity::initializeReader() {
          !statusBarItemIsTop(SETTINGS.statusBarTitlePosition))
             ? titleLineCount
             : 0;
-    statusBarTopReserved = computeStatusBarReservedHeight(
-        renderer, showTopStatusTextRow,
-        SETTINGS.statusBarShowBookBar &&
-            statusBarItemIsTop(SETTINGS.statusBarBookBarPosition),
-        SETTINGS.statusBarShowChapterBar &&
-            statusBarItemIsTop(SETTINGS.statusBarChapterBarPosition),
-        topTitleLineCount);
-    statusBarBottomReserved = computeStatusBarReservedHeight(
-        renderer, showBottomStatusTextRow,
-        SETTINGS.statusBarShowBookBar &&
-            !statusBarItemIsTop(SETTINGS.statusBarBookBarPosition),
-        SETTINGS.statusBarShowChapterBar &&
-            !statusBarItemIsTop(SETTINGS.statusBarChapterBarPosition),
-        bottomTitleLineCount);
+    const auto budget = ReaderLayoutSafety::resolveStatusBarBudget(
+        renderer, "TRS", renderer.getScreenHeight(), getStatusTopInset(renderer),
+        getStatusBottomInset(renderer), cachedScreenMarginTop,
+        cachedScreenMarginBottom, minContentHeight,
+        SETTINGS.getStatusBarProgressBarHeight(),
+        ReaderLayoutSafety::StatusBarBandConfig{
+            .showStatusTextRow = showTopStatusTextRow,
+            .showBookProgressBar =
+                SETTINGS.statusBarShowBookBar &&
+                statusBarItemIsTop(SETTINGS.statusBarBookBarPosition),
+            .showChapterProgressBar =
+                SETTINGS.statusBarShowChapterBar &&
+                statusBarItemIsTop(SETTINGS.statusBarChapterBarPosition),
+            .desiredTitleLineCount = topTitleLineCount,
+        },
+        ReaderLayoutSafety::StatusBarBandConfig{
+            .showStatusTextRow = showBottomStatusTextRow,
+            .showBookProgressBar =
+                SETTINGS.statusBarShowBookBar &&
+                !statusBarItemIsTop(SETTINGS.statusBarBookBarPosition),
+            .showChapterProgressBar =
+                SETTINGS.statusBarShowChapterBar &&
+                !statusBarItemIsTop(SETTINGS.statusBarChapterBarPosition),
+            .desiredTitleLineCount = bottomTitleLineCount,
+        });
+    statusBarTopReserved = budget.top.reservedHeight;
+    statusBarBottomReserved = budget.bottom.reservedHeight;
     if (statusBarTopReserved > 0) {
       orientedMarginTop =
           getStatusTopInset(renderer) + cachedScreenMarginTop +
@@ -626,10 +552,13 @@ void TxtReaderActivity::initializeReader() {
   }
 
   viewportWidth =
-      renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
+      ReaderLayoutSafety::clampViewportDimension(
+          renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight,
+          ReaderLayoutSafety::kMinViewportWidth, "TRS", "viewport width");
   const int viewportHeight =
-      renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom;
-  const int lineHeight = renderer.getLineHeight(cachedFontId);
+      ReaderLayoutSafety::clampViewportDimension(
+          renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom,
+          minContentHeight, "TRS", "viewport height");
 
   linesPerPage = viewportHeight / lineHeight;
   if (linesPerPage < 1)
@@ -948,11 +877,16 @@ void TxtReaderActivity::renderPage() {
   orientedMarginBottom += cachedScreenMarginBottom;
 
   const int lineHeight = renderer.getLineHeight(cachedFontId);
+  const int minContentHeight = std::max(ReaderLayoutSafety::kMinViewportHeight,
+                                        lineHeight * 2);
   const int contentWidth = viewportWidth;
   const int usableWidth =
-      renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
+      ReaderLayoutSafety::clampViewportDimension(
+          renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight,
+          ReaderLayoutSafety::kMinViewportWidth, "TRS", "usable width");
   int statusBarTopReserved = 0;
   int statusBarBottomReserved = 0;
+  int resolvedTitleLineCount = SETTINGS.statusBarShowChapterTitle ? 1 : 0;
   if (SETTINGS.statusBarEnabled) {
     const bool showTopStatusTextRow =
         (SETTINGS.statusBarShowBattery &&
@@ -991,20 +925,37 @@ void TxtReaderActivity::renderPage() {
          !statusBarItemIsTop(SETTINGS.statusBarTitlePosition))
             ? titleLineCount
             : 0;
-    statusBarTopReserved = computeStatusBarReservedHeight(
-        renderer, showTopStatusTextRow,
-        SETTINGS.statusBarShowBookBar &&
-            statusBarItemIsTop(SETTINGS.statusBarBookBarPosition),
-        SETTINGS.statusBarShowChapterBar &&
-            statusBarItemIsTop(SETTINGS.statusBarChapterBarPosition),
-        topTitleLineCount);
-    statusBarBottomReserved = computeStatusBarReservedHeight(
-        renderer, showBottomStatusTextRow,
-        SETTINGS.statusBarShowBookBar &&
-            !statusBarItemIsTop(SETTINGS.statusBarBookBarPosition),
-        SETTINGS.statusBarShowChapterBar &&
-            !statusBarItemIsTop(SETTINGS.statusBarChapterBarPosition),
-        bottomTitleLineCount);
+    const auto budget = ReaderLayoutSafety::resolveStatusBarBudget(
+        renderer, "TRS", renderer.getScreenHeight(), getStatusTopInset(renderer),
+        getStatusBottomInset(renderer), cachedScreenMarginTop,
+        cachedScreenMarginBottom, minContentHeight,
+        SETTINGS.getStatusBarProgressBarHeight(),
+        ReaderLayoutSafety::StatusBarBandConfig{
+            .showStatusTextRow = showTopStatusTextRow,
+            .showBookProgressBar =
+                SETTINGS.statusBarShowBookBar &&
+                statusBarItemIsTop(SETTINGS.statusBarBookBarPosition),
+            .showChapterProgressBar =
+                SETTINGS.statusBarShowChapterBar &&
+                statusBarItemIsTop(SETTINGS.statusBarChapterBarPosition),
+            .desiredTitleLineCount = topTitleLineCount,
+        },
+        ReaderLayoutSafety::StatusBarBandConfig{
+            .showStatusTextRow = showBottomStatusTextRow,
+            .showBookProgressBar =
+                SETTINGS.statusBarShowBookBar &&
+                !statusBarItemIsTop(SETTINGS.statusBarBookBarPosition),
+            .showChapterProgressBar =
+                SETTINGS.statusBarShowChapterBar &&
+                !statusBarItemIsTop(SETTINGS.statusBarChapterBarPosition),
+            .desiredTitleLineCount = bottomTitleLineCount,
+        });
+    statusBarTopReserved = budget.top.reservedHeight;
+    statusBarBottomReserved = budget.bottom.reservedHeight;
+    resolvedTitleLineCount =
+        statusBarItemIsTop(SETTINGS.statusBarTitlePosition)
+            ? budget.top.titleLineCount
+            : budget.bottom.titleLineCount;
     if (statusBarTopReserved > 0) {
       orientedMarginTop =
           getStatusTopInset(renderer) + cachedScreenMarginTop +
@@ -1018,7 +969,7 @@ void TxtReaderActivity::renderPage() {
   }
   const StatusBarLayout statusBarLayout =
       buildStatusBarLayout(usableWidth, statusBarTopReserved,
-                           statusBarBottomReserved);
+                           statusBarBottomReserved, resolvedTitleLineCount);
 
   // Render text lines with alignment
   auto renderLines = [&]() {
