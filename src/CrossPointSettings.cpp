@@ -454,7 +454,8 @@ bool CrossPointSettings::loadFromBinaryFile() {
   wordSpacingPercent = WORD_SPACING_LEVEL_DEFAULT;
   firstLineIndentMode = INDENT_BOOK;
   readerStyleMode = embeddedStyle ? READER_STYLE_HYBRID : READER_STYLE_USER;
-  textRenderMode = textAntiAliasing ? TEXT_RENDER_SMOOTH : TEXT_RENDER_CRISP;
+  textRenderMode = TEXT_RENDER_CRISP;
+  textAntiAliasing = 0;
 
   inputFile.close();
   LOG_DBG("CPS", "Settings loaded from binary file");

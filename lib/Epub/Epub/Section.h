@@ -18,6 +18,7 @@ class Section {
   FsFile file;
   std::vector<uint32_t> pageLut;
   std::vector<std::pair<std::string, uint16_t>> anchorLut;
+  std::vector<int16_t> pageTocLut;
 
   void writeSectionFileHeader(int fontId, float lineCompression,
                               uint8_t extraParagraphSpacingLevel, uint8_t paragraphAlignment,
@@ -51,6 +52,8 @@ class Section {
                          uint8_t readerStyleMode, uint8_t textRenderMode,
                          bool readerBoldSwap, const std::function<void(int)>& progressFn = nullptr);
   std::unique_ptr<Page> loadPageFromSectionFile();
+  std::unique_ptr<Page> loadPageFromSectionFile(int pageIndex);
   int getPageForAnchor(const std::string& anchor) const;
   std::string getCurrentAnchorForPage(int page) const;
+  int getTocIndexForPage(int page) const;
 };

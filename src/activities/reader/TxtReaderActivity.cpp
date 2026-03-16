@@ -1171,12 +1171,13 @@ void TxtReaderActivity::renderPage() {
   const StatusBarLayout statusBarLayout =
       buildStatusBarLayout(usableWidth, statusBarTopReserved,
                            statusBarBottomReserved, resolvedTitleLineCount);
-  const bool smoothText =
-      SETTINGS.textRenderMode ==
-      CrossPointSettings::TEXT_RENDER_SMOOTH;
+  const uint8_t textRenderMode =
+      SETTINGS.textRenderMode == CrossPointSettings::TEXT_RENDER_SMOOTH
+          ? CrossPointSettings::TEXT_RENDER_CRISP
+          : SETTINGS.textRenderMode;
   renderer.setRenderMode(GfxRenderer::BW);
   renderer.setTextDarkeningEnabled(
-      SETTINGS.textRenderMode ==
+      textRenderMode ==
       CrossPointSettings::TEXT_RENDER_DARK);
 
   // Render text lines with alignment
@@ -1203,29 +1204,6 @@ void TxtReaderActivity::renderPage() {
     pagesUntilFullRefresh--;
   }
 
-  if (smoothText && renderer.storeBwBuffer()) {
-    // Save BW buffer for restoration after grayscale pass
-    renderer.setTextDarkeningEnabled(false);
-    renderer.clearScreen(0x00);
-    renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-    renderLines();
-    renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
-                    orientedMarginLeft);
-    renderer.copyGrayscaleLsbBuffers();
-
-    renderer.clearScreen(0x00);
-    renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-    renderLines();
-    renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
-                    orientedMarginLeft);
-    renderer.copyGrayscaleMsbBuffers();
-
-    renderer.displayGrayBuffer();
-    renderer.setRenderMode(GfxRenderer::BW);
-
-    // Restore BW buffer
-    renderer.restoreBwBuffer();
-  }
   renderer.setTextDarkeningEnabled(false);
 }
 

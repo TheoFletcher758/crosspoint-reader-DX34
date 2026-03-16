@@ -1,5 +1,7 @@
 #include "Section.h"
 
+#include <algorithm>
+
 #include <HalStorage.h>
 #include <Logging.h>
 #include <Serialization.h>
@@ -8,11 +10,82 @@
 #include "parsers/ChapterHtmlSlimParser.h"
 
 namespace {
-constexpr uint8_t SECTION_FILE_VERSION = 17;
+constexpr uint8_t SECTION_FILE_VERSION = 18;
 constexpr uint32_t HEADER_SIZE = sizeof(uint8_t) + sizeof(int) + sizeof(float) + sizeof(uint8_t) +
                                  sizeof(uint8_t) + sizeof(uint16_t) + sizeof(uint16_t) + sizeof(bool) +
                                  sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint8_t) + sizeof(uint8_t) +
                                  sizeof(bool) + sizeof(uint16_t) + sizeof(uint32_t);
+
+int getAnchorPage(const std::vector<std::pair<std::string, uint16_t>>& anchors,
+                  const std::string& anchor) {
+  if (anchor.empty()) {
+    return -1;
+  }
+
+  for (const auto& entry : anchors) {
+    if (entry.first == anchor) {
+      return entry.second;
+    }
+  }
+
+  return -1;
+}
+
+std::vector<int16_t> buildPageTocLut(const std::shared_ptr<Epub>& epub,
+                                     const int spineIndex,
+                                     const uint16_t pageCount,
+                                     const std::vector<std::pair<std::string, uint16_t>>& anchors) {
+  std::vector<int16_t> pageTocLut(pageCount, -1);
+  if (!epub || pageCount == 0) {
+    return pageTocLut;
+  }
+
+  const int fallbackIndex = epub->getTocIndexForSpineIndex(spineIndex);
+  struct TocTransition {
+    int pageIndex = -1;
+    int tocIndex = -1;
+    int order = -1;
+  };
+  std::vector<TocTransition> transitions;
+
+  const auto tocIndexes = epub->getTocIndexesForSpineIndex(spineIndex);
+  int order = 0;
+  for (const int tocIndex : tocIndexes) {
+    const auto tocItem = epub->getTocItem(tocIndex);
+    if (tocItem.spineIndex != spineIndex || tocItem.anchor.empty()) {
+      continue;
+    }
+
+    const int pageIndex = getAnchorPage(anchors, tocItem.anchor);
+    if (pageIndex < 0 || pageIndex >= pageCount) {
+      continue;
+    }
+
+    transitions.push_back(
+        TocTransition{.pageIndex = pageIndex, .tocIndex = tocIndex, .order = order++});
+  }
+
+  std::stable_sort(transitions.begin(), transitions.end(),
+                   [](const TocTransition& lhs, const TocTransition& rhs) {
+                     if (lhs.pageIndex != rhs.pageIndex) {
+                       return lhs.pageIndex < rhs.pageIndex;
+                     }
+                     return lhs.order < rhs.order;
+                   });
+
+  int activeTocIndex = fallbackIndex;
+  size_t transitionIndex = 0;
+  for (uint16_t pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+    while (transitionIndex < transitions.size() &&
+           transitions[transitionIndex].pageIndex <= pageIndex) {
+      activeTocIndex = transitions[transitionIndex].tocIndex;
+      transitionIndex++;
+    }
+    pageTocLut[pageIndex] = static_cast<int16_t>(activeTocIndex);
+  }
+
+  return pageTocLut;
+}
 }  // namespace
 
 uint32_t Section::onPageComplete(std::unique_ptr<Page> page) {
@@ -138,6 +211,7 @@ bool Section::loadSectionFile(const int fontId, const float lineCompression,
   serialization::readPod(file, lutOffset);
   pageLut.resize(pageCount);
   anchorLut.clear();
+  pageTocLut.clear();
   file.seek(lutOffset);
   for (uint16_t i = 0; i < pageCount; i++) {
     serialization::readPod(file, pageLut[i]);
@@ -152,6 +226,14 @@ bool Section::loadSectionFile(const int fontId, const float lineCompression,
       serialization::readString(file, anchor);
       serialization::readPod(file, pageIndex);
       anchorLut.emplace_back(std::move(anchor), pageIndex);
+    }
+  }
+  if (file.position() < file.size()) {
+    uint16_t pageTocCount = 0;
+    serialization::readPod(file, pageTocCount);
+    pageTocLut.resize(pageTocCount);
+    for (uint16_t i = 0; i < pageTocCount; i++) {
+      serialization::readPod(file, pageTocLut[i]);
     }
   }
   file.close();
@@ -292,6 +374,12 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
     serialization::writePod(file, entry.second);
   }
 
+  pageTocLut = buildPageTocLut(epub, spineIndex, pageCount, anchors);
+  serialization::writePod(file, static_cast<uint16_t>(pageTocLut.size()));
+  for (const int16_t tocIndex : pageTocLut) {
+    serialization::writePod(file, tocIndex);
+  }
+
   if (hasFailedLutRecords) {
     LOG_ERR("SCT", "Failed to write LUT due to invalid page positions");
     file.close();
@@ -313,12 +401,18 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
 }
 
 std::unique_ptr<Page> Section::loadPageFromSectionFile() {
-  if (currentPage < 0 || static_cast<size_t>(currentPage) >= pageLut.size()) return nullptr;
+  return loadPageFromSectionFile(currentPage);
+}
+
+std::unique_ptr<Page> Section::loadPageFromSectionFile(const int pageIndex) {
+  if (pageIndex < 0 || static_cast<size_t>(pageIndex) >= pageLut.size()) {
+    return nullptr;
+  }
   if (!Storage.openFileForRead("SCT", filePath, file)) {
     return nullptr;
   }
 
-  file.seek(pageLut[currentPage]);
+  file.seek(pageLut[pageIndex]);
   auto page = Page::deserialize(file);
   file.close();
   return page;
@@ -353,4 +447,12 @@ std::string Section::getCurrentAnchorForPage(const int page) const {
   }
 
   return bestAnchor;
+}
+
+int Section::getTocIndexForPage(const int page) const {
+  if (page < 0 || static_cast<size_t>(page) >= pageTocLut.size()) {
+    return epub ? epub->getTocIndexForSpineIndex(spineIndex) : -1;
+  }
+
+  return pageTocLut[page];
 }

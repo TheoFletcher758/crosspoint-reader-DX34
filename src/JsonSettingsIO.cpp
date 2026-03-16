@@ -726,6 +726,12 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
         doc["textRenderMode"] | (uint8_t)S::TEXT_RENDER_CRISP,
         S::TEXT_RENDER_MODE_COUNT, S::TEXT_RENDER_CRISP);
   }
+  if (s.textRenderMode == S::TEXT_RENDER_SMOOTH) {
+    s.textRenderMode = (uint8_t)S::TEXT_RENDER_CRISP;
+    if (needsResave) {
+      *needsResave = true;
+    }
+  }
   s.textAntiAliasing =
       s.textRenderMode == S::TEXT_RENDER_SMOOTH ? (uint8_t)1 : (uint8_t)0;
   s.shortPwrBtn = clamp(doc["shortPwrBtn"] | (uint8_t)S::IGNORE,

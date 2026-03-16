@@ -2,6 +2,8 @@
 #include <Epub.h>
 #include <Epub/Section.h>
 
+#include <array>
+
 #include "EpubReaderMenuActivity.h"
 #include "activities/ActivityWithSubactivity.h"
 
@@ -17,8 +19,14 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
     std::string chapterPercentageText;
     int chapterPercentageTextWidth = 0;
     std::vector<std::string> titleLines;
+    std::vector<int> titleLineWidths;
     float bookProgress = 0.0f;
     float chapterProgress = 0.0f;
+  };
+
+  struct PageCacheEntry {
+    int pageIndex = -1;
+    std::shared_ptr<Page> page;
   };
 
   std::shared_ptr<Epub> epub;
@@ -60,17 +68,23 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   bool cachedTitleNoTitleTruncation = false;
   int cachedTitleMaxLines = -1;
   std::vector<std::string> cachedTitleLines;
+  int pageCacheSpineIndex = -1;
+  std::array<PageCacheEntry, 3> pageCache;
   const std::function<void()> onGoBack;
   const std::function<void()> onGoHome;
   const std::function<void(const std::string&)> onOpenBook;
 
-  void renderContents(std::unique_ptr<Page> page, int orientedMarginTop, int orientedMarginRight,
+  void renderContents(const Page& page, int orientedMarginTop, int orientedMarginRight,
                       int orientedMarginBottom, int orientedMarginLeft, const StatusBarLayout& statusBarLayout);
   void renderStatusBar(const StatusBarLayout& statusBarLayout, int orientedMarginRight, int orientedMarginBottom,
                        int orientedMarginLeft);
   void saveProgress(int spineIndex, int currentPage, int pageCount);
   void flushProgressIfNeeded(bool force);
   void invalidateStatusBarCaches();
+  void clearPageCache();
+  std::shared_ptr<Page> getCachedPage(int pageIndex) const;
+  std::shared_ptr<Page> loadAndCachePage(int pageIndex);
+  void refreshPageCacheWindow(int centerPage, const std::shared_ptr<Page>& currentPage);
   int getWrappedStatusBarReserveLineCount(int usableWidth);
   const std::vector<std::string>& getStatusBarTitleLines(int tocIndex, int usableWidth, bool noTitleTruncation,
                                                          int maxTitleLineCount);
