@@ -38,6 +38,19 @@ bool sameThemeName(const std::string& left, const std::string& right) {
 std::string bookReaderSettingsPath(const std::string& cachePath) {
   return cachePath + BOOK_READER_SETTINGS_FILE_JSON;
 }
+
+bool persistAppliedSettings(const std::string& cachePath) {
+  if (!SETTINGS.saveToFile()) {
+    return false;
+  }
+
+  if (!cachePath.empty() &&
+      !ReadingThemeStore::saveCurrentBookSettings(cachePath)) {
+    return false;
+  }
+
+  return true;
+}
 }  // namespace
 
 ReadingThemeStore ReadingThemeStore::instance;
@@ -74,7 +87,6 @@ ReadingTheme ReadingThemeStore::fromSettings(const std::string& name,
   theme.screenMarginBottom = settings.screenMarginBottom;
   theme.paragraphAlignment = settings.paragraphAlignment;
   theme.extraParagraphSpacingLevel = settings.extraParagraphSpacingLevel;
-  theme.wordSpacingPercent = settings.wordSpacingPercent;
   theme.firstLineIndentMode = settings.firstLineIndentMode;
   theme.readerStyleMode = settings.readerStyleMode;
   theme.textRenderMode = settings.textRenderMode;
@@ -129,10 +141,6 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
       theme.extraParagraphSpacingLevel, 0,
       CrossPointSettings::EXTRA_PARAGRAPH_SPACING_COUNT - 1,
       CrossPointSettings::EXTRA_SPACING_M);
-  settings.wordSpacingPercent = clampRange(
-      theme.wordSpacingPercent, CrossPointSettings::WORD_SPACING_LEVEL_MIN,
-      CrossPointSettings::WORD_SPACING_LEVEL_MAX,
-      CrossPointSettings::WORD_SPACING_LEVEL_DEFAULT);
   settings.firstLineIndentMode = clampRange(
       theme.firstLineIndentMode, 0,
       CrossPointSettings::FIRST_LINE_INDENT_MODE_COUNT - 1,
@@ -218,7 +226,6 @@ bool ReadingThemeStore::matchesCurrent(const ReadingTheme& theme) const {
          current.paragraphAlignment == theme.paragraphAlignment &&
          current.extraParagraphSpacingLevel ==
              theme.extraParagraphSpacingLevel &&
-         current.wordSpacingPercent == theme.wordSpacingPercent &&
          current.firstLineIndentMode == theme.firstLineIndentMode &&
          current.readerStyleMode == theme.readerStyleMode &&
          current.textRenderMode == theme.textRenderMode &&
@@ -359,12 +366,47 @@ bool ReadingThemeStore::deleteTheme(const size_t index) {
   return saveToFile();
 }
 
-bool ReadingThemeStore::applyTheme(const size_t index) {
+bool ReadingThemeStore::applyTheme(const size_t index,
+                                   const std::string& cachePath) {
   if (index >= themes.size()) {
     return false;
   }
+
+  const ReadingTheme previous = fromSettings("", SETTINGS);
   applyThemeToSettings(themes[index], SETTINGS);
-  return SETTINGS.saveToFile();
+  if (!persistAppliedSettings(cachePath)) {
+    applyThemeToSettings(previous, SETTINGS);
+    persistAppliedSettings(cachePath);
+    return false;
+  }
+
+  revertTheme = previous;
+  hasRevertTheme = true;
+  revertThemeCachePath = cachePath;
+  return true;
+}
+
+bool ReadingThemeStore::canRevertTheme(const std::string& cachePath) const {
+  return hasRevertTheme &&
+         (revertThemeCachePath.empty() || revertThemeCachePath == cachePath);
+}
+
+bool ReadingThemeStore::revertThemeChange(const std::string& cachePath) {
+  if (!canRevertTheme(cachePath)) {
+    return false;
+  }
+
+  const ReadingTheme current = fromSettings("", SETTINGS);
+  applyThemeToSettings(revertTheme, SETTINGS);
+  if (!persistAppliedSettings(cachePath)) {
+    applyThemeToSettings(current, SETTINGS);
+    persistAppliedSettings(cachePath);
+    return false;
+  }
+
+  hasRevertTheme = false;
+  revertThemeCachePath.clear();
+  return true;
 }
 
 bool ReadingThemeStore::saveCurrentBookSettings(const std::string& cachePath) {
@@ -423,10 +465,6 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
       theme.extraParagraphSpacingLevel, 0,
       CrossPointSettings::EXTRA_PARAGRAPH_SPACING_COUNT - 1,
       CrossPointSettings::EXTRA_SPACING_M);
-  normalized.wordSpacingPercent = clampRange(
-      theme.wordSpacingPercent, CrossPointSettings::WORD_SPACING_LEVEL_MIN,
-      CrossPointSettings::WORD_SPACING_LEVEL_MAX,
-      CrossPointSettings::WORD_SPACING_LEVEL_DEFAULT);
   normalized.firstLineIndentMode = clampRange(
       theme.firstLineIndentMode, 0,
       CrossPointSettings::FIRST_LINE_INDENT_MODE_COUNT - 1,

@@ -24,7 +24,6 @@ class ReadingThemesActivity final : public ActivityWithSubactivity {
  private:
   ButtonNavigator buttonNavigator;
   int selectedRowIndex = 0;
-  int lastEditedThemeIndex = -1;
   bool actionPopupOpen = false;
   int actionPopupThemeIndex = -1;
   int actionPopupSelectedIndex = 0;

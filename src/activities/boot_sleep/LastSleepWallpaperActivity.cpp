@@ -17,6 +17,7 @@ void LastSleepWallpaperActivity::onEnter() {
   Activity::onEnter();
   selectedOptionIndex = 0;
   if (!hasValidWallpaperPath()) {
+    clearInvalidWallpaperState();
     showMessagePopup("No last sleep wallpaper");
   } else {
     requestUpdate();
@@ -27,6 +28,14 @@ void LastSleepWallpaperActivity::closeActivity() const {
   if (onClose) {
     onClose();
   }
+}
+
+void LastSleepWallpaperActivity::clearInvalidWallpaperState() const {
+  if (APP_STATE.lastSleepWallpaperPath.empty()) {
+    return;
+  }
+  APP_STATE.lastSleepWallpaperPath.clear();
+  APP_STATE.saveToFile();
 }
 
 void LastSleepWallpaperActivity::showMessagePopup(const std::string& message) {
@@ -69,6 +78,7 @@ bool LastSleepWallpaperActivity::hasValidWallpaperPath(
 void LastSleepWallpaperActivity::handleConfirm() {
   std::string lastPath;
   if (!hasValidWallpaperPath(&lastPath)) {
+    clearInvalidWallpaperState();
     showMessagePopup("No last sleep wallpaper");
     return;
   }

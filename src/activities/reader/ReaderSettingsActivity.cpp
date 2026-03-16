@@ -21,16 +21,8 @@ std::string fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
       CrossPointSettings::fontSizeToPointSize(family, fontSize));
 }
 
-std::string wordSpacingValueLabel(const uint8_t value) {
-  return "L" +
-         std::to_string(CrossPointSettings::wordSpacingDisplayLevel(value));
-}
-
 int getValueEditHoldStep(const MappedInputManager& mappedInput,
-                         const SettingInfo& setting) {
-  if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
-    return 1;
-  }
+                         const SettingInfo&) {
   return mappedInput.getHeldTime() >= 1200 ? 5 : 1;
 }
 
@@ -110,7 +102,6 @@ bool ReaderSettingsActivity::isPopupValueSetting(
     return false;
   }
   return setting.valuePtr == &CrossPointSettings::lineSpacingPercent ||
-         setting.valuePtr == &CrossPointSettings::wordSpacingPercent ||
          setting.valuePtr == &CrossPointSettings::screenMarginHorizontal ||
          setting.valuePtr == &CrossPointSettings::screenMarginTop ||
          setting.valuePtr == &CrossPointSettings::screenMarginBottom;
@@ -183,9 +174,6 @@ std::string ReaderSettingsActivity::currentValueEditText() const {
 
   std::string valueText = std::to_string(valueEditDraft);
   const auto& setting = (*settings)[valueEditSettingIndex];
-  if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
-    return wordSpacingValueLabel(valueEditDraft);
-  }
   if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
     valueText += "%";
   }
@@ -490,11 +478,7 @@ void ReaderSettingsActivity::render(Activity::RenderLock&&) {
            row.settingIndex == valueEditSettingIndex)
               ? valueEditDraft
               : SETTINGS.*(setting.valuePtr);
-      if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
-        valueText = wordSpacingValueLabel(valueToShow);
-      } else {
-        valueText = std::to_string(valueToShow);
-      }
+      valueText = std::to_string(valueToShow);
       if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
         valueText += "%";
       }

@@ -17,7 +17,6 @@ struct ReadingTheme {
   uint8_t screenMarginBottom = 20;
   uint8_t paragraphAlignment = CrossPointSettings::JUSTIFIED;
   uint8_t extraParagraphSpacingLevel = CrossPointSettings::EXTRA_SPACING_M;
-  uint8_t wordSpacingPercent = CrossPointSettings::WORD_SPACING_LEVEL_DEFAULT;
   uint8_t firstLineIndentMode = CrossPointSettings::INDENT_BOOK;
   uint8_t readerStyleMode = CrossPointSettings::READER_STYLE_USER;
   uint8_t textRenderMode = CrossPointSettings::TEXT_RENDER_CRISP;
@@ -59,6 +58,9 @@ class ReadingThemeStore {
 
   std::vector<ReadingTheme> themes;
   int lastEditedThemeIndex = -1;
+  ReadingTheme revertTheme;
+  bool hasRevertTheme = false;
+  std::string revertThemeCachePath;
 
   friend bool JsonSettingsIO::loadReadingThemes(ReadingThemeStore& store,
                                                 const char* json);
@@ -88,7 +90,9 @@ class ReadingThemeStore {
   bool updateTheme(size_t index);
   bool renameTheme(size_t index, const std::string& desiredName);
   bool deleteTheme(size_t index);
-  bool applyTheme(size_t index);
+  bool applyTheme(size_t index, const std::string& cachePath = {});
+  bool canRevertTheme(const std::string& cachePath) const;
+  bool revertThemeChange(const std::string& cachePath);
   static bool loadBookSettings(const std::string& cachePath,
                                ReadingTheme& theme);
   static bool saveCurrentBookSettings(const std::string& cachePath);

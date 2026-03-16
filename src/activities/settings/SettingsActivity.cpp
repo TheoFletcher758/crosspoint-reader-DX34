@@ -69,11 +69,6 @@ const char* fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
   }
 }
 
-std::string wordSpacingValueLabel(const uint8_t value) {
-  return "L" +
-         std::to_string(CrossPointSettings::wordSpacingDisplayLevel(value));
-}
-
 }
 
 const std::vector<SettingInfo>* SettingsActivity::settingsForCategory(const int categoryIndex) const {
@@ -130,7 +125,6 @@ bool SettingsActivity::isPopupValueSetting(const SettingInfo& setting) const {
     return false;
   }
   return setting.valuePtr == &CrossPointSettings::lineSpacingPercent ||
-         setting.valuePtr == &CrossPointSettings::wordSpacingPercent ||
          setting.valuePtr == &CrossPointSettings::screenMarginHorizontal ||
          setting.valuePtr == &CrossPointSettings::screenMarginTop ||
          setting.valuePtr == &CrossPointSettings::screenMarginBottom;
@@ -164,10 +158,7 @@ void SettingsActivity::adjustValueEdit(const int delta) {
 
 namespace {
 int getValueEditHoldStep(const MappedInputManager& mappedInput,
-                         const SettingInfo& setting) {
-  if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
-    return 1;
-  }
+                         const SettingInfo&) {
   return mappedInput.getHeldTime() >= 1200 ? 5 : 1;
 }
 }
@@ -207,9 +198,6 @@ std::string SettingsActivity::currentValueEditText() const {
   }
   const auto& setting = (*settings)[valueEditSettingIndex];
   std::string v = std::to_string(valueEditDraft);
-  if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
-    return wordSpacingValueLabel(valueEditDraft);
-  }
   if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
     v += "%";
   }
@@ -624,11 +612,7 @@ void SettingsActivity::render(Activity::RenderLock&&) {
           (valueEditMode && row.categoryIndex == valueEditCategoryIndex && row.settingIndex == valueEditSettingIndex)
               ? valueEditDraft
               : SETTINGS.*(setting.valuePtr);
-      if (setting.valuePtr == &CrossPointSettings::wordSpacingPercent) {
-        valueText = wordSpacingValueLabel(valueToShow);
-      } else {
-        valueText = std::to_string(valueToShow);
-      }
+      valueText = std::to_string(valueToShow);
       if (setting.valuePtr == &CrossPointSettings::lineSpacingPercent) {
         valueText += "%";
       }

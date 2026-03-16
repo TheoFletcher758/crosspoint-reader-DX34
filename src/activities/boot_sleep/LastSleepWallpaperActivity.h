@@ -26,6 +26,7 @@ class LastSleepWallpaperActivity final : public Activity {
   int selectedOptionIndex = 0;
 
   void closeActivity() const;
+  void clearInvalidWallpaperState() const;
   void showMessagePopup(const std::string& message);
   bool dismissMessagePopupOnAnyPress();
   bool hasValidWallpaperPath(std::string* pathOut = nullptr) const;

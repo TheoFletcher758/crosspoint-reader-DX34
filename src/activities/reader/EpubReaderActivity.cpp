@@ -19,6 +19,7 @@
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
 #include "MappedInputManager.h"
+#include "ReadingThemeStore.h"
 #include "ReadingThemesActivity.h"
 #include "ReaderLayoutSafety.h"
 #include "RecentBooksStore.h"
@@ -914,7 +915,7 @@ void EpubReaderActivity::onReaderMenuConfirm(
     pendingGoHome = true;
     break;
   }
-  case EpubReaderMenuActivity::MenuAction::READING_THEMES: {
+  case EpubReaderMenuActivity::MenuAction::THEMES_MENU: {
     exitActivity();
     enterNewActivity(new ReadingThemesActivity(
         renderer, mappedInput, epub ? epub->getCachePath() : std::string(),
@@ -928,6 +929,26 @@ void EpubReaderActivity::onReaderMenuConfirm(
             requestUpdate();
           }
         }));
+    break;
+  }
+  case EpubReaderMenuActivity::MenuAction::REVERT_THEME: {
+    exitActivity();
+    pendingMenuOpen = false;
+    skipNextButtonCheck = true;
+    const std::string cachePath = epub ? epub->getCachePath() : std::string();
+    if (!READING_THEMES.canRevertTheme(cachePath)) {
+      StatusPopup::showBlocking(renderer, tr(STR_NO_THEME_TO_REVERT));
+      delay(500);
+      requestUpdate();
+      break;
+    }
+    if (!READING_THEMES.revertThemeChange(cachePath)) {
+      StatusPopup::showBlocking(renderer, tr(STR_THEME_REVERT_FAILED));
+      delay(500);
+      requestUpdate();
+      break;
+    }
+    reloadCurrentSectionForDisplaySettings();
     break;
   }
   case EpubReaderMenuActivity::MenuAction::LAST_SLEEP_WALLPAPER: {
