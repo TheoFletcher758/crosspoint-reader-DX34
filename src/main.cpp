@@ -439,7 +439,7 @@ void loop() {
   if (loopDuration > maxLoopDuration) {
     maxLoopDuration = loopDuration;
     if (maxLoopDuration > 50) {
-      LOG_DBG("LOOP", "New max loop duration: %lu ms (activity: %lu ms)", maxLoopDuration, activityDuration);
+      LOG_DBG("LOOP", "New max loop duration: %lu ms", maxLoopDuration);
     }
   }
 

@@ -152,7 +152,6 @@ void OtaUpdateActivity::render(Activity::RenderLock&&) {
 }
 
 void OtaUpdateActivity::loop() {
-  // TODO @ngxson : refactor this logic later
   if (updater.getRender()) {
     requestUpdate();
   }

@@ -363,13 +363,9 @@ void drawQRCode(const GfxRenderer& renderer, const int x, const int y, const std
   for (uint8_t cy = 0; cy < qrcode.size; cy++) {
     for (uint8_t cx = 0; cx < qrcode.size; cx++) {
       if (qrcode_getModule(&qrcode, cx, cy)) {
-        // Serial.print("**");
         renderer.fillRect(x + px * cx, y + px * cy, px, px, true);
-      } else {
-        // Serial.print("  ");
       }
     }
-    // Serial.print("\n");
   }
 }
 

@@ -1241,7 +1241,6 @@ void EpubReaderActivity::reloadCurrentSectionForDisplaySettings() {
   requestUpdate();
 }
 
-// TODO: Failure handling
 void EpubReaderActivity::render(Activity::RenderLock &&lock) {
   if (!epub) {
     return;
