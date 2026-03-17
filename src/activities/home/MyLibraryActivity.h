@@ -1,14 +1,15 @@
 #pragma once
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "../Activity.h"
+#include "../ActivityWithSubactivity.h"
 #include "RecentBooksStore.h"
 #include "util/ButtonNavigator.h"
 
-class MyLibraryActivity final : public Activity {
+class MyLibraryActivity final : public ActivityWithSubactivity {
  private:
   struct MoveBrowseEntry {
     std::string name;
@@ -35,6 +36,11 @@ class MyLibraryActivity final : public Activity {
   // Files state
   std::string basepath = "/";
   std::vector<std::string> files;
+  std::vector<size_t> filteredFileIndexes;
+  std::string activeSearchQuery;
+  std::string pendingSearchQuery;
+  bool pendingSearchSubmit = false;
+  bool pendingSearchCancel = false;
   std::unordered_map<std::string, std::string> progressPrefixCache;
 
   // Callbacks
@@ -43,7 +49,22 @@ class MyLibraryActivity final : public Activity {
 
   // Data loading
   void loadFiles();
-  std::string getDisplayNameForEntry(size_t index);
+  void openSearchActivity();
+  void clearSearch();
+  void setSearchQuery(const std::string& query);
+  void rebuildFilteredFileIndexes();
+  bool hasActiveSearch() const;
+  size_t entryListOffset() const;
+  size_t visibleEntryCount() const;
+  size_t totalListCount() const;
+  bool isSearchActionRow(size_t listIndex) const;
+  bool isClearSearchRow(size_t listIndex) const;
+  std::optional<size_t> rawFileIndexForListIndex(size_t listIndex) const;
+  std::optional<size_t> rawFileIndexForPath(const std::string& path) const;
+  size_t listIndexForRawFileIndex(size_t rawIndex) const;
+  void clampSelectorIndex();
+  std::string getDisplayNameForRawFile(size_t rawIndex);
+  std::string getRowTextForListIndex(size_t listIndex);
   std::string makeAbsolutePath(const std::string& name) const;
   static std::string getBasename(const std::string& path);
   static bool isBookFile(const std::string& filename);
@@ -71,7 +92,7 @@ class MyLibraryActivity final : public Activity {
                              const std::function<void()>& onGoHome,
                              const std::function<void(const std::string& path)>& onSelectBook,
                              std::string initialPath = "/")
-      : Activity("MyLibrary", renderer, mappedInput),
+      : ActivityWithSubactivity("MyLibrary", renderer, mappedInput),
         basepath(initialPath.empty() ? "/" : std::move(initialPath)),
         onSelectBook(onSelectBook),
         onGoHome(onGoHome) {}
