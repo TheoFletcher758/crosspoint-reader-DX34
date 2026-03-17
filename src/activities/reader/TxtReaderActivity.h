@@ -78,7 +78,6 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   void renderPage();
   void renderStatusBar(const StatusBarLayout& statusBarLayout, int orientedMarginRight, int orientedMarginBottom,
                        int orientedMarginLeft);
-  void loadRecentSwitcherBooks();
   void renderRecentSwitcher();
   void openReadingThemes();
   void reloadCurrentLayoutForDisplaySettings();

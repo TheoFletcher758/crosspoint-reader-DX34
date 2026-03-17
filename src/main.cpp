@@ -241,7 +241,6 @@ void setupDisplayAndFonts() {
 
 bool ensureCrosspointDataDir() {
   constexpr const char* dataDir = "/.crosspoint";
-  constexpr const char* quarantinePath = "/.crosspoint.corrupt";
 
   if (Storage.exists(dataDir)) {
     FsFile entry = Storage.open(dataDir, O_RDONLY);
@@ -253,6 +252,7 @@ bool ensureCrosspointDataDir() {
     const bool isDirectory = entry.isDirectory();
     entry.close();
     if (!isDirectory) {
+      constexpr const char* quarantinePath = "/.crosspoint.corrupt";
       if (Storage.exists(quarantinePath)) {
         if (!Storage.remove(quarantinePath)) {
           Storage.removeDir(quarantinePath);
@@ -431,11 +431,9 @@ void loop() {
     return;
   }
 
-  const unsigned long activityStartTime = millis();
   if (currentActivity) {
     currentActivity->loop();
   }
-  const unsigned long activityDuration = millis() - activityStartTime;
 
   const unsigned long loopDuration = millis() - loopStartTime;
   if (loopDuration > maxLoopDuration) {

@@ -428,8 +428,8 @@ void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const s
   int currentX = rect.x + BaseMetrics::values.contentSidePadding;
 
   for (const auto& tab : tabs) {
-    const int textWidth =
-        renderer.getTextWidth(UI_12_FONT_ID, tab.label, tab.selected ? EpdFontFamily::REGULAR : EpdFontFamily::REGULAR);
+    const int textWidth = renderer.getTextWidth(
+        UI_12_FONT_ID, tab.label, EpdFontFamily::REGULAR);
 
     // Draw underline for selected tab
     if (tab.selected) {
@@ -442,7 +442,7 @@ void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const s
 
     // Draw tab label
     renderer.drawText(UI_12_FONT_ID, currentX, rect.y, tab.label, !(tab.selected && selected),
-                      tab.selected ? EpdFontFamily::REGULAR : EpdFontFamily::REGULAR);
+                      EpdFontFamily::REGULAR);
 
     currentX += textWidth + BaseMetrics::values.tabSpacing;
   }

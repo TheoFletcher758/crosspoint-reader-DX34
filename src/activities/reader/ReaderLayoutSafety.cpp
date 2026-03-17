@@ -238,15 +238,12 @@ StatusBarBudgetResult resolveStatusBarBudget(
   totalReserved = result.top.reservedHeight + result.bottom.reservedHeight;
   if (totalReserved > availableStatusHeight) {
     int overflow = totalReserved - availableStatusHeight;
-    if (overflow > 0) {
-      const int reduceBottom = std::min(result.bottom.reservedHeight, overflow);
-      result.bottom.reservedHeight -= reduceBottom;
-      overflow -= reduceBottom;
-    }
+    const int reduceBottom = std::min(result.bottom.reservedHeight, overflow);
+    result.bottom.reservedHeight -= reduceBottom;
+    overflow -= reduceBottom;
     if (overflow > 0) {
       const int reduceTop = std::min(result.top.reservedHeight, overflow);
       result.top.reservedHeight -= reduceTop;
-      overflow -= reduceTop;
     }
     LOG_DBG(logTag,
             "Status bar reserve clamped to preserve viewport: top=%d bottom=%d",

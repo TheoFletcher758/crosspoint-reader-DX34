@@ -254,15 +254,6 @@ std::string MyLibraryActivity::getBasename(const std::string& path) {
   return (slashPos == std::string::npos) ? path : path.substr(slashPos + 1);
 }
 
-std::string MyLibraryActivity::getParentPath(const std::string& path) {
-  if (path.empty() || path == "/") return "/";
-  std::string trimmed = path;
-  if (trimmed.back() == '/' && trimmed.size() > 1) trimmed.pop_back();
-  const auto slashPos = trimmed.find_last_of('/');
-  if (slashPos == std::string::npos || slashPos == 0) return "/";
-  return trimmed.substr(0, slashPos);
-}
-
 bool MyLibraryActivity::isBookFile(const std::string& filename) {
   return StringUtils::checkFileExtension(filename, ".epub") || StringUtils::checkFileExtension(filename, ".xtch") ||
          StringUtils::checkFileExtension(filename, ".xtc") || StringUtils::checkFileExtension(filename, ".txt") ||
@@ -364,9 +355,11 @@ void MyLibraryActivity::loadMoveBrowseEntries() {
 
   std::vector<std::string> destinationPaths;
   collectMoveDestinationPaths("/", destinationPaths);
-  for (const auto& path : destinationPaths) {
-    moveBrowseEntries.push_back({path, path, false, false});
-  }
+  std::transform(destinationPaths.begin(), destinationPaths.end(),
+                 std::back_inserter(moveBrowseEntries),
+                 [](const std::string& path) {
+                   return MoveBrowseEntry{path, path, false, false};
+                 });
 
   if (fileMoveIndex >= static_cast<int>(moveBrowseEntries.size())) {
     fileMoveIndex = std::max(0, static_cast<int>(moveBrowseEntries.size()) - 1);
@@ -789,7 +782,6 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
   GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight}, folderName.c_str());
 
   const int contentTop = metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
-  const int contentHeight = pageHeight - contentTop - metrics.buttonHintsHeight - metrics.verticalSpacing;
   if (files.empty()) {
     renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, contentTop + 20, tr(STR_NO_BOOKS_FOUND));
   } else {
@@ -803,14 +795,13 @@ void MyLibraryActivity::render(Activity::RenderLock&&) {
     const int rowGap = 1;
     const int lineHeight = renderer.getLineHeight(UI_10_FONT_ID);
     const int rowPadY = 2;
-    const int oneLineRowHeight = lineHeight + rowPadY * 2;
     const int listX = 0;
     const int listW = pageWidth;
     const int textX = listX + metrics.contentSidePadding;
     const int textW = listW - metrics.contentSidePadding * 2 - 3;
 
     if (selectorIndex >= files.size()) {
-      selectorIndex = files.empty() ? 0 : files.size() - 1;
+      selectorIndex = files.size() - 1;
     }
     const int selected = static_cast<int>(selectorIndex);
 

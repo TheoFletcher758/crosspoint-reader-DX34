@@ -357,10 +357,13 @@ std::shared_ptr<Page> EpubReaderActivity::getCachedPage(
     return {};
   }
 
-  for (const auto& entry : pageCache) {
-    if (entry.pageIndex == pageIndex) {
-      return entry.page;
-    }
+  const auto it = std::find_if(
+      pageCache.begin(), pageCache.end(),
+      [pageIndex](const PageCacheEntry& entry) {
+        return entry.pageIndex == pageIndex;
+      });
+  if (it != pageCache.end()) {
+    return it->page;
   }
 
   return {};
@@ -377,11 +380,14 @@ std::shared_ptr<Page> EpubReaderActivity::loadAndCachePage(const int pageIndex) 
   }
 
   pageCacheSpineIndex = currentSpineIndex;
-  for (auto& entry : pageCache) {
-    if (entry.pageIndex == pageIndex) {
-      entry.page = page;
-      return page;
-    }
+  const auto it = std::find_if(
+      pageCache.begin(), pageCache.end(),
+      [pageIndex](const PageCacheEntry& entry) {
+        return entry.pageIndex == pageIndex;
+      });
+  if (it != pageCache.end()) {
+    it->page = page;
+    return page;
   }
 
   pageCache[0] = pageCache[1];
@@ -822,7 +828,7 @@ void EpubReaderActivity::toggleReaderBoldSwap() {
     if (section && section->pageCount > 0) {
       backupSpine = currentSpineIndex;
       backupPage = section->currentPage;
-      backupPageCount = (section->pageCount > 0) ? section->pageCount : 1;
+      backupPageCount = section->pageCount;
     } else if (spineCount > 0) {
       if (currentSpineIndex >= spineCount) {
         backupSpine = spineCount - 1;
@@ -1582,7 +1588,7 @@ void EpubReaderActivity::saveProgress(int spineIndex, int currentPage,
   }
 }
 void EpubReaderActivity::flushProgressIfNeeded(const bool force) {
-  if (!epub || !section || section->pageCount <= 0) {
+  if (!epub || !section || section->pageCount == 0) {
     return;
   }
   if (!progressDirty) {

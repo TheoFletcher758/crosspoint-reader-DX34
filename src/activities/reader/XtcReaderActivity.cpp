@@ -295,21 +295,6 @@ void XtcReaderActivity::render(Activity::RenderLock &&) {
   flushProgressIfNeeded(false);
 }
 
-void XtcReaderActivity::loadRecentSwitcherBooks() {
-  recentSwitcherBooks.clear();
-  const auto &books = RECENT_BOOKS.getBooks();
-  for (const auto &book : books) {
-    if (recentSwitcherBooks.size() >= recentSwitcherRows) {
-      break;
-    }
-    if (!Storage.exists(book.path.c_str())) {
-      continue;
-    }
-    recentSwitcherBooks.push_back(book);
-  }
-  recentSwitcherSelection = 0;
-}
-
 void XtcReaderActivity::renderRecentSwitcher() {
   const int screenW = renderer.getScreenWidth();
   const int screenH = renderer.getScreenHeight();

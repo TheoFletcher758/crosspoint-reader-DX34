@@ -8,9 +8,9 @@ class GfxRenderer;
 
 namespace StatusPopup {
 
-void showBlocking(GfxRenderer& renderer, const std::string& message);
-void showBlocking(GfxRenderer& renderer, const char* message);
-void showBlocking(GfxRenderer& renderer, const String& message);
+void showBlocking(const GfxRenderer& renderer, const std::string& message);
+void showBlocking(const GfxRenderer& renderer, const char* message);
+void showBlocking(const GfxRenderer& renderer, const String& message);
 void showBottomProgress(GfxRenderer& renderer, const std::string& message,
                         int progress);
 void showBottomProgress(GfxRenderer& renderer, const char* message,

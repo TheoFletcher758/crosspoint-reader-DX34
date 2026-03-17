@@ -39,7 +39,6 @@ class XtcReaderActivity final : public ActivityWithSubactivity {
   std::vector<RecentBook> recentSwitcherBooks;
 
   void renderPage();
-  void loadRecentSwitcherBooks();
   void renderRecentSwitcher();
   void saveProgress() const;
   void flushProgressIfNeeded(bool force);

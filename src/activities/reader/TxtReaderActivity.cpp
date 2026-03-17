@@ -637,8 +637,6 @@ void TxtReaderActivity::initializeReader() {
   orientedMarginRight += cachedScreenMarginHorizontal;
   orientedMarginBottom += cachedScreenMarginBottom;
 
-  int statusBarTopReserved = 0;
-  int statusBarBottomReserved = 0;
   if (SETTINGS.statusBarEnabled) {
     const int usableWidth =
         ReaderLayoutSafety::clampViewportDimension(
@@ -706,8 +704,8 @@ void TxtReaderActivity::initializeReader() {
                 !statusBarItemIsTop(SETTINGS.statusBarChapterBarPosition),
             .desiredTitleLineCount = bottomTitleLineCount,
         });
-    statusBarTopReserved = budget.top.reservedHeight;
-    statusBarBottomReserved = budget.bottom.reservedHeight;
+    const int statusBarTopReserved = budget.top.reservedHeight;
+    const int statusBarBottomReserved = budget.bottom.reservedHeight;
     if (statusBarTopReserved > 0) {
       orientedMarginTop =
           getStatusTopInset(renderer) + cachedScreenMarginTop +
@@ -1001,21 +999,6 @@ void TxtReaderActivity::render(Activity::RenderLock &&) {
   }
 
   flushProgressIfNeeded(false);
-}
-
-void TxtReaderActivity::loadRecentSwitcherBooks() {
-  recentSwitcherBooks.clear();
-  const auto &books = RECENT_BOOKS.getBooks();
-  for (const auto &book : books) {
-    if (recentSwitcherBooks.size() >= recentSwitcherRows) {
-      break;
-    }
-    if (!Storage.exists(book.path.c_str())) {
-      continue;
-    }
-    recentSwitcherBooks.push_back(book);
-  }
-  recentSwitcherSelection = 0;
 }
 
 void TxtReaderActivity::renderRecentSwitcher() {

@@ -137,16 +137,20 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
   // Build a sorted vector of string_views (no string copies) for O(log n) lookup.
   std::vector<std::string_view> sortedPlaylist;
   sortedPlaylist.reserve(playlist.size());
-  for (const auto &s : playlist) sortedPlaylist.emplace_back(s);
+  std::transform(playlist.begin(), playlist.end(),
+                 std::back_inserter(sortedPlaylist),
+                 [](const std::string& entry) {
+                   return std::string_view(entry);
+                 });
   std::sort(sortedPlaylist.begin(), sortedPlaylist.end());
 
   std::vector<std::string> newFiles;
-  for (const auto &file : files) {
-    if (!std::binary_search(sortedPlaylist.begin(), sortedPlaylist.end(),
-                             std::string_view(file))) {
-      newFiles.push_back(file);
-    }
-  }
+  std::copy_if(files.begin(), files.end(), std::back_inserter(newFiles),
+               [&sortedPlaylist](const std::string& file) {
+                 return !std::binary_search(sortedPlaylist.begin(),
+                                            sortedPlaylist.end(),
+                                            std::string_view(file));
+               });
 
   // Insert new files right after the current head so they show immediately.
   // When lastSleepImage == 0 nothing has been shown yet, so insert at 0.
@@ -206,7 +210,7 @@ std::string nextSleepImageLargeCollection(const std::vector<std::string> &files)
   return next;
 }
 
-void drawSleepFilenameLabel(GfxRenderer &renderer, const char *filename) {
+void drawSleepFilenameLabel(const GfxRenderer &renderer, const char *filename) {
   if (!filename || filename[0] == '\0')
     return;
 
@@ -354,7 +358,7 @@ bool SleepActivity::randomizeSleepImagePlaylist() {
   return true;
 }
 
-void SleepActivity::trimSleepFolderToLimit(GfxRenderer* popupRenderer) {
+void SleepActivity::trimSleepFolderToLimit(const GfxRenderer* popupRenderer) {
   const size_t kLimit = CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST;
   const size_t kScanCap = kLimit + 500; // Hard cap on scanning to avoid OOM
 
@@ -414,12 +418,11 @@ void SleepActivity::trimSleepFolderToLimit(GfxRenderer* popupRenderer) {
     return;
   }
 
-  size_t favoriteCount = 0;
-  for (const std::string& filename : playlist) {
-    if (FavoriteBmp::isFavoritePath("/sleep/" + filename)) {
-      ++favoriteCount;
-    }
-  }
+  const size_t favoriteCount =
+      std::count_if(playlist.begin(), playlist.end(),
+                    [](const std::string& filename) {
+                      return FavoriteBmp::isFavoritePath("/sleep/" + filename);
+                    });
   if (favoriteCount > kLimit) {
     LOG_ERR("SLP", "Trim: %zu favorites in /sleep exceed limit %zu", favoriteCount, kLimit);
     return;
@@ -456,12 +459,11 @@ void SleepActivity::trimSleepFolderToLimit(GfxRenderer* popupRenderer) {
 
   playlist = keep;
 
-  if (popupRenderer && !overflow.empty()) {
+  if (popupRenderer) {
     StatusPopup::showBlocking(*popupRenderer, "Moving wallpapers");
   }
 
   Storage.mkdir("/sleep pause");
-  bool changed = true;
   for (const auto& filename : overflow) {
     const std::string src = std::string("/sleep/") + filename;
     const std::string dst = std::string("/sleep pause/") + filename;
@@ -472,14 +474,11 @@ void SleepActivity::trimSleepFolderToLimit(GfxRenderer* popupRenderer) {
       LOG_INF("SLP", "Trim: moved %s to /sleep pause", filename.c_str());
     }
   }
-  if (changed) {
-    APP_STATE.saveToFile();
-  }
+  APP_STATE.saveToFile();
 }
 
 void SleepActivity::renderDefaultSleepScreen() const {
   clearLastSleepWallpaperPath();
-  const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
 
   renderer.clearScreen();

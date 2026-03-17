@@ -56,9 +56,6 @@ int ReadingThemesActivity::themeIndexForRow(const int rowIndex) const {
 }
 
 int ReadingThemesActivity::clampSelectedRow(const int rowIndex) const {
-  if (rowCount() <= 0) {
-    return 0;
-  }
   return std::clamp(rowIndex, 0, rowCount() - 1);
 }
 

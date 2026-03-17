@@ -130,17 +130,6 @@ bool SettingsActivity::isPopupValueSetting(const SettingInfo& setting) const {
          setting.valuePtr == &CrossPointSettings::screenMarginBottom;
 }
 
-bool SettingsActivity::isEditingCurrentSetting() const {
-  if (!valueEditMode) {
-    return false;
-  }
-  if (selectedRowIndex < 0 || selectedRowIndex >= static_cast<int>(flatRows.size())) {
-    return false;
-  }
-  const auto& row = flatRows[selectedRowIndex];
-  return !row.isHeader && row.categoryIndex == valueEditCategoryIndex && row.settingIndex == valueEditSettingIndex;
-}
-
 void SettingsActivity::startValueEdit(const SettingInfo& setting, const int categoryIndex, const int settingIndex) {
   valueEditMode = true;
   valueEditCategoryIndex = categoryIndex;
@@ -202,12 +191,6 @@ std::string SettingsActivity::currentValueEditText() const {
     v += "%";
   }
   return v;
-}
-
-void SettingsActivity::showMessagePopup(const std::string& message) {
-  messagePopupText = message;
-  messagePopupOpen = !message.empty();
-  requestUpdate();
 }
 
 void SettingsActivity::buildSettingsList() {

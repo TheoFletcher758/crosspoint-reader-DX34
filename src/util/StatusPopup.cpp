@@ -20,18 +20,18 @@ int clampPercent(const int progress) {
 }
 
 std::string toUpperAscii(std::string text) {
-  for (char& c : text) {
-    if (c >= 'a' && c <= 'z') {
-      c = static_cast<char>(c - ('a' - 'A'));
-    }
-  }
+  std::transform(text.begin(), text.end(), text.begin(), [](const char c) {
+    return (c >= 'a' && c <= 'z')
+               ? static_cast<char>(c - ('a' - 'A'))
+               : c;
+  });
   return text;
 }
 
 void showBottomProgressImpl(GfxRenderer& renderer, const std::string& message,
                             int progress);
 
-void showBlockingImpl(GfxRenderer& renderer, const std::string& message) {
+void showBlockingImpl(const GfxRenderer& renderer, const std::string& message) {
   if (message.empty()) {
     return;
   }
@@ -81,15 +81,15 @@ void showBottomProgressImpl(GfxRenderer& renderer, const std::string& message,
 
 }  // namespace
 
-void showBlocking(GfxRenderer& renderer, const std::string& message) {
+void showBlocking(const GfxRenderer& renderer, const std::string& message) {
   showBlockingImpl(renderer, message);
 }
 
-void showBlocking(GfxRenderer& renderer, const char* message) {
+void showBlocking(const GfxRenderer& renderer, const char* message) {
   showBlockingImpl(renderer, message ? std::string(message) : std::string());
 }
 
-void showBlocking(GfxRenderer& renderer, const String& message) {
+void showBlocking(const GfxRenderer& renderer, const String& message) {
   showBlockingImpl(renderer, std::string(message.c_str()));
 }
 

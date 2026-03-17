@@ -49,7 +49,6 @@ class MyLibraryActivity final : public Activity {
   static bool isBookFile(const std::string& filename);
   static bool isBmpFile(const std::string& filename);
   static bool isManagedFile(const std::string& filename);
-  static std::string getParentPath(const std::string& path);
   void enterBmpView(const std::string& bmpPath);
   void enterFileActions(const std::string& filePath);
   void enterFileMoveBrowser();

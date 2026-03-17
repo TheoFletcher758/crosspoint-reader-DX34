@@ -26,11 +26,7 @@ std::string normalizeRecentPath(std::string path) {
     return path;
   }
 
-  for (char &c : path) {
-    if (c == '\\') {
-      c = '/';
-    }
-  }
+  std::replace(path.begin(), path.end(), '\\', '/');
 
   std::string normalized = FsHelpers::normalisePath(path);
   if (normalized.empty()) {
@@ -47,9 +43,9 @@ std::string normalizeRecentPath(std::string path) {
 
 std::string makeRecentPathKey(const std::string &rawPath) {
   std::string key = normalizeRecentPath(rawPath);
-  for (char &c : key) {
-    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-  }
+  std::transform(key.begin(), key.end(), key.begin(), [](const char c) {
+    return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  });
   return key;
 }
 

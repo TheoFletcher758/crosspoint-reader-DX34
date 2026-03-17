@@ -179,13 +179,11 @@ class SettingsActivity final : public ActivityWithSubactivity {
   void jumpCategory(int direction);
   void buildSettingsList();
   bool isPopupValueSetting(const SettingInfo& setting) const;
-  bool isEditingCurrentSetting() const;
   void startValueEdit(const SettingInfo& setting, int categoryIndex, int settingIndex);
   void adjustValueEdit(int delta);
   void applyValueEdit();
   void cancelValueEdit();
   std::string currentValueEditText() const;
-  void showMessagePopup(const std::string& message);
   void toggleCurrentSetting();
 
  public:
