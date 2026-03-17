@@ -275,6 +275,8 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
                             EpdFontFamily::REGULAR);
 
   const int currentThemeIndex = READING_THEMES.findMatchingTheme();
+  const int lastAppliedThemeIndex =
+      currentThemeIndex < 0 ? READING_THEMES.findLastAppliedTheme() : -1;
   const int contentY = metrics.topPadding + metrics.headerHeight;
   const int contentHeight =
       pageHeight - (contentY + metrics.buttonHintsHeight + metrics.verticalSpacing);
@@ -298,6 +300,8 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
       label = theme ? theme->name : tr(STR_THEME);
       if (themeIndex == currentThemeIndex) {
         label = "* " + label;
+      } else if (themeIndex == lastAppliedThemeIndex) {
+        label = "# " + label;
       }
     }
 
@@ -309,8 +313,12 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
 
     if (i >= 2) {
       const int themeIndex = themeIndexForRow(i);
-      const char* stateLabel =
-          themeIndex == currentThemeIndex ? tr(STR_CURRENT_THEME) : nullptr;
+      const char* stateLabel = nullptr;
+      if (themeIndex == currentThemeIndex) {
+        stateLabel = tr(STR_CURRENT_THEME);
+      } else if (themeIndex == lastAppliedThemeIndex) {
+        stateLabel = tr(STR_LAST_USED_THEME);
+      }
       if (stateLabel != nullptr) {
         const int currentW = renderer.getTextWidth(UI_10_FONT_ID, stateLabel);
         renderer.drawText(UI_10_FONT_ID,

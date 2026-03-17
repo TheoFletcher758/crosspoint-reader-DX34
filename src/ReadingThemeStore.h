@@ -61,6 +61,7 @@ class ReadingThemeStore {
   ReadingTheme revertTheme;
   bool hasRevertTheme = false;
   std::string revertThemeCachePath;
+  std::string lastAppliedThemeName;
 
   friend bool JsonSettingsIO::loadReadingThemes(ReadingThemeStore& store,
                                                 const char* json);
@@ -76,6 +77,8 @@ class ReadingThemeStore {
   int getCount() const { return static_cast<int>(themes.size()); }
   bool isEmpty() const { return themes.empty(); }
   int getLastEditedThemeIndex() const { return lastEditedThemeIndex; }
+  const std::string& getLastAppliedThemeName() const { return lastAppliedThemeName; }
+  int findLastAppliedTheme() const;
 
   bool saveToFile() const;
   bool loadFromFile();

@@ -274,6 +274,18 @@ int ReadingThemeStore::findMatchingTheme() const {
   return -1;
 }
 
+int ReadingThemeStore::findLastAppliedTheme() const {
+  if (lastAppliedThemeName.empty()) {
+    return -1;
+  }
+  for (size_t i = 0; i < themes.size(); i++) {
+    if (sameThemeName(themes[i].name, lastAppliedThemeName)) {
+      return static_cast<int>(i);
+    }
+  }
+  return -1;
+}
+
 std::string ReadingThemeStore::sanitizeName(const std::string& name) {
   std::string trimmed;
   trimmed.reserve(name.size());
@@ -386,6 +398,7 @@ bool ReadingThemeStore::applyTheme(const size_t index,
   revertTheme = previous;
   hasRevertTheme = true;
   revertThemeCachePath = cachePath;
+  lastAppliedThemeName = themes[index].name;
   return true;
 }
 
@@ -417,7 +430,8 @@ bool ReadingThemeStore::saveCurrentBookSettings(const std::string& cachePath) {
     return false;
   }
   return JsonSettingsIO::saveReadingTheme(
-      fromSettings("", SETTINGS), bookReaderSettingsPath(cachePath).c_str());
+      fromSettings(instance.lastAppliedThemeName, SETTINGS),
+      bookReaderSettingsPath(cachePath).c_str());
 }
 
 bool ReadingThemeStore::loadBookSettings(const std::string& cachePath,
@@ -443,6 +457,7 @@ bool ReadingThemeStore::loadBookSettingsIntoCurrent(
   }
 
   applyThemeToSettings(theme, SETTINGS);
+  instance.lastAppliedThemeName = theme.name;
   return true;
 }
 
