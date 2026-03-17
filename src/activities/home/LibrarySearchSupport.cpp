@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <esp_task_wdt.h>
 #include <limits>
 #include <tuple>
 #include <vector>
@@ -132,6 +133,9 @@ std::vector<size_t> rankMatches(const std::vector<std::string>& entries,
   matches.reserve(entries.size());
 
   for (size_t fileIndex = 0; fileIndex < entries.size(); ++fileIndex) {
+    if (fileIndex % 100 == 0) {
+      esp_task_wdt_reset();
+    }
     const std::string label = searchLabelForEntry(entries[fileIndex]);
     const std::string loweredLabel = toLowerAsciiCopy(label);
 

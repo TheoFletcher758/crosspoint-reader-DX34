@@ -194,12 +194,12 @@ void LibrarySearchActivity::loop() {
                                          requestUpdate();
                                        });
 
-  if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
+  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     handleKeyPress();
   }
 
-  if (mappedInput.wasPressed(MappedInputManager::Button::Back) && onComplete) {
-    onComplete(query);
+  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+    if (onCancel) onCancel();
   }
 }
 
@@ -218,29 +218,15 @@ void LibrarySearchActivity::render(Activity::RenderLock&&) {
   renderer.drawText(SMALL_FONT_ID, 12, pathY, pathLabel.c_str());
 
   const int queryBoxY = pathY + renderer.getLineHeight(SMALL_FONT_ID) + 8;
-  const int queryBoxH = 24;
+  const int lineH = renderer.getLineHeight(UI_10_FONT_ID);
+  const int queryBoxH = lineH + 10;
   renderer.drawRect(10, queryBoxY, pageWidth - 20, queryBoxH, true);
   std::string displayQuery = query.empty() ? "_" : (query + "_");
   displayQuery =
       renderer.truncatedText(UI_10_FONT_ID, displayQuery.c_str(), pageWidth - 34);
-  renderer.drawText(UI_10_FONT_ID, 16, queryBoxY + 6, displayQuery.c_str());
+  renderer.drawText(UI_10_FONT_ID, 16, queryBoxY + 5, displayQuery.c_str());
 
   const int previewStartY = queryBoxY + queryBoxH + 8;
-  std::string matchSummary =
-      query.empty()
-          ? "Type to search"
-          : (std::to_string(previewMatches.size()) + " matches");
-  renderer.drawText(UI_10_FONT_ID, 12, previewStartY, matchSummary.c_str());
-
-  int previewY = previewStartY + renderer.getLineHeight(UI_10_FONT_ID) + 4;
-  for (int i = 0;
-       i < PREVIEW_ROWS && i < static_cast<int>(previewMatches.size()); ++i) {
-    const std::string entry = entries[previewMatches[i]];
-    const std::string label =
-        renderer.truncatedText(UI_10_FONT_ID, entry.c_str(), pageWidth - 24);
-    renderer.drawText(UI_10_FONT_ID, 12, previewY, label.c_str());
-    previewY += renderer.getLineHeight(UI_10_FONT_ID) + 2;
-  }
 
   constexpr int keyWidth = 18;
   constexpr int keyHeight = 18;
@@ -250,6 +236,28 @@ void LibrarySearchActivity::render(Activity::RenderLock&&) {
   const int keyboardStartY =
       pageHeight - UITheme::getInstance().getMetrics().buttonHintsHeight - 8 -
       NUM_ROWS * (keyHeight + keySpacing);
+
+  std::string matchSummary =
+      query.empty()
+          ? "Type to search"
+          : (std::to_string(previewMatches.size()) + " matches");
+  renderer.drawText(UI_10_FONT_ID, 12, previewStartY, matchSummary.c_str());
+
+  const int previewLineH = renderer.getLineHeight(UI_10_FONT_ID) + 2;
+  int previewY = previewStartY + renderer.getLineHeight(UI_10_FONT_ID) + 4;
+  const int availablePreviewRows =
+      std::max(0, (keyboardStartY - 8 - previewY) / previewLineH);
+  const int rowsToShow =
+      std::min(availablePreviewRows, static_cast<int>(previewMatches.size()));
+  for (int i = 0; i < rowsToShow; ++i) {
+    const std::string label = renderer.truncatedText(
+        UI_10_FONT_ID,
+        LibrarySearchSupport::searchLabelForEntry(entries[previewMatches[i]])
+            .c_str(),
+        pageWidth - 24);
+    renderer.drawText(UI_10_FONT_ID, 12, previewY, label.c_str());
+    previewY += previewLineH;
+  }
   const char* const* layout = shiftState ? keyboardShift : keyboard;
 
   for (int row = 0; row < NUM_ROWS; ++row) {
@@ -260,7 +268,10 @@ void LibrarySearchActivity::render(Activity::RenderLock&&) {
       const bool shiftSelected =
           (selectedRow == SPECIAL_ROW && selectedCol >= SHIFT_COL &&
            selectedCol < SPACE_COL);
-      renderItemWithSelector(currentX + 2, rowY, "shift", shiftSelected);
+      static constexpr StrId shiftIds[3] = {
+          StrId::STR_KBD_SHIFT, StrId::STR_KBD_SHIFT_CAPS, StrId::STR_KBD_LOCK};
+      renderItemWithSelector(currentX + 2, rowY, I18N.get(shiftIds[shiftState]),
+                             shiftSelected);
       currentX += 2 * (keyWidth + keySpacing);
 
       const bool spaceSelected =

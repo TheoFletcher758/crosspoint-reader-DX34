@@ -45,7 +45,7 @@ class LibrarySearchActivity final : public Activity {
   static constexpr int BACKSPACE_COL = 7;
   static constexpr int DONE_COL = 9;
   static constexpr size_t MAX_QUERY_LENGTH = 64;
-  static constexpr int PREVIEW_ROWS = 4;
+  static constexpr int MAX_PREVIEW_ROWS = 20;
   static const char* const keyboard[NUM_ROWS];
   static const char* const keyboardShift[NUM_ROWS];
 
