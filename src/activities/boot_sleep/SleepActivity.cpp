@@ -568,7 +568,10 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap &bitmap,
     drawSleepFilenameLabel(renderer, sourceFilename);
   }
 
-  renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+  // Use FULL_REFRESH for the best contrast and cleanest initial state before
+  // the grayscale overlay. The extra refresh time is negligible since the
+  // device is going to sleep immediately after.
+  renderer.displayBuffer(HalDisplay::FULL_REFRESH);
 
   if (hasGreyscale) {
     bitmap.rewindToData();

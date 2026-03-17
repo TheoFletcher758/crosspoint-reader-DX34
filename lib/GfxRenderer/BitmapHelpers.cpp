@@ -3,8 +3,8 @@
 #include <cstdint>
 
 // Brightness/Contrast adjustments:
-constexpr bool USE_BRIGHTNESS = false;       // true: apply brightness/gamma adjustments
-constexpr int BRIGHTNESS_BOOST = 10;         // Brightness offset (0-50)
+constexpr bool USE_BRIGHTNESS = true;        // Apply contrast adjustment before dithering
+constexpr int BRIGHTNESS_BOOST = 0;          // No brightness offset (contrast alone is sufficient)
 constexpr bool GAMMA_CORRECTION = false;     // Gamma curve (brightens midtones)
 constexpr float CONTRAST_FACTOR = 1.15f;     // Contrast multiplier (1.0 = no change, >1 = more contrast)
 constexpr bool USE_NOISE_DITHERING = false;  // Hash-based noise dithering
@@ -50,13 +50,13 @@ int adjustPixel(int gray) {
   return gray;
 }
 // Simple quantization without dithering - divide into 4 levels
-// The thresholds are fine-tuned to the X4 display
+// Thresholds match the Atkinson/Floyd-Steinberg ditherers
 uint8_t quantizeSimple(int gray) {
-  if (gray < 45) {
+  if (gray < 40) {
     return 0;
-  } else if (gray < 70) {
+  } else if (gray < 105) {
     return 1;
-  } else if (gray < 140) {
+  } else if (gray < 180) {
     return 2;
   } else {
     return 3;

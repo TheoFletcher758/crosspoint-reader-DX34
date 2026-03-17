@@ -122,34 +122,22 @@ class AtkinsonDitherer {
     // Quantize to 4 levels
     uint8_t quantized;
     int quantizedValue;
-    if (false) {  // original thresholds
-      if (adjusted < 43) {
-        quantized = 0;
-        quantizedValue = 0;
-      } else if (adjusted < 128) {
-        quantized = 1;
-        quantizedValue = 85;
-      } else if (adjusted < 213) {
-        quantized = 2;
-        quantizedValue = 170;
-      } else {
-        quantized = 3;
-        quantizedValue = 255;
-      }
-    } else {  // fine-tuned to X4 eink display
-      if (adjusted < 30) {
-        quantized = 0;
-        quantizedValue = 15;
-      } else if (adjusted < 50) {
-        quantized = 1;
-        quantizedValue = 30;
-      } else if (adjusted < 140) {
-        quantized = 2;
-        quantizedValue = 80;
-      } else {
-        quantized = 3;
-        quantizedValue = 210;
-      }
+    // Quantize to 4 levels, tuned for X4 e-ink display.
+    // Thresholds are set at midpoints between the display's actual gray levels.
+    // quantizedValues approximate each level's perceived luminance for accurate
+    // error diffusion.
+    if (adjusted < 40) {
+      quantized = 0;
+      quantizedValue = 0;
+    } else if (adjusted < 105) {
+      quantized = 1;
+      quantizedValue = 75;
+    } else if (adjusted < 180) {
+      quantized = 2;
+      quantizedValue = 150;
+    } else {
+      quantized = 3;
+      quantizedValue = 235;
     }
 
     // Calculate error (only distribute 6/8 = 75%)
@@ -207,10 +195,7 @@ class FloydSteinbergDitherer {
     delete[] errorNextRow;
   }
 
-  // **1. EXPLICITLY DELETE THE COPY CONSTRUCTOR**
   FloydSteinbergDitherer(const FloydSteinbergDitherer& other) = delete;
-
-  // **2. EXPLICITLY DELETE THE COPY ASSIGNMENT OPERATOR**
   FloydSteinbergDitherer& operator=(const FloydSteinbergDitherer& other) = delete;
 
   // Process a single pixel and return quantized 2-bit value
@@ -223,37 +208,21 @@ class FloydSteinbergDitherer {
     if (adjusted < 0) adjusted = 0;
     if (adjusted > 255) adjusted = 255;
 
-    // Quantize to 4 levels (0, 85, 170, 255)
+    // Quantize to 4 levels, tuned for X4 e-ink display
     uint8_t quantized;
     int quantizedValue;
-    if (false) {  // original thresholds
-      if (adjusted < 43) {
-        quantized = 0;
-        quantizedValue = 0;
-      } else if (adjusted < 128) {
-        quantized = 1;
-        quantizedValue = 85;
-      } else if (adjusted < 213) {
-        quantized = 2;
-        quantizedValue = 170;
-      } else {
-        quantized = 3;
-        quantizedValue = 255;
-      }
-    } else {  // fine-tuned to X4 eink display
-      if (adjusted < 30) {
-        quantized = 0;
-        quantizedValue = 15;
-      } else if (adjusted < 50) {
-        quantized = 1;
-        quantizedValue = 30;
-      } else if (adjusted < 140) {
-        quantized = 2;
-        quantizedValue = 80;
-      } else {
-        quantized = 3;
-        quantizedValue = 210;
-      }
+    if (adjusted < 40) {
+      quantized = 0;
+      quantizedValue = 0;
+    } else if (adjusted < 105) {
+      quantized = 1;
+      quantizedValue = 75;
+    } else if (adjusted < 180) {
+      quantized = 2;
+      quantizedValue = 150;
+    } else {
+      quantized = 3;
+      quantizedValue = 235;
     }
 
     // Calculate error
