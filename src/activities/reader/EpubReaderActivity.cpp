@@ -1638,12 +1638,33 @@ void EpubReaderActivity::renderContents(const Page& page,
   renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
                   orientedMarginLeft);
 
-  if (pagesUntilFullRefresh <= 1) {
+  const bool pageHasImages = page.hasImages();
+
+  if (pagesUntilFullRefresh <= 1 || pageHasImages) {
     renderer.displayBuffer(HalDisplay::HALF_REFRESH);
     pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
   } else {
     renderer.displayBuffer();
     pagesUntilFullRefresh--;
+  }
+
+  // Apply hardware grayscale overlay for pages with images.
+  // This uses the same LSB/MSB technique as sleep wallpapers to render
+  // true 4-level grayscale, making photographs much more visible on e-ink.
+  if (pageHasImages && renderer.storeBwBuffer()) {
+    renderer.clearScreen(0x00);
+    renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
+    page.renderImages(renderer, orientedMarginLeft, contentY);
+    renderer.copyGrayscaleLsbBuffers();
+
+    renderer.clearScreen(0x00);
+    renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
+    page.renderImages(renderer, orientedMarginLeft, contentY);
+    renderer.copyGrayscaleMsbBuffers();
+
+    renderer.displayGrayBuffer();
+    renderer.restoreBwBuffer();
+    renderer.setRenderMode(GfxRenderer::BW);
   }
 
   renderer.setTextDarkeningEnabled(false);

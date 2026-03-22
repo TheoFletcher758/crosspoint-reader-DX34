@@ -31,7 +31,6 @@ namespace {
 constexpr const char *seeMoreLabel = "See all...";
 
 enum class HomeMenuAction : uint8_t {
-  ResetPages,
   BrowseFiles,
   OpdsBrowser,
   FileTransfer,
@@ -56,9 +55,7 @@ std::string getHomeHeaderVersionLabel() {
 
 std::vector<HomeMenuItem> buildHomeMenuItems(bool hasOpdsUrl) {
   std::vector<HomeMenuItem> items;
-  items.reserve(hasOpdsUrl ? 5 : 4);
-  items.push_back(
-      {tr(STR_RESET_PAGES), HomeMenuAction::ResetPages, true});
+  items.reserve(hasOpdsUrl ? 4 : 3);
   items.push_back(
       {tr(STR_BROWSE_FILES), HomeMenuAction::BrowseFiles, false});
   if (hasOpdsUrl) {
@@ -71,10 +68,23 @@ std::vector<HomeMenuItem> buildHomeMenuItems(bool hasOpdsUrl) {
   return items;
 }
 
+void drawDottedRectHome(const GfxRenderer& renderer, int x, int y, int w, int h) {
+  const int x2 = x + w - 1;
+  const int y2 = y + h - 1;
+  for (int px = x; px <= x2; px += 2) {
+    renderer.drawPixel(px, y);
+    renderer.drawPixel(px, y2);
+  }
+  for (int py = y + 1; py < y2; py += 2) {
+    renderer.drawPixel(x, py);
+    renderer.drawPixel(x2, py);
+  }
+}
+
 } // namespace
 
 int HomeActivity::getMenuItemCount() const {
-  return getRecentSlotCount() +
+  return getRecentSlotCount() + 1 +
          static_cast<int>(buildHomeMenuItems(hasOpdsUrl).size());
 }
 
@@ -231,18 +241,17 @@ void HomeActivity::loop() {
       }
     } else if (selectorIndex < recentSlots) {
       onMyLibraryOpen();
+    } else if (selectorIndex == recentSlots) {
+      APP_STATE.sessionPagesRead = 0;
+      APP_STATE.saveToFile();
+      requestUpdate();
     } else {
-      const int menuSelectedIndex = selectorIndex - recentSlots;
+      const int menuSelectedIndex = selectorIndex - recentSlots - 1;
       if (menuSelectedIndex >= static_cast<int>(menuItems.size())) {
         return;
       }
 
       switch (menuItems[menuSelectedIndex].action) {
-      case HomeMenuAction::ResetPages:
-        APP_STATE.sessionPagesRead = 0;
-        APP_STATE.saveToFile();
-        requestUpdate();
-        break;
       case HomeMenuAction::BrowseFiles:
         onMyLibraryOpen();
         break;
@@ -294,10 +303,23 @@ void HomeActivity::render(Activity::RenderLock &&) {
   const std::string sessionPagesText =
       std::string(tr(STR_SESSION_PAGES)) + ": " +
       std::to_string(APP_STATE.sessionPagesRead);
-  renderer.drawText(sessionStatFont, metrics.contentSidePadding, sessionStatY,
-                    sessionPagesText.c_str());
+  const bool pagesSelected = selectorIndex == recentSlots;
+  const int pagesTextWidth =
+      renderer.getTextWidth(sessionStatFont, sessionPagesText.c_str());
+  const int pagesTileX = metrics.contentSidePadding;
+  const int pagesTileWidth = pagesTextWidth + 16;
+  const int pagesTileHeight = renderer.getLineHeight(sessionStatFont) + 6;
+  const int pagesTileY = sessionStatY - 3;
+  if (pagesSelected) {
+    renderer.fillRect(pagesTileX, pagesTileY, pagesTileWidth, pagesTileHeight);
+  } else {
+    drawDottedRectHome(renderer, pagesTileX, pagesTileY, pagesTileWidth,
+                       pagesTileHeight);
+  }
+  renderer.drawText(sessionStatFont, pagesTileX + 8,
+                    pagesTileY + 3, sessionPagesText.c_str(), !pagesSelected);
   warningBottomY =
-      sessionStatY + renderer.getLineHeight(sessionStatFont) + 12;
+      pagesTileY + pagesTileHeight + 9;
 
   const auto menuItems = buildHomeMenuItems(hasOpdsUrl);
   const int menuCount = static_cast<int>(menuItems.size());
@@ -323,7 +345,7 @@ void HomeActivity::render(Activity::RenderLock &&) {
         i * (metrics.menuRowHeight + metrics.menuSpacing);
     const int tileX = metrics.contentSidePadding;
     const int tileWidth = pageWidth - metrics.contentSidePadding * 2;
-    const bool selected = selectorIndex - recentSlots == i;
+    const bool selected = selectorIndex - recentSlots - 1 == i;
     const bool emphasized = menuItems[i].emphasized;
     const auto textStyle =
         (emphasized && selected) ? EpdFontFamily::BOLD

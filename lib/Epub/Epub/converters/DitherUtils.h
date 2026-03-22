@@ -12,12 +12,17 @@ inline const uint8_t bayer4x4[4][4] = {
 };
 
 // Apply Bayer dithering and quantize to 4 levels (0-3)
-// Stateless - works correctly with any pixel processing order
+// Stateless - works correctly with any pixel processing order.
+// A non-linear brightness boost lifts dark/mid-tones for better e-ink
+// photograph rendering while barely affecting highlights.
 inline uint8_t applyBayerDither4Level(uint8_t gray, int x, int y) {
+  int boost = (255 - gray) / 6;
+  int boosted = gray + boost;
+
   int bayer = bayer4x4[y & 3][x & 3];
   int dither = (bayer - 8) * 5;  // Scale to +/-40 (half of quantization step 85)
 
-  int adjusted = gray + dither;
+  int adjusted = boosted + dither;
   if (adjusted < 0) adjusted = 0;
   if (adjusted > 255) adjusted = 255;
 
