@@ -42,6 +42,9 @@ class MyLibraryActivity final : public ActivityWithSubactivity {
   bool pendingSearchSubmit = false;
   bool pendingSearchCancel = false;
   std::unordered_map<std::string, std::string> progressPrefixCache;
+  size_t fileLoadLimit = 200;
+  bool hasMoreFiles = false;
+  bool folderHasBooks = false;
 
   // Callbacks
   const std::function<void(const std::string& path)> onSelectBook;
@@ -49,6 +52,8 @@ class MyLibraryActivity final : public ActivityWithSubactivity {
 
   // Data loading
   void loadFiles();
+  void loadFilesWithLimit();
+  void loadMoreFiles();
   void openSearchActivity();
   void clearSearch();
   void setSearchQuery(const std::string& query);
@@ -59,6 +64,7 @@ class MyLibraryActivity final : public ActivityWithSubactivity {
   size_t totalListCount() const;
   bool isSearchActionRow(size_t listIndex) const;
   bool isClearSearchRow(size_t listIndex) const;
+  bool isLoadMoreRow(size_t listIndex) const;
   std::optional<size_t> rawFileIndexForListIndex(size_t listIndex) const;
   std::optional<size_t> rawFileIndexForPath(const std::string& path) const;
   size_t listIndexForRawFileIndex(size_t rawIndex) const;

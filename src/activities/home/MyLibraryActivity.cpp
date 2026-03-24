@@ -28,6 +28,10 @@ void sortFileList(std::vector<std::string>& strs);
 
 namespace {
 constexpr unsigned long GO_HOME_MS = 1000;
+constexpr size_t kDefaultFileLimit = 200;
+constexpr size_t kFilesPerBatch = 200;
+constexpr size_t kFileLoadProgressThreshold = 50;
+constexpr size_t kFileLoadProgressInterval = 100;
 
 std::string rtrimSpaces(std::string text) {
   while (!text.empty() && text.back() == ' ') {
@@ -206,7 +210,22 @@ void sortFileList(std::vector<std::string>& strs) {
 
 
 void MyLibraryActivity::loadFiles() {
+  fileLoadLimit = kDefaultFileLimit;
+  loadFilesWithLimit();
+}
+
+void MyLibraryActivity::loadMoreFiles() {
+  fileLoadLimit += kFilesPerBatch;
+  const size_t savedSelector = selectorIndex;
+  loadFilesWithLimit();
+  selectorIndex = savedSelector;
+  clampSelectorIndex();
+}
+
+void MyLibraryActivity::loadFilesWithLimit() {
   files.clear();
+  hasMoreFiles = false;
+  progressPrefixCache.clear();
 
   auto root = Storage.open(basepath.c_str());
   if (!root || !root.isDirectory()) {
@@ -215,7 +234,9 @@ void MyLibraryActivity::loadFiles() {
   }
 
   root.rewindDirectory();
+  files.reserve(std::min(fileLoadLimit, static_cast<size_t>(512)));
 
+  bool hasBooks = false;
   char name[500];
   for (auto file = root.openNextFile(); file; file = root.openNextFile()) {
     file.getName(name, sizeof(name));
@@ -230,12 +251,48 @@ void MyLibraryActivity::loadFiles() {
       auto filename = std::string(name);
       if (isManagedFile(filename)) {
         files.emplace_back(filename);
+        if (!hasBooks && isBookFile(filename)) {
+          hasBooks = true;
+        }
       }
     }
     file.close();
     esp_task_wdt_reset();
+
+    if (files.size() >= kFileLoadProgressThreshold &&
+        files.size() % kFileLoadProgressInterval == 0) {
+      StatusPopup::showBottomProgress(
+          renderer, "Loading",
+          std::min(90, static_cast<int>(files.size() * 90 / fileLoadLimit)));
+    }
+
+    // Only cap non-book folders (image-only folders like sleep library)
+    if (!hasBooks && files.size() >= fileLoadLimit) {
+      // Check if there are more relevant files in the directory
+      for (auto next = root.openNextFile(); next; next = root.openNextFile()) {
+        next.getName(name, sizeof(name));
+        const bool skip =
+            name[0] == '.' || strcmp(name, "System Volume Information") == 0;
+        const bool relevant =
+            !skip && (next.isDirectory() || isManagedFile(std::string(name)));
+        next.close();
+        esp_task_wdt_reset();
+        if (relevant) {
+          hasMoreFiles = true;
+          break;
+        }
+        if (skip) continue;
+        break;
+      }
+      break;
+    }
   }
   root.close();
+  folderHasBooks = hasBooks;
+
+  if (files.size() >= kFileLoadProgressThreshold) {
+    StatusPopup::showBottomProgress(renderer, "Sorting", 95);
+  }
   sortFileList(files);
   rebuildFilteredFileIndexes();
 }
@@ -286,6 +343,7 @@ bool MyLibraryActivity::hasActiveSearch() const {
 }
 
 size_t MyLibraryActivity::entryListOffset() const {
+  if (!folderHasBooks) return 0;
   return hasActiveSearch() ? 2 : 1;
 }
 
@@ -294,15 +352,24 @@ size_t MyLibraryActivity::visibleEntryCount() const {
 }
 
 size_t MyLibraryActivity::totalListCount() const {
-  return entryListOffset() + visibleEntryCount();
+  size_t count = entryListOffset() + visibleEntryCount();
+  if (hasMoreFiles && !hasActiveSearch()) {
+    count += 1;
+  }
+  return count;
 }
 
 bool MyLibraryActivity::isSearchActionRow(const size_t listIndex) const {
-  return listIndex == 0;
+  return folderHasBooks && listIndex == 0;
 }
 
 bool MyLibraryActivity::isClearSearchRow(const size_t listIndex) const {
   return hasActiveSearch() && listIndex == 1;
+}
+
+bool MyLibraryActivity::isLoadMoreRow(const size_t listIndex) const {
+  return hasMoreFiles && !hasActiveSearch() &&
+         listIndex == entryListOffset() + visibleEntryCount();
 }
 
 std::optional<size_t> MyLibraryActivity::rawFileIndexForListIndex(
@@ -417,6 +484,10 @@ std::string MyLibraryActivity::getRowTextForListIndex(const size_t listIndex) {
 
   if (isClearSearchRow(listIndex)) {
     return "Clear search";
+  }
+
+  if (isLoadMoreRow(listIndex)) {
+    return "Load more files...";
   }
 
   const auto rawIndex = rawFileIndexForListIndex(listIndex);
@@ -899,6 +970,12 @@ void MyLibraryActivity::loop() {
     if (isClearSearchRow(selectorIndex)) {
       clearSearch();
       selectorIndex = 0;
+      requestUpdate();
+      return;
+    }
+
+    if (isLoadMoreRow(selectorIndex)) {
+      loadMoreFiles();
       requestUpdate();
       return;
     }
