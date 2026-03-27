@@ -21,6 +21,8 @@ bool HalGPIO::wasAnyReleased() const { return inputMgr.wasAnyReleased(); }
 
 unsigned long HalGPIO::getHeldTime() const { return inputMgr.getHeldTime(); }
 
+void HalGPIO::suppressUntilAllReleased() { inputMgr.suppressUntilAllReleased(); }
+
 bool HalGPIO::isUsbConnected() const {
   // U0RXD/GPIO20 reads HIGH when USB is connected
   return digitalRead(UART0_RXD) == HIGH;

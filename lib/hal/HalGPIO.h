@@ -37,6 +37,7 @@ class HalGPIO {
   bool wasReleased(uint8_t buttonIndex) const;
   bool wasAnyReleased() const;
   unsigned long getHeldTime() const;
+  void suppressUntilAllReleased();
 
   // Check if USB is connected
   bool isUsbConnected() const;

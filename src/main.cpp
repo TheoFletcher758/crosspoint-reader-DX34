@@ -96,6 +96,9 @@ void exitActivity() {
 }
 
 void enterNewActivity(Activity* activity) {
+  // Suppress stale button events from the previous activity so that
+  // a press/release that closed the old screen doesn't leak into the new one.
+  gpio.suppressUntilAllReleased();
   currentActivity = activity;
   currentActivity->onEnter();
 }
