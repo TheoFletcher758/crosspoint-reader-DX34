@@ -20,6 +20,7 @@
 #include "ReadingThemeStore.h"
 #include "RecentBooksStore.h"
 #include "activities/boot_sleep/BootActivity.h"
+#include "activities/boot_sleep/LastSleepWallpaperActivity.h"
 #include "activities/boot_sleep/SleepActivity.h"
 #include "activities/browser/OpdsBookBrowserActivity.h"
 #include "activities/home/HomeActivity.h"
@@ -358,21 +359,43 @@ void setup() {
 
   LOG_INF("MAIN", "Booting complete, checking initial activity");
 
-  // Boot to home screen if no book is open, last sleep was not from reader, back button is held, or reader activity
-  // crashed (indicated by readerActivityLoadCount > 0)
-  if (APP_STATE.openEpubPath.empty() || !APP_STATE.lastSleepFromReader ||
-      mappedInputManager.isPressed(MappedInputManager::Button::Back) || APP_STATE.readerActivityLoadCount > 0) {
-    bootActivity->setProgress(100, "Opening home");
-    SleepActivity::trimSleepFolderToLimit();
-    onGoHome();
-  } else {
-    // Clear app state to avoid getting into a boot loop if the epub doesn't load
-    const auto path = APP_STATE.openEpubPath;
+  // Determine boot destination: home screen or last open book.
+  const bool goHome = APP_STATE.openEpubPath.empty() || !APP_STATE.lastSleepFromReader ||
+                      mappedInputManager.isPressed(MappedInputManager::Button::Back) ||
+                      APP_STATE.readerActivityLoadCount > 0;
+
+  // Capture reader path before we potentially clear it.
+  std::string readerPath;
+  if (!goHome) {
+    readerPath = APP_STATE.openEpubPath;
     APP_STATE.openEpubPath = "";
     APP_STATE.readerActivityLoadCount++;
     APP_STATE.saveToFile();
+  }
+
+  // Show last sleep wallpaper triage popup before proceeding, if enabled.
+  const bool showWallpaperTriage = SETTINGS.showLastSleepWallpaperOnBoot &&
+                                   !APP_STATE.lastSleepWallpaperPath.empty() &&
+                                   Storage.exists(APP_STATE.lastSleepWallpaperPath.c_str());
+
+  if (goHome) {
+    bootActivity->setProgress(100, "Opening home");
+    SleepActivity::trimSleepFolderToLimit();
+    if (showWallpaperTriage) {
+      exitActivity();
+      enterNewActivity(new LastSleepWallpaperActivity(renderer, mappedInputManager, [=]() { onGoHome(); }));
+    } else {
+      onGoHome();
+    }
+  } else {
     bootActivity->setProgress(100, "Opening last book");
-    onGoToReader(path);
+    if (showWallpaperTriage) {
+      exitActivity();
+      enterNewActivity(
+          new LastSleepWallpaperActivity(renderer, mappedInputManager, [=]() { onGoToReader(readerPath); }));
+    } else {
+      onGoToReader(readerPath);
+    }
   }
 
   // Ensure we're not still holding the power button before leaving setup

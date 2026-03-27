@@ -39,6 +39,7 @@ void EpubReaderChapterSelectionActivity::onEnter() {
   if (selectorIndex == -1) {
     selectorIndex = 0;
   }
+  resolvedCurrentTocIndex = selectorIndex;
 
   // Trigger first update
   requestUpdate();
@@ -119,6 +120,7 @@ void EpubReaderChapterSelectionActivity::render(Activity::RenderLock&&) {
     if (itemIndex >= totalItems) break;
     const int displayY = 60 + contentY + i * 30;
     const bool isSelected = (itemIndex == selectorIndex);
+    const bool isCurrent = (itemIndex == resolvedCurrentTocIndex);
 
     auto item = epub->getTocItem(itemIndex);
 
@@ -127,7 +129,26 @@ void EpubReaderChapterSelectionActivity::render(Activity::RenderLock&&) {
     const std::string chapterName =
         renderer.truncatedText(UI_10_FONT_ID, item.title.c_str(), contentWidth - 40 - indentSize);
 
-    renderer.drawText(UI_10_FONT_ID, indentSize, displayY, chapterName.c_str(), !isSelected);
+    if (isCurrent && !isSelected) {
+      // Current reading position: bold text (double-draw) + dotted border.
+      renderer.drawText(UI_10_FONT_ID, indentSize, displayY, chapterName.c_str(), true);
+      renderer.drawText(UI_10_FONT_ID, indentSize + 1, displayY, chapterName.c_str(), true);
+      // Dotted border around item row
+      const int rectX = contentX + 2;
+      const int rectY = displayY - 2;
+      const int rectW = contentWidth - 5;
+      const int rectH = 30;
+      for (int px = rectX; px < rectX + rectW; px += 3) {
+        renderer.drawPixel(px, rectY);
+        renderer.drawPixel(px, rectY + rectH - 1);
+      }
+      for (int py = rectY; py < rectY + rectH; py += 3) {
+        renderer.drawPixel(rectX, py);
+        renderer.drawPixel(rectX + rectW - 1, py);
+      }
+    } else {
+      renderer.drawText(UI_10_FONT_ID, indentSize, displayY, chapterName.c_str(), !isSelected);
+    }
   }
 
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));

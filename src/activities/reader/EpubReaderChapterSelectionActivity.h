@@ -13,6 +13,7 @@ class EpubReaderChapterSelectionActivity final : public ActivityWithSubactivity 
   int currentSpineIndex = 0;
   int currentTocIndex = 0;
   int selectorIndex = 0;
+  int resolvedCurrentTocIndex = 0;  // Resolved reading position in TOC, preserved during navigation
 
   const std::function<void()> onGoBack;
   const std::function<void(int tocIndex)> onSelectTocIndex;

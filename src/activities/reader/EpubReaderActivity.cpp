@@ -15,7 +15,6 @@
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "EpubReaderChapterSelectionActivity.h"
-#include "EpubReaderPercentSelectionActivity.h"
 #include "KOReaderCredentialStore.h"
 #include "KOReaderSyncActivity.h"
 #include "MappedInputManager.h"
@@ -24,6 +23,7 @@
 #include "ReaderLayoutSafety.h"
 #include "RecentBooksStore.h"
 #include "activities/boot_sleep/LastSleepWallpaperActivity.h"
+#include "activities/util/ConfirmDialogActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/StatusPopup.h"
@@ -991,34 +991,6 @@ void EpubReaderActivity::onReaderMenuConfirm(
 
     break;
   }
-  case EpubReaderMenuActivity::MenuAction::GO_TO_PERCENT: {
-    // Launch the slider-based percent selector and return here on
-    // confirm/cancel.
-    float bookProgress = 0.0f;
-    if (epub && epub->getBookSize() > 0 && section && section->pageCount > 0) {
-      const float chapterProgress = static_cast<float>(section->currentPage) /
-                                    static_cast<float>(section->pageCount);
-      bookProgress =
-          epub->calculateProgress(currentSpineIndex, chapterProgress) * 100.0f;
-    }
-    const int initialPercent =
-        clampPercent(static_cast<int>(bookProgress + 0.5f));
-    exitActivity();
-    enterNewActivity(new EpubReaderPercentSelectionActivity(
-        renderer, mappedInput, initialPercent,
-        [this](const int percent) {
-          // Apply the new position and exit back to the reader.
-          jumpToPercent(percent);
-          exitActivity();
-          requestUpdate();
-        },
-        [this]() {
-          // Cancel selection and return to the reader.
-          exitActivity();
-          requestUpdate();
-        }));
-    break;
-  }
   case EpubReaderMenuActivity::MenuAction::GO_HOME: {
     // Defer go home to avoid race condition with display task
     pendingGoHome = true;
@@ -1072,36 +1044,47 @@ void EpubReaderActivity::onReaderMenuConfirm(
     break;
   }
   case EpubReaderMenuActivity::MenuAction::DELETE_CACHE: {
-    StatusPopup::showBlocking(renderer, "Clearing book cache");
-    {
-      RenderLock lock(*this);
-      if (epub) {
-        // Clean cache and reset this book's reading progress to page 1.
-        const uint16_t resetSpine = 0;
-        const uint16_t resetPage = 0;
-        const uint16_t resetPageCount = 1;
+    exitActivity();
+    enterNewActivity(new ConfirmDialogActivity(
+        renderer, mappedInput,
+        "Clear cached pages and reset reading progress to page 1?",
+        [this]() {
+          // Confirmed — clear cache and reset progress.
+          exitActivity();
+          StatusPopup::showBlocking(renderer, "Clearing book cache");
+          {
+            RenderLock lock(*this);
+            if (epub) {
+              const uint16_t resetSpine = 0;
+              const uint16_t resetPage = 0;
+              const uint16_t resetPageCount = 1;
 
-        section.reset();
-        clearPageCache();
-        epub->clearCache();
-        epub->setupCacheDir();
-        saveProgress(resetSpine, resetPage, resetPageCount);
+              section.reset();
+              clearPageCache();
+              epub->clearCache();
+              epub->setupCacheDir();
+              saveProgress(resetSpine, resetPage, resetPageCount);
 
-        currentSpineIndex = resetSpine;
-        nextPageNumber = resetPage;
-        cachedSpineIndex = resetSpine;
-        cachedChapterTotalPageCount = resetPageCount;
-        lastSavedSpineIndex = resetSpine;
-        lastSavedPage = resetPage;
-        lastSavedPageCount = resetPageCount;
-        lastObservedSpineIndex = resetSpine;
-        lastObservedPage = resetPage;
-        lastObservedPageCount = resetPageCount;
-        progressDirty = false;
-      }
-    }
-    // Defer go home to avoid race condition with display task
-    pendingGoHome = true;
+              currentSpineIndex = resetSpine;
+              nextPageNumber = resetPage;
+              cachedSpineIndex = resetSpine;
+              cachedChapterTotalPageCount = resetPageCount;
+              lastSavedSpineIndex = resetSpine;
+              lastSavedPage = resetPage;
+              lastSavedPageCount = resetPageCount;
+              lastObservedSpineIndex = resetSpine;
+              lastObservedPage = resetPage;
+              lastObservedPageCount = resetPageCount;
+              progressDirty = false;
+            }
+          }
+          pendingGoHome = true;
+        },
+        [this]() {
+          // Cancelled — return to reader.
+          exitActivity();
+          requestUpdate();
+        }));
     break;
   }
   case EpubReaderMenuActivity::MenuAction::SYNC: {

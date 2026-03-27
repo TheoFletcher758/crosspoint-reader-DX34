@@ -25,6 +25,8 @@ inline std::vector<SettingInfo> getSettingsList() {
                         "sleepScreenCoverFilter", StrId::STR_CAT_DISPLAY),
       SettingInfo::Toggle(StrId::STR_SHOW_SLEEP_IMAGE_FILENAME, &CrossPointSettings::showSleepImageFilename,
                           "showSleepImageFilename", StrId::STR_CAT_DISPLAY),
+      SettingInfo::Toggle(StrId::STR_SHOW_SLEEP_WALLPAPER_ON_BOOT, &CrossPointSettings::showLastSleepWallpaperOnBoot,
+                          "showLastSleepWallpaperOnBoot", StrId::STR_CAT_DISPLAY),
       SettingInfo::Enum(StrId::STR_HIDE_BATTERY, &CrossPointSettings::hideBatteryPercentage,
                         {StrId::STR_NEVER, StrId::STR_IN_READER, StrId::STR_ALWAYS}, "hideBatteryPercentage",
                         StrId::STR_CAT_DISPLAY),

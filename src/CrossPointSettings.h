@@ -232,6 +232,8 @@ public:
   uint8_t sleepScreenCoverFilter = NO_FILTER;
   // Show custom sleep image filename label
   uint8_t showSleepImageFilename = 0;
+  // Show last sleep wallpaper triage popup on boot
+  uint8_t showLastSleepWallpaperOnBoot = 0;
   // Status bar settings
   uint8_t statusBar = FULL;
   uint8_t statusBarEnabled = 1;
