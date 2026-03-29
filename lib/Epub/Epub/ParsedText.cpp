@@ -11,39 +11,21 @@
 constexpr int MAX_COST = std::numeric_limits<int>::max();
 
 namespace {
-constexpr uint8_t WORD_SPACING_LEVEL_MIN = 8;
-constexpr uint8_t WORD_SPACING_LEVEL_MAX = 19;
-constexpr uint8_t WORD_SPACING_LEVEL_DEFAULT = 13;
-
 // Soft hyphen byte pattern used throughout EPUBs (UTF-8 for U+00AD).
 constexpr char SOFT_HYPHEN_UTF8[] = "\xC2\xAD";
 constexpr size_t SOFT_HYPHEN_BYTES = 2;
 
-uint8_t normalizeWordSpacingSetting(const uint8_t raw) {
-  if (raw >= WORD_SPACING_LEVEL_MIN && raw <= WORD_SPACING_LEVEL_MAX) {
-    return raw;
+int wordSpacingSettingToPixelDelta(const uint8_t mode,
+                                   const int baseSpaceWidth) {
+  switch (mode) {
+    case 0:  // Tight
+      return -(baseSpaceWidth * 2 / 5);
+    case 2:  // Wide
+      return (baseSpaceWidth * 4 / 5);
+    case 1:  // Normal
+    default:
+      return 0;
   }
-  if (raw <= 6) {
-    const int migrated = static_cast<int>(raw) + 10;
-    return static_cast<uint8_t>(
-        std::max(static_cast<int>(WORD_SPACING_LEVEL_MIN),
-                 std::min(static_cast<int>(WORD_SPACING_LEVEL_MAX), migrated)));
-  }
-
-  const int delta = static_cast<int>(raw) - 100;
-  const int roundedDelta = delta >= 0 ? (delta + 5) / 10 : (delta - 5) / 10;
-  int level = static_cast<int>(WORD_SPACING_LEVEL_DEFAULT) + roundedDelta;
-  if (level < static_cast<int>(WORD_SPACING_LEVEL_MIN)) {
-    level = WORD_SPACING_LEVEL_MIN;
-  } else if (level > static_cast<int>(WORD_SPACING_LEVEL_MAX)) {
-    level = WORD_SPACING_LEVEL_MAX;
-  }
-  return static_cast<uint8_t>(level);
-}
-
-int wordSpacingSettingToPixelDelta(const uint8_t raw) {
-  return static_cast<int>(normalizeWordSpacingSetting(raw)) -
-         static_cast<int>(WORD_SPACING_LEVEL_DEFAULT);
 }
 
 bool containsSoftHyphen(const std::string &word) {
@@ -131,7 +113,7 @@ void ParsedText::layoutAndExtractLines(
   const int baseSpaceWidth = renderer.getSpaceWidth(fontId);
   const int userSpaceWidth =
       std::max(1, baseSpaceWidth + wordSpacingSettingToPixelDelta(
-                                      wordSpacingPercent));
+                                      wordSpacingPercent, baseSpaceWidth));
   const int spaceWidth = std::max(0, userSpaceWidth + blockStyle.wordSpacing);
   auto wordWidths = calculateWordWidths(renderer, fontId);
 

@@ -83,6 +83,7 @@ void writeReadingThemeObject(JsonObject obj, const ReadingTheme& theme) {
   obj["screenMarginBottom"] = theme.screenMarginBottom;
   obj["paragraphAlignment"] = theme.paragraphAlignment;
   obj["extraParagraphSpacingLevel"] = theme.extraParagraphSpacingLevel;
+  obj["wordSpacingPercent"] = theme.wordSpacingPercent;
   obj["firstLineIndentMode"] = theme.firstLineIndentMode;
   obj["readerStyleMode"] = theme.readerStyleMode;
   obj["textRenderMode"] = theme.textRenderMode;
@@ -129,6 +130,13 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
   theme.extraParagraphSpacingLevel =
       obj["extraParagraphSpacingLevel"] |
       (uint8_t)CrossPointSettings::EXTRA_SPACING_M;
+  {
+    const uint8_t raw =
+        obj["wordSpacingPercent"] | (uint8_t)CrossPointSettings::WORD_SPACING_NORMAL;
+    theme.wordSpacingPercent = (raw < CrossPointSettings::WORD_SPACING_MODE_COUNT)
+                                   ? raw
+                                   : (uint8_t)CrossPointSettings::WORD_SPACING_NORMAL;
+  }
   theme.firstLineIndentMode =
       obj["firstLineIndentMode"] | (uint8_t)CrossPointSettings::INDENT_BOOK;
   theme.readerStyleMode =
@@ -478,6 +486,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   // Legacy compatibility key for older builds that still expect a toggle.
   doc["extraParagraphSpacing"] =
       s.extraParagraphSpacingLevel != CrossPointSettings::EXTRA_SPACING_OFF;
+  doc["wordSpacingPercent"] = s.wordSpacingPercent;
   doc["firstLineIndentMode"] = s.firstLineIndentMode;
   doc["readerStyleMode"] = s.readerStyleMode;
   doc["textRenderMode"] = s.textRenderMode;
@@ -690,9 +699,14 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
     if (needsResave)
       *needsResave = true;
   }
-  s.wordSpacingPercent = S::WORD_SPACING_LEVEL_DEFAULT;
-  if (!doc["wordSpacingPercent"].isNull() && needsResave) {
-    *needsResave = true;
+  {
+    const uint8_t raw = doc["wordSpacingPercent"] | (uint8_t)S::WORD_SPACING_NORMAL;
+    if (raw < S::WORD_SPACING_MODE_COUNT) {
+      s.wordSpacingPercent = raw;
+    } else {
+      s.wordSpacingPercent = (uint8_t)S::WORD_SPACING_NORMAL;
+      if (needsResave) *needsResave = true;
+    }
   }
   s.firstLineIndentMode = clamp(
       doc["firstLineIndentMode"] | (uint8_t)S::INDENT_BOOK,

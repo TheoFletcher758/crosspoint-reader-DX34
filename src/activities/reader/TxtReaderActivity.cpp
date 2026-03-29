@@ -308,10 +308,10 @@ int TxtReaderActivity::getReaderLineHeightPx() const {
 }
 
 int TxtReaderActivity::getTxtWordSpaceWidth() const {
+  const int base = renderer.getSpaceWidth(cachedFontId);
   return std::max(
-      1, renderer.getSpaceWidth(cachedFontId) +
-             CrossPointSettings::wordSpacingSettingToPixelDelta(
-                 cachedWordSpacingPercent));
+      1, base + CrossPointSettings::wordSpacingSettingToPixelDelta(
+                    cachedWordSpacingPercent, base));
 }
 
 int TxtReaderActivity::getTxtParagraphIndentPx() const {

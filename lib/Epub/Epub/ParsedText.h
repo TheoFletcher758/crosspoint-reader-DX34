@@ -32,7 +32,7 @@ class ParsedText {
 
  public:
   explicit ParsedText(const bool extraParagraphSpacing, const bool /*hyphenationEnabled*/ = false,
-                      const BlockStyle& blockStyle = BlockStyle(), const uint8_t wordSpacingPercent = 100,
+                      const BlockStyle& blockStyle = BlockStyle(), const uint8_t wordSpacingPercent = 1,
                       const uint8_t firstLineIndentMode = 0, const bool usePublisherStyles = true)
       : blockStyle(blockStyle),
         extraParagraphSpacing(extraParagraphSpacing),

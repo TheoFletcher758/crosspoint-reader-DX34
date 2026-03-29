@@ -87,6 +87,7 @@ ReadingTheme ReadingThemeStore::fromSettings(const std::string& name,
   theme.screenMarginBottom = settings.screenMarginBottom;
   theme.paragraphAlignment = settings.paragraphAlignment;
   theme.extraParagraphSpacingLevel = settings.extraParagraphSpacingLevel;
+  theme.wordSpacingPercent = settings.wordSpacingPercent;
   theme.firstLineIndentMode = settings.firstLineIndentMode;
   theme.readerStyleMode = settings.readerStyleMode;
   theme.textRenderMode = settings.textRenderMode;
@@ -141,6 +142,10 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
       theme.extraParagraphSpacingLevel, 0,
       CrossPointSettings::EXTRA_PARAGRAPH_SPACING_COUNT - 1,
       CrossPointSettings::EXTRA_SPACING_M);
+  settings.wordSpacingPercent = clampRange(
+      theme.wordSpacingPercent, 0,
+      CrossPointSettings::WORD_SPACING_MODE_COUNT - 1,
+      CrossPointSettings::WORD_SPACING_NORMAL);
   settings.firstLineIndentMode = clampRange(
       theme.firstLineIndentMode, 0,
       CrossPointSettings::FIRST_LINE_INDENT_MODE_COUNT - 1,
@@ -229,6 +234,7 @@ bool ReadingThemeStore::matchesCurrent(const ReadingTheme& theme) const {
          current.paragraphAlignment == theme.paragraphAlignment &&
          current.extraParagraphSpacingLevel ==
              theme.extraParagraphSpacingLevel &&
+         current.wordSpacingPercent == theme.wordSpacingPercent &&
          current.firstLineIndentMode == theme.firstLineIndentMode &&
          current.readerStyleMode == theme.readerStyleMode &&
          current.textRenderMode == theme.textRenderMode &&
@@ -483,6 +489,10 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
       theme.extraParagraphSpacingLevel, 0,
       CrossPointSettings::EXTRA_PARAGRAPH_SPACING_COUNT - 1,
       CrossPointSettings::EXTRA_SPACING_M);
+  normalized.wordSpacingPercent = clampRange(
+      theme.wordSpacingPercent, 0,
+      CrossPointSettings::WORD_SPACING_MODE_COUNT - 1,
+      CrossPointSettings::WORD_SPACING_NORMAL);
   normalized.firstLineIndentMode = clampRange(
       theme.firstLineIndentMode, 0,
       CrossPointSettings::FIRST_LINE_INDENT_MODE_COUNT - 1,

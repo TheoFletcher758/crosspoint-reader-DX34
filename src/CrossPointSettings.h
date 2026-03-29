@@ -182,11 +182,12 @@ public:
     EXTRA_PARAGRAPH_SPACING_COUNT
   };
 
-  // Stored values are encoded so older 0..6 settings can be migrated while
-  // the visible scale remains centered around L0.
-  static constexpr uint8_t WORD_SPACING_LEVEL_MIN = 8;
-  static constexpr uint8_t WORD_SPACING_LEVEL_MAX = 19;
-  static constexpr uint8_t WORD_SPACING_LEVEL_DEFAULT = 13;
+  enum WORD_SPACING_MODE {
+    WORD_SPACING_TIGHT = 0,
+    WORD_SPACING_NORMAL = 1,
+    WORD_SPACING_WIDE = 2,
+    WORD_SPACING_MODE_COUNT
+  };
 
   // Auto-sleep timeout options (in minutes)
   enum SLEEP_TIMEOUT {
@@ -261,7 +262,7 @@ public:
   uint8_t extraParagraphSpacingLevel = EXTRA_SPACING_M;
   // Legacy field name retained for storage compatibility; value stores a
   // word-spacing level (0..6) instead of a raw percentage.
-  uint8_t wordSpacingPercent = WORD_SPACING_LEVEL_DEFAULT;
+  uint8_t wordSpacingPercent = WORD_SPACING_NORMAL;
   uint8_t firstLineIndentMode = INDENT_BOOK;
   uint8_t readerStyleMode = READER_STYLE_USER;
   uint8_t textRenderMode = TEXT_RENDER_CRISP;
@@ -342,10 +343,7 @@ public:
   static uint8_t fontSizeToDisplayIndex(uint8_t family, uint8_t fontSize);
   static uint8_t displayIndexToFontSize(uint8_t family, uint8_t displayIndex);
   static uint8_t normalizeStatusBarPageCounterMode(uint8_t mode);
-  static uint8_t normalizeWordSpacingSetting(uint8_t raw);
-  static uint8_t legacyWordSpacingPercentToLevel(uint8_t percent);
-  static int wordSpacingDisplayLevel(uint8_t raw);
-  static int wordSpacingSettingToPixelDelta(uint8_t raw);
+  static int wordSpacingSettingToPixelDelta(uint8_t mode, int baseSpaceWidth);
   int getReaderFontId() const;
   int getStatusBarProgressBarHeight() const;
 

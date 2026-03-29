@@ -451,7 +451,7 @@ bool CrossPointSettings::loadFromBinaryFile() {
   // Binary settings only store legacy 3-step line spacing; newer reader
   // spacing/style settings fall back to their current defaults.
   lineSpacingPercent = legacyLineSpacingToPercent(lineSpacing);
-  wordSpacingPercent = WORD_SPACING_LEVEL_DEFAULT;
+  wordSpacingPercent = WORD_SPACING_NORMAL;
   firstLineIndentMode = INDENT_BOOK;
   readerStyleMode = embeddedStyle ? READER_STYLE_HYBRID : READER_STYLE_USER;
   textRenderMode = TEXT_RENDER_CRISP;
@@ -635,40 +635,17 @@ uint8_t CrossPointSettings::displayIndexToFontSize(const uint8_t family,
   }
 }
 
-uint8_t CrossPointSettings::legacyWordSpacingPercentToLevel(
-    const uint8_t percent) {
-  const int delta = static_cast<int>(percent) - 100;
-  const int roundedDelta = delta >= 0 ? (delta + 5) / 10 : (delta - 5) / 10;
-  int level = static_cast<int>(WORD_SPACING_LEVEL_DEFAULT) + roundedDelta;
-  if (level < static_cast<int>(WORD_SPACING_LEVEL_MIN)) {
-    level = WORD_SPACING_LEVEL_MIN;
-  } else if (level > static_cast<int>(WORD_SPACING_LEVEL_MAX)) {
-    level = WORD_SPACING_LEVEL_MAX;
+int CrossPointSettings::wordSpacingSettingToPixelDelta(const uint8_t mode,
+                                                       const int baseSpaceWidth) {
+  switch (mode) {
+    case WORD_SPACING_TIGHT:
+      return -(baseSpaceWidth * 2 / 5);
+    case WORD_SPACING_WIDE:
+      return (baseSpaceWidth * 4 / 5);
+    case WORD_SPACING_NORMAL:
+    default:
+      return 0;
   }
-  return static_cast<uint8_t>(level);
-}
-
-uint8_t CrossPointSettings::normalizeWordSpacingSetting(const uint8_t raw) {
-  if (raw >= WORD_SPACING_LEVEL_MIN && raw <= WORD_SPACING_LEVEL_MAX) {
-    return raw;
-  }
-  if (raw <= 6) {
-    const int migrated = static_cast<int>(raw) + 10;
-    return static_cast<uint8_t>(
-        std::max(static_cast<int>(WORD_SPACING_LEVEL_MIN),
-                 std::min(static_cast<int>(WORD_SPACING_LEVEL_MAX), migrated)));
-  }
-  return legacyWordSpacingPercentToLevel(raw);
-}
-
-int CrossPointSettings::wordSpacingDisplayLevel(const uint8_t raw) {
-  return static_cast<int>(normalizeWordSpacingSetting(raw)) -
-         static_cast<int>(WORD_SPACING_LEVEL_DEFAULT);
-}
-
-int CrossPointSettings::wordSpacingSettingToPixelDelta(const uint8_t raw) {
-  return static_cast<int>(normalizeWordSpacingSetting(raw)) -
-         static_cast<int>(WORD_SPACING_LEVEL_DEFAULT);
 }
 
 int CrossPointSettings::getReaderFontId() const {
