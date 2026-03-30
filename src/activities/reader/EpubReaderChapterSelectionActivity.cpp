@@ -4,25 +4,47 @@
 #include <I18n.h>
 
 #include "MappedInputManager.h"
+#include "ReaderLayoutSafety.h"
+#include "activities/util/ConfirmDialogActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 
+namespace {
+// Space reserved for the bottom button hints (portrait) so items don't overlap.
+constexpr int kButtonHintsReserve = 50;
+}  // namespace
+
 int EpubReaderChapterSelectionActivity::getTotalItems() const { return epub->getTocItemsCount(); }
 
-int EpubReaderChapterSelectionActivity::getPageItems() const {
-  // Layout constants used in renderScreen
-  constexpr int lineHeight = 30;
+int EpubReaderChapterSelectionActivity::getItemLineCount(int itemIndex, int maxTextWidth) const {
+  const auto item = epub->getTocItem(itemIndex);
+  const int indentSize = 20 + (item.level - 1) * 15;
+  const int textWidth = maxTextWidth - 40 - indentSize;
+  if (textWidth <= 0) return 1;
+  const auto lines = ReaderLayoutSafety::wrapText(renderer, UI_10_FONT_ID, item.title, textWidth);
+  return std::max(1, static_cast<int>(lines.size()));
+}
 
-  const int screenHeight = renderer.getScreenHeight();
-  const auto orientation = renderer.getOrientation();
-  // In inverted portrait, the button hints are drawn near the logical top.
-  // Reserve vertical space so list items do not collide with the hints.
-  const bool isPortraitInverted = orientation == GfxRenderer::Orientation::PortraitInverted;
-  const int hintGutterHeight = isPortraitInverted ? 50 : 0;
-  const int startY = 60 + hintGutterHeight;
-  const int availableHeight = screenHeight - startY - lineHeight;
-  // Clamp to at least one item to avoid division by zero and empty paging.
-  return std::max(1, availableHeight / lineHeight);
+int EpubReaderChapterSelectionActivity::computePageStart(int availableHeight, int maxTextWidth) const {
+  const int totalItems = getTotalItems();
+  if (totalItems == 0) return 0;
+
+  // Walk forward from item 0, filling pages until we find the one containing selectorIndex.
+  int pageStart = 0;
+  while (pageStart < totalItems) {
+    int usedHeight = 0;
+    int idx = pageStart;
+    while (idx < totalItems) {
+      const int itemH = getItemLineCount(idx, maxTextWidth) * kLineHeight;
+      if (usedHeight + itemH > availableHeight && idx > pageStart) break;
+      usedHeight += itemH;
+      idx++;
+    }
+    // Page covers [pageStart, idx)
+    if (selectorIndex < idx) return pageStart;
+    pageStart = idx;
+  }
+  return pageStart;
 }
 
 void EpubReaderChapterSelectionActivity::onEnter() {
@@ -41,6 +63,9 @@ void EpubReaderChapterSelectionActivity::onEnter() {
   }
   resolvedCurrentTocIndex = selectorIndex;
 
+  lastNavReleaseMs = 0;
+  lastNavDirection = 0;
+
   // Trigger first update
   requestUpdate();
 }
@@ -53,36 +78,74 @@ void EpubReaderChapterSelectionActivity::loop() {
     return;
   }
 
-  const int pageItems = getPageItems();
   const int totalItems = getTotalItems();
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     if (selectorIndex < 0 || selectorIndex >= totalItems) {
       onGoBack();
+    } else if (selectorIndex == resolvedCurrentTocIndex) {
+      // Already on this chapter — just go back
+      onGoBack();
     } else {
-      onSelectTocIndex(selectorIndex);
+      // Different chapter — show confirmation
+      const auto tocItem = epub->getTocItem(selectorIndex);
+      const std::string msg = std::string(tr(STR_JUMP_TO_CHAPTER)) + " " + tocItem.title + "?";
+      const int selectedIdx = selectorIndex;
+      enterNewActivity(new ConfirmDialogActivity(
+          renderer, mappedInput, msg,
+          [this, selectedIdx] { onSelectTocIndex(selectedIdx); },
+          [this] {
+            exitActivity();
+            requestUpdate();
+          }));
     }
   } else if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
     onGoBack();
   }
 
+  // Up/Down: single tap navigates, double-tap jumps to current chapter.
+  // First tap is instant (no delay); second tap within window triggers jump.
   buttonNavigator.onNextRelease([this, totalItems] {
-    selectorIndex = ButtonNavigator::nextIndex(selectorIndex, totalItems);
+    const unsigned long now = millis();
+    if (lastNavDirection == 1 && now - lastNavReleaseMs <= kDoubleTapMs) {
+      // Double-tap Down: jump to current chapter
+      selectorIndex = resolvedCurrentTocIndex;
+      lastNavDirection = 0;
+    } else {
+      selectorIndex = ButtonNavigator::nextIndex(selectorIndex, totalItems);
+      lastNavDirection = 1;
+      lastNavReleaseMs = now;
+    }
     requestUpdate();
   });
 
   buttonNavigator.onPreviousRelease([this, totalItems] {
-    selectorIndex = ButtonNavigator::previousIndex(selectorIndex, totalItems);
+    const unsigned long now = millis();
+    if (lastNavDirection == -1 && now - lastNavReleaseMs <= kDoubleTapMs) {
+      // Double-tap Up: jump to current chapter
+      selectorIndex = resolvedCurrentTocIndex;
+      lastNavDirection = 0;
+    } else {
+      selectorIndex = ButtonNavigator::previousIndex(selectorIndex, totalItems);
+      lastNavDirection = -1;
+      lastNavReleaseMs = now;
+    }
     requestUpdate();
   });
 
-  buttonNavigator.onNextContinuous([this, totalItems, pageItems] {
-    selectorIndex = ButtonNavigator::nextPageIndex(selectorIndex, totalItems, pageItems);
+  buttonNavigator.onNextContinuous([this, totalItems] {
+    lastNavDirection = 0;  // Cancel double-tap tracking on hold
+    for (int i = 0; i < 5 && selectorIndex < totalItems - 1; i++) {
+      selectorIndex = ButtonNavigator::nextIndex(selectorIndex, totalItems);
+    }
     requestUpdate();
   });
 
-  buttonNavigator.onPreviousContinuous([this, totalItems, pageItems] {
-    selectorIndex = ButtonNavigator::previousPageIndex(selectorIndex, totalItems, pageItems);
+  buttonNavigator.onPreviousContinuous([this, totalItems] {
+    lastNavDirection = 0;
+    for (int i = 0; i < 5 && selectorIndex > 0; i++) {
+      selectorIndex = ButtonNavigator::previousIndex(selectorIndex, totalItems);
+    }
     requestUpdate();
   });
 }
@@ -91,53 +154,70 @@ void EpubReaderChapterSelectionActivity::render(Activity::RenderLock&&) {
   renderer.clearScreen();
 
   const auto pageWidth = renderer.getScreenWidth();
+  const auto screenHeight = renderer.getScreenHeight();
   const auto orientation = renderer.getOrientation();
-  // Landscape orientation: reserve a horizontal gutter for button hints.
   const bool isLandscapeCw = orientation == GfxRenderer::Orientation::LandscapeClockwise;
   const bool isLandscapeCcw = orientation == GfxRenderer::Orientation::LandscapeCounterClockwise;
-  // Inverted portrait: reserve vertical space for hints at the top.
   const bool isPortraitInverted = orientation == GfxRenderer::Orientation::PortraitInverted;
   const int hintGutterWidth = (isLandscapeCw || isLandscapeCcw) ? 30 : 0;
-  // Landscape CW places hints on the left edge; CCW keeps them on the right.
   const int contentX = isLandscapeCw ? hintGutterWidth : 0;
   const int contentWidth = pageWidth - hintGutterWidth;
   const int hintGutterHeight = isPortraitInverted ? 50 : 0;
   const int contentY = hintGutterHeight;
-  const int pageItems = getPageItems();
   const int totalItems = getTotalItems();
 
-  // Manual centering to honor content gutters.
+  // Title
   const int titleX =
       contentX + (contentWidth - renderer.getTextWidth(UI_12_FONT_ID, tr(STR_SELECT_CHAPTER), EpdFontFamily::REGULAR)) / 2;
   renderer.drawText(UI_12_FONT_ID, titleX, 15 + contentY, tr(STR_SELECT_CHAPTER), true, EpdFontFamily::REGULAR);
 
-  const auto pageStartIndex = selectorIndex / pageItems * pageItems;
-  // Highlight only the content area, not the hint gutters.
-  renderer.fillRect(contentX, 60 + contentY + (selectorIndex % pageItems) * 30 - 2, contentWidth - 1, 30);
+  const int listStartY = 60 + contentY;
+  // Reserve space for button hints at the bottom of the screen.
+  const int availableHeight = screenHeight - listStartY - kButtonHintsReserve;
+  const int maxTextWidth = contentWidth;
 
-  for (int i = 0; i < pageItems; i++) {
-    int itemIndex = pageStartIndex + i;
-    if (itemIndex >= totalItems) break;
-    const int displayY = 60 + contentY + i * 30;
+  // Compute which page of items to display
+  const int pageStartIndex = computePageStart(availableHeight, maxTextWidth);
+
+  // Render items with variable height
+  int currentY = listStartY;
+  for (int itemIndex = pageStartIndex; itemIndex < totalItems; itemIndex++) {
+    const auto item = epub->getTocItem(itemIndex);
+    const int indentSize = contentX + 20 + (item.level - 1) * 15;
+    const int textWidth = maxTextWidth - 40 - indentSize;
+
+    std::vector<std::string> lines;
+    if (textWidth > 0) {
+      lines = ReaderLayoutSafety::wrapText(renderer, UI_10_FONT_ID, item.title, textWidth);
+    }
+    if (lines.empty()) {
+      lines.push_back(renderer.truncatedText(UI_10_FONT_ID, item.title.c_str(), std::max(1, textWidth)));
+    }
+
+    const int itemHeight = static_cast<int>(lines.size()) * kLineHeight;
+
+    // Stop if this item would overflow the available area
+    if (currentY + itemHeight > listStartY + availableHeight && itemIndex > pageStartIndex) break;
+
     const bool isSelected = (itemIndex == selectorIndex);
     const bool isCurrent = (itemIndex == resolvedCurrentTocIndex);
 
-    auto item = epub->getTocItem(itemIndex);
-
-    // Indent per TOC level while keeping content within the gutter-safe region.
-    const int indentSize = contentX + 20 + (item.level - 1) * 15;
-    const std::string chapterName =
-        renderer.truncatedText(UI_10_FONT_ID, item.title.c_str(), contentWidth - 40 - indentSize);
+    // Selection highlight
+    if (isSelected) {
+      renderer.fillRect(contentX, currentY - 2, contentWidth - 1, itemHeight);
+    }
 
     if (isCurrent && !isSelected) {
-      // Current reading position: bold text (double-draw) + dotted border.
-      renderer.drawText(UI_10_FONT_ID, indentSize, displayY, chapterName.c_str(), true);
-      renderer.drawText(UI_10_FONT_ID, indentSize + 1, displayY, chapterName.c_str(), true);
+      // Current reading position: bold text (double-draw) + dotted border
+      for (int l = 0; l < static_cast<int>(lines.size()); l++) {
+        renderer.drawText(UI_10_FONT_ID, indentSize, currentY + l * kLineHeight, lines[l].c_str(), true);
+        renderer.drawText(UI_10_FONT_ID, indentSize + 1, currentY + l * kLineHeight, lines[l].c_str(), true);
+      }
       // Dotted border around item row
       const int rectX = contentX + 2;
-      const int rectY = displayY - 2;
+      const int rectY = currentY - 2;
       const int rectW = contentWidth - 5;
-      const int rectH = 30;
+      const int rectH = itemHeight;
       for (int px = rectX; px < rectX + rectW; px += 3) {
         renderer.drawPixel(px, rectY);
         renderer.drawPixel(px, rectY + rectH - 1);
@@ -147,8 +227,12 @@ void EpubReaderChapterSelectionActivity::render(Activity::RenderLock&&) {
         renderer.drawPixel(rectX + rectW - 1, py);
       }
     } else {
-      renderer.drawText(UI_10_FONT_ID, indentSize, displayY, chapterName.c_str(), !isSelected);
+      for (int l = 0; l < static_cast<int>(lines.size()); l++) {
+        renderer.drawText(UI_10_FONT_ID, indentSize, currentY + l * kLineHeight, lines[l].c_str(), !isSelected);
+      }
     }
+
+    currentY += itemHeight;
   }
 
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));

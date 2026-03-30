@@ -2,6 +2,7 @@
 #include <Epub.h>
 
 #include <memory>
+#include <vector>
 
 #include "../ActivityWithSubactivity.h"
 #include "util/ButtonNavigator.h"
@@ -15,13 +16,23 @@ class EpubReaderChapterSelectionActivity final : public ActivityWithSubactivity 
   int selectorIndex = 0;
   int resolvedCurrentTocIndex = 0;  // Resolved reading position in TOC, preserved during navigation
 
+  // Double-tap Up/Down detection (jump to current chapter)
+  unsigned long lastNavReleaseMs = 0;
+  int lastNavDirection = 0;  // +1 for next, -1 for previous
+
   const std::function<void()> onGoBack;
   const std::function<void(int tocIndex)> onSelectTocIndex;
   const std::function<void(int newSpineIndex, int newPage)> onSyncPosition;
 
-  // Number of items that fit on a page, derived from logical screen height.
-  // This adapts automatically when switching between portrait and landscape.
-  int getPageItems() const;
+  static constexpr int kLineHeight = 30;
+  static constexpr unsigned long kDoubleTapMs = 350;
+
+  // Compute wrapped line count for a single TOC item given available width.
+  int getItemLineCount(int itemIndex, int maxTextWidth) const;
+
+  // Find the page start index and compute layout for the page containing selectorIndex.
+  // Returns the index of the first item on the page.
+  int computePageStart(int availableHeight, int maxTextWidth) const;
 
   // Total TOC items count
   int getTotalItems() const;

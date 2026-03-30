@@ -423,6 +423,7 @@ enum class StrId : uint16_t {
   STR_LAST_SLEEP_WALLPAPER,
   STR_MOVE_TO_SLEEP_PAUSE,
   STR_SLEEP_PAUSE_FOLDER,
+  STR_JUMP_TO_CHAPTER,
   // Sentinel - must be last
   _COUNT
 };
