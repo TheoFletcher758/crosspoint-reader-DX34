@@ -78,6 +78,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
                       int orientedMarginBottom, int orientedMarginLeft, const StatusBarLayout& statusBarLayout);
   void renderStatusBar(const StatusBarLayout& statusBarLayout, int orientedMarginRight, int orientedMarginBottom,
                        int orientedMarginLeft);
+  void silentIndexNextChapterIfNeeded(uint16_t viewportWidth, uint16_t viewportHeight);
   void saveProgress(int spineIndex, int currentPage, int pageCount);
   void flushProgressIfNeeded(bool force);
   void invalidateStatusBarCaches();

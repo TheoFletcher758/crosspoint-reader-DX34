@@ -54,24 +54,28 @@ enum class CssFontWeight : uint8_t { Normal = 0, Bold = 1 };
 // Text decoration options
 enum class CssTextDecoration : uint8_t { None = 0, Underline = 1 };
 
+// Display options - only None and Block are relevant for e-ink rendering
+enum class CssDisplay : uint8_t { Block = 0, None = 1 };
+
 // Bitmask for tracking which properties have been explicitly set
 struct CssPropertyFlags {
-  uint16_t textAlign : 1;
-  uint16_t fontStyle : 1;
-  uint16_t fontWeight : 1;
-  uint16_t textDecoration : 1;
-  uint16_t textIndent : 1;
-  uint16_t marginTop : 1;
-  uint16_t marginBottom : 1;
-  uint16_t marginLeft : 1;
-  uint16_t marginRight : 1;
-  uint16_t paddingTop : 1;
-  uint16_t paddingBottom : 1;
-  uint16_t paddingLeft : 1;
-  uint16_t paddingRight : 1;
-  uint16_t lineHeight : 1;
-  uint16_t letterSpacing : 1;
-  uint16_t wordSpacing : 1;
+  uint32_t textAlign : 1;
+  uint32_t fontStyle : 1;
+  uint32_t fontWeight : 1;
+  uint32_t textDecoration : 1;
+  uint32_t textIndent : 1;
+  uint32_t marginTop : 1;
+  uint32_t marginBottom : 1;
+  uint32_t marginLeft : 1;
+  uint32_t marginRight : 1;
+  uint32_t paddingTop : 1;
+  uint32_t paddingBottom : 1;
+  uint32_t paddingLeft : 1;
+  uint32_t paddingRight : 1;
+  uint32_t lineHeight : 1;
+  uint32_t letterSpacing : 1;
+  uint32_t wordSpacing : 1;
+  uint32_t display : 1;
 
   CssPropertyFlags()
       : textAlign(0),
@@ -89,19 +93,20 @@ struct CssPropertyFlags {
         paddingRight(0),
         lineHeight(0),
         letterSpacing(0),
-        wordSpacing(0) {}
+        wordSpacing(0),
+        display(0) {}
 
   [[nodiscard]] bool anySet() const {
     return textAlign || fontStyle || fontWeight || textDecoration || textIndent || marginTop || marginBottom ||
            marginLeft || marginRight || paddingTop || paddingBottom || paddingLeft || paddingRight || lineHeight ||
-           letterSpacing || wordSpacing;
+           letterSpacing || wordSpacing || display;
   }
 
   void clearAll() {
     textAlign = fontStyle = fontWeight = textDecoration = textIndent = 0;
     marginTop = marginBottom = marginLeft = marginRight = 0;
     paddingTop = paddingBottom = paddingLeft = paddingRight = 0;
-    lineHeight = letterSpacing = wordSpacing = 0;
+    lineHeight = letterSpacing = wordSpacing = display = 0;
   }
 };
 
@@ -126,6 +131,7 @@ struct CssStyle {
   CssLength lineHeight;     // Per-paragraph line height
   CssLength letterSpacing;  // Per-glyph spacing
   CssLength wordSpacing;    // Additional spacing between words
+  CssDisplay display = CssDisplay::Block;  // display property (Block or None)
 
   CssPropertyFlags defined;  // Tracks which properties were explicitly set
 
@@ -196,6 +202,10 @@ struct CssStyle {
       wordSpacing = base.wordSpacing;
       defined.wordSpacing = 1;
     }
+    if (base.hasDisplay()) {
+      display = base.display;
+      defined.display = 1;
+    }
   }
 
   [[nodiscard]] bool hasTextAlign() const { return defined.textAlign; }
@@ -214,6 +224,7 @@ struct CssStyle {
   [[nodiscard]] bool hasLineHeight() const { return defined.lineHeight; }
   [[nodiscard]] bool hasLetterSpacing() const { return defined.letterSpacing; }
   [[nodiscard]] bool hasWordSpacing() const { return defined.wordSpacing; }
+  [[nodiscard]] bool hasDisplay() const { return defined.display; }
 
   void reset() {
     textAlign = CssTextAlign::Left;
@@ -226,6 +237,7 @@ struct CssStyle {
     lineHeight = CssLength{};
     letterSpacing = CssLength{};
     wordSpacing = CssLength{};
+    display = CssDisplay::Block;
     defined.clearAll();
   }
 };

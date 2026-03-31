@@ -1351,6 +1351,15 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
     }
   }
 
+  const uint16_t viewportWidth =
+      static_cast<uint16_t>(ReaderLayoutSafety::clampViewportDimension(
+          renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight,
+          ReaderLayoutSafety::kMinViewportWidth, "ERS", "viewport width"));
+  const uint16_t viewportHeight =
+      static_cast<uint16_t>(ReaderLayoutSafety::clampViewportDimension(
+          renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom,
+          minContentHeight, "ERS", "viewport height"));
+
   if (!section) {
     const auto filepath = epub->getSpineItem(currentSpineIndex).href;
     LOG_DBG("ERS", "Loading file: %s, index: %d", filepath.c_str(),
@@ -1360,14 +1369,6 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
     bool builtSection = false;
     clearPageCache();
 
-    const uint16_t viewportWidth =
-        static_cast<uint16_t>(ReaderLayoutSafety::clampViewportDimension(
-            renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight,
-            ReaderLayoutSafety::kMinViewportWidth, "ERS", "viewport width"));
-    const uint16_t viewportHeight =
-        static_cast<uint16_t>(ReaderLayoutSafety::clampViewportDimension(
-            renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom,
-            minContentHeight, "ERS", "viewport height"));
     const uint8_t sectionTextRenderMode =
         effectiveTextRenderMode(SETTINGS.textRenderMode);
 
@@ -1503,6 +1504,7 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
                    orientedMarginBottom, orientedMarginLeft, statusBarLayout);
     LOG_DBG("ERS", "Rendered page in %dms", millis() - start);
   }
+  silentIndexNextChapterIfNeeded(viewportWidth, viewportHeight);
   if (lastObservedSpineIndex != currentSpineIndex ||
       lastObservedPage != section->currentPage ||
       lastObservedPageCount != section->pageCount) {
@@ -1518,6 +1520,46 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
   }
 
   flushProgressIfNeeded(false);
+}
+
+void EpubReaderActivity::silentIndexNextChapterIfNeeded(const uint16_t viewportWidth, const uint16_t viewportHeight) {
+  if (!epub || !section || section->pageCount < 2) {
+    return;
+  }
+
+  // Build the next chapter cache while the penultimate page is on screen.
+  if (section->currentPage != section->pageCount - 2) {
+    return;
+  }
+
+  const int nextSpineIndex = currentSpineIndex + 1;
+  if (nextSpineIndex < 0 || nextSpineIndex >= epub->getSpineItemsCount()) {
+    return;
+  }
+
+  const uint8_t sectionTextRenderMode = effectiveTextRenderMode(SETTINGS.textRenderMode);
+
+  Section nextSection(epub, nextSpineIndex, renderer);
+  if (nextSection.loadSectionFile(
+          SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
+          SETTINGS.extraParagraphSpacingLevel, SETTINGS.paragraphAlignment,
+          viewportWidth, viewportHeight, false,
+          SETTINGS.wordSpacingPercent, SETTINGS.firstLineIndentMode,
+          SETTINGS.readerStyleMode, sectionTextRenderMode,
+          SETTINGS.readerBoldSwap != 0)) {
+    return;  // Already cached
+  }
+
+  LOG_DBG("ERS", "Silently indexing next chapter: %d", nextSpineIndex);
+  if (!nextSection.createSectionFile(
+          SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
+          SETTINGS.extraParagraphSpacingLevel, SETTINGS.paragraphAlignment,
+          viewportWidth, viewportHeight, false,
+          SETTINGS.wordSpacingPercent, SETTINGS.firstLineIndentMode,
+          SETTINGS.readerStyleMode, sectionTextRenderMode,
+          SETTINGS.readerBoldSwap != 0)) {
+    LOG_ERR("ERS", "Failed silent indexing for chapter: %d", nextSpineIndex);
+  }
 }
 
 void EpubReaderActivity::saveProgress(int spineIndex, int currentPage,

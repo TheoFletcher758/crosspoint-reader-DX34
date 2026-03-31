@@ -321,6 +321,22 @@ void CssParser::parseDeclarationIntoStyle(const std::string& decl, CssStyle& sty
       style.defined.paddingTop = style.defined.paddingRight = style.defined.paddingBottom = style.defined.paddingLeft =
           1;
     }
+  } else if (propNameBuf == "display") {
+    // Strip !important suffix if present
+    std::string_view displayValue = propValueBuf;
+    while (!displayValue.empty() && (displayValue.back() == ' ' || displayValue.back() == '\t')) {
+      displayValue.remove_suffix(1);
+    }
+    constexpr std::string_view IMPORTANT = "!important";
+    if (displayValue.size() >= IMPORTANT.size() &&
+        displayValue.substr(displayValue.size() - IMPORTANT.size()) == IMPORTANT) {
+      displayValue.remove_suffix(IMPORTANT.size());
+      while (!displayValue.empty() && (displayValue.back() == ' ' || displayValue.back() == '\t')) {
+        displayValue.remove_suffix(1);
+      }
+    }
+    style.display = (displayValue == "none") ? CssDisplay::None : CssDisplay::Block;
+    style.defined.display = 1;
   }
 }
 
@@ -588,7 +604,7 @@ CssStyle CssParser::parseInlineStyle(const std::string& styleValue) { return par
 // Cache serialization
 
 // Cache format version - increment when format changes
-constexpr uint8_t CSS_CACHE_VERSION = 3;
+constexpr uint8_t CSS_CACHE_VERSION = 4;
 constexpr char rulesCache[] = "/css_rules.cache";
 
 bool CssParser::hasCache() const { return Storage.exists((cachePath + rulesCache).c_str()); }
@@ -646,9 +662,10 @@ bool CssParser::saveToCache() const {
     writeLength(style.lineHeight);
     writeLength(style.letterSpacing);
     writeLength(style.wordSpacing);
+    file.write(static_cast<uint8_t>(style.display));
 
-    // Write defined flags as uint16_t
-    uint16_t definedBits = 0;
+    // Write defined flags as uint32_t
+    uint32_t definedBits = 0;
     if (style.defined.textAlign) definedBits |= 1 << 0;
     if (style.defined.fontStyle) definedBits |= 1 << 1;
     if (style.defined.fontWeight) definedBits |= 1 << 2;
@@ -665,6 +682,7 @@ bool CssParser::saveToCache() const {
     if (style.defined.lineHeight) definedBits |= 1 << 13;
     if (style.defined.letterSpacing) definedBits |= 1 << 14;
     if (style.defined.wordSpacing) definedBits |= 1 << 15;
+    if (style.defined.display) definedBits |= 1 << 16;
     file.write(reinterpret_cast<const uint8_t*>(&definedBits), sizeof(definedBits));
   }
 
@@ -773,8 +791,17 @@ bool CssParser::loadFromCache() {
       return false;
     }
 
+    // Read display value
+    uint8_t displayVal;
+    if (file.read(&displayVal, 1) != 1) {
+      rulesBySelector_.clear();
+      file.close();
+      return false;
+    }
+    style.display = static_cast<CssDisplay>(displayVal);
+
     // Read defined flags
-    uint16_t definedBits = 0;
+    uint32_t definedBits = 0;
     if (file.read(&definedBits, sizeof(definedBits)) != sizeof(definedBits)) {
       rulesBySelector_.clear();
       file.close();
@@ -796,6 +823,7 @@ bool CssParser::loadFromCache() {
     style.defined.lineHeight = (definedBits & 1 << 13) != 0;
     style.defined.letterSpacing = (definedBits & 1 << 14) != 0;
     style.defined.wordSpacing = (definedBits & 1 << 15) != 0;
+    style.defined.display = (definedBits & 1 << 16) != 0;
 
     rulesBySelector_[selector] = style;
   }

@@ -5,6 +5,7 @@
 #include <HalGPIO.h>
 #include <HalPowerManager.h>
 #include <HalStorage.h>
+#include <HalSystem.h>
 #include <I18n.h>
 #include <Logging.h>
 #include <SPI.h>
@@ -295,6 +296,7 @@ void setup() {
 
   gpio.begin();
   powerManager.begin();
+  HalSystem::begin();
 
   // Only start serial if USB connected
   if (gpio.isUsbConnected()) {
@@ -315,6 +317,10 @@ void setup() {
     enterNewActivity(new FullScreenMessageActivity(renderer, mappedInputManager, "SD card error", EpdFontFamily::REGULAR));
     return;
   }
+
+  // Dump crash report to SD card if we rebooted from a panic
+  HalSystem::checkPanic();
+  HalSystem::clearPanic();
 
   if (!ensureCrosspointDataDir()) {
     LOG_ERR("MAIN", "Storage layout error: cannot access /.crosspoint");

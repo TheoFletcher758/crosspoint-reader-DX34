@@ -193,6 +193,24 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
     self->pendingAnchors.insert(self->pendingAnchors.end(), anchors.begin(), anchors.end());
   }
 
+  // Compute CSS style for this element early so display:none can short-circuit
+  // before tag-specific branches emit any content or metadata.
+  CssStyle cssStyle;
+  if (self->cssParser) {
+    cssStyle = self->cssParser->resolveStyle(name, classAttr);
+    if (!styleAttr.empty()) {
+      CssStyle inlineStyle = CssParser::parseInlineStyle(styleAttr);
+      cssStyle.applyOver(inlineStyle);
+    }
+  }
+
+  // Skip elements with display:none before all fast paths (tables, links, etc.).
+  if (cssStyle.hasDisplay() && cssStyle.display == CssDisplay::None) {
+    self->skipUntilDepth = self->depth;
+    self->depth += 1;
+    return;
+  }
+
   auto centeredBlockStyle = BlockStyle();
   centeredBlockStyle.textAlignDefined = true;
   centeredBlockStyle.alignment = CssTextAlign::Center;
@@ -355,18 +373,15 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
     }
   }
 
-  // Compute CSS style for this element
-  CssStyle cssStyle;
-  if (self->usePublisherStyles) {
-    // Get combined tag + class styles
-    if (self->cssParser) {
-      cssStyle = self->cssParser->resolveStyle(name, classAttr);
+  // If publisher styles are disabled, clear the CSS style so only display:none
+  // (already applied above) takes effect — layout properties are user-controlled.
+  if (!self->usePublisherStyles) {
+    CssStyle displayOnly;
+    if (cssStyle.hasDisplay()) {
+      displayOnly.display = cssStyle.display;
+      displayOnly.defined.display = 1;
     }
-    // Merge inline style (highest priority)
-    if (!styleAttr.empty()) {
-      CssStyle inlineStyle = CssParser::parseInlineStyle(styleAttr);
-      cssStyle.applyOver(inlineStyle);
-    }
+    cssStyle = displayOnly;
   }
 
   const float emSize = static_cast<float>(self->renderer.getLineHeight(self->fontId)) * self->lineCompression;
