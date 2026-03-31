@@ -199,7 +199,7 @@ void LibrarySearchActivity::loop() {
   }
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-    if (onCancel) onCancel();
+    if (onComplete) onComplete(query);
   }
 }
 

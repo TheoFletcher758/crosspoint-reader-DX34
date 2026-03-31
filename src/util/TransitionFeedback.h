@@ -10,5 +10,6 @@ namespace TransitionFeedback {
 
 void show(GfxRenderer& renderer, const char* message);
 void dismiss(GfxRenderer& renderer);
+bool isActive();
 
 }  // namespace TransitionFeedback

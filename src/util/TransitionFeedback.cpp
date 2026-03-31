@@ -59,4 +59,8 @@ void dismiss(GfxRenderer& renderer) {
   renderer.displayBuffer(HalDisplay::HALF_REFRESH);
 }
 
+bool isActive() {
+  return sActive;
+}
+
 }  // namespace TransitionFeedback

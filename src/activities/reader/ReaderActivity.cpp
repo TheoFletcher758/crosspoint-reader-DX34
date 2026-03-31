@@ -125,7 +125,9 @@ void ReaderActivity::openBookPath(const std::string& bookPath) {
     return;
   }
 
-  TransitionFeedback::show(renderer, tr(STR_LOADING));
+  if (!TransitionFeedback::isActive()) {
+    TransitionFeedback::show(renderer, tr(STR_LOADING));
+  }
 
   currentBookPath = bookPath;
   if (isXtcFile(bookPath)) {
