@@ -358,7 +358,7 @@ bool SleepActivity::randomizeSleepImagePlaylist() {
   return true;
 }
 
-void SleepActivity::trimSleepFolderToLimit(const GfxRenderer* popupRenderer) {
+void SleepActivity::trimSleepFolderToLimit(GfxRenderer* popupRenderer) {
   const size_t kLimit = CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST;
   const size_t kScanCap = kLimit + 500; // Hard cap on scanning to avoid OOM
 

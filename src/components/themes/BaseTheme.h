@@ -125,7 +125,7 @@ class BaseTheme {
                               const std::function<std::string(int index)>& buttonLabel,
                               const std::function<std::string(int index)>& rowIcon) const;
   virtual void drawHomeInfoStatsPopup(const GfxRenderer& renderer) const;
-  virtual Rect drawPopup(const GfxRenderer& renderer, const char* message) const;
-  virtual void fillPopupProgress(const GfxRenderer& renderer, const Rect& layout, const int progress) const;
+  virtual Rect drawPopup(GfxRenderer& renderer, const char* message) const;
+  virtual void fillPopupProgress(GfxRenderer& renderer, const Rect& layout, const int progress) const;
   virtual void drawReadingProgressBar(const GfxRenderer& renderer, const size_t bookProgress) const;
 };

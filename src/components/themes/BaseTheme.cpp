@@ -723,7 +723,7 @@ void BaseTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount
   }
 }
 
-Rect BaseTheme::drawPopup(const GfxRenderer& renderer, const char* message) const {
+Rect BaseTheme::drawPopup(GfxRenderer& renderer, const char* message) const {
   constexpr int margin = 15;
   constexpr int y = 60;
   const int textWidth = renderer.getTextWidth(UI_12_FONT_ID, message, EpdFontFamily::REGULAR);
@@ -742,7 +742,7 @@ Rect BaseTheme::drawPopup(const GfxRenderer& renderer, const char* message) cons
   return Rect{x, y, w, h};
 }
 
-void BaseTheme::fillPopupProgress(const GfxRenderer& renderer, const Rect& layout, const int progress) const {
+void BaseTheme::fillPopupProgress(GfxRenderer& renderer, const Rect& layout, const int progress) const {
   constexpr int barHeight = 4;
   const int barWidth = layout.width - 30;  // twice the margin in drawPopup to match text width
   const int barX = layout.x + (layout.width - barWidth) / 2;

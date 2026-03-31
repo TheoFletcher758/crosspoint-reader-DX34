@@ -19,7 +19,7 @@ std::string toUpperAscii(std::string text) {
   return text;
 }
 
-void showBlockingImpl(const GfxRenderer& renderer, const std::string& message) {
+void showBlockingImpl(GfxRenderer& renderer, const std::string& message) {
   if (message.empty()) {
     return;
   }
@@ -29,15 +29,15 @@ void showBlockingImpl(const GfxRenderer& renderer, const std::string& message) {
 
 }  // namespace
 
-void showBlocking(const GfxRenderer& renderer, const std::string& message) {
+void showBlocking(GfxRenderer& renderer, const std::string& message) {
   showBlockingImpl(renderer, message);
 }
 
-void showBlocking(const GfxRenderer& renderer, const char* message) {
+void showBlocking(GfxRenderer& renderer, const char* message) {
   showBlockingImpl(renderer, message ? std::string(message) : std::string());
 }
 
-void showBlocking(const GfxRenderer& renderer, const String& message) {
+void showBlocking(GfxRenderer& renderer, const String& message) {
   showBlockingImpl(renderer, std::string(message.c_str()));
 }
 

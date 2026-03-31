@@ -48,6 +48,7 @@ void show(GfxRenderer& renderer, const char* message) {
 
   renderer.displayBuffer(HalDisplay::HALF_REFRESH);
   sActive = true;
+  renderer.requestFullRefresh();
 }
 
 void dismiss(GfxRenderer& renderer) {
