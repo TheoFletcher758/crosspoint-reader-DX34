@@ -232,7 +232,6 @@ static bool homeDataLoaded = false;
 void ensureHomeDataLoaded() {
   if (!homeDataLoaded) {
     SleepActivity::trimSleepFolderToLimit();
-    RECENT_BOOKS.loadFromFile();
     homeDataLoaded = true;
   }
 }
@@ -389,17 +388,17 @@ void setup() {
                       mappedInputManager.isPressed(MappedInputManager::Button::Back) ||
                       APP_STATE.readerActivityLoadCount > 0;
 
-  // Only load recents and trim sleep cache now if going to home screen.
-  // When resuming a book, defer this work until the user navigates to home.
+  // Always load recents early — reader activities call addBook() which saves
+  // to disk, so an unloaded list would overwrite the file with just one entry.
+  RECENT_BOOKS.loadFromFile();
+
+  // Defer sleep cache trimming until home screen is actually needed.
   if (goHome) {
-    bootActivity->setProgress(56, "Refreshing sleep cache");
+    bootActivity->setProgress(60, "Refreshing sleep cache");
     SleepActivity::trimSleepFolderToLimit();
-    bootActivity->setProgress(80, "Loading recents");
-    RECENT_BOOKS.loadFromFile();
     homeDataLoaded = true;
-  } else {
-    bootActivity->setProgress(80, "Resuming book");
   }
+  bootActivity->setProgress(80, goHome ? "Preparing home" : "Resuming book");
 
   // Capture reader path before we potentially clear it.
   std::string readerPath;

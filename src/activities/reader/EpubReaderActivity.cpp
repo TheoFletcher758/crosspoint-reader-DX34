@@ -28,6 +28,7 @@
 #include "fontIds.h"
 #include "util/DrawUtils.h"
 #include "util/StatusPopup.h"
+#include "util/TransitionFeedback.h"
 
 namespace {
 // pagesPerRefresh now comes from SETTINGS.getRefreshFrequency()
@@ -50,7 +51,7 @@ int clampPercent(int percent) {
 }
 
 void finishLoadingBar(GfxRenderer& renderer) {
-  StatusPopup::showBottomProgress(renderer, tr(STR_LOADING), 100);
+  TransitionFeedback::dismiss(renderer);
 }
 
 // Use shared DrawUtils::drawDottedRect instead of local copy
@@ -1176,13 +1177,7 @@ void EpubReaderActivity::reloadCurrentSectionForDisplaySettings() {
   if (epub && SETTINGS.readerStyleMode == CrossPointSettings::READER_STYLE_HYBRID) {
     const bool showCssProgress =
         epub->getCssParser() == nullptr || !epub->getCssParser()->hasCache();
-    const auto progressCallback =
-        showCssProgress
-            ? std::function<void(int)>([this](const int progress) {
-                StatusPopup::showBottomProgress(renderer, tr(STR_LOADING),
-                                                progress);
-              })
-            : std::function<void(int)>();
+    const auto progressCallback = std::function<void(int)>();
     if (!epub->ensureCssCache(progressCallback)) {
       LOG_ERR("ERS", "Failed to prepare CSS cache for hybrid reader style");
     } else if (showCssProgress) {
@@ -1369,18 +1364,13 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
       LOG_DBG("ERS", "Cache not found, building...");
       builtSection = true;
 
-      const auto progressFn = [this](const int progress) {
-        StatusPopup::showBottomProgress(renderer, tr(STR_INDEXING_CHAPTER),
-                                        progress);
-      };
-
       if (!section->createSectionFile(
               SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
               SETTINGS.extraParagraphSpacingLevel, SETTINGS.paragraphAlignment,
               viewportWidth, viewportHeight, false,
               SETTINGS.wordSpacingPercent, SETTINGS.firstLineIndentMode,
               SETTINGS.readerStyleMode, sectionTextRenderMode,
-              SETTINGS.readerBoldSwap != 0, progressFn)) {
+              SETTINGS.readerBoldSwap != 0, std::function<void(int)>())) {
         LOG_ERR("ERS", "Failed to persist page data to SD");
         clearPageCache();
         section.reset();

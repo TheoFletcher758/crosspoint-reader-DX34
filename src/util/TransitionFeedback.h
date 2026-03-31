@@ -3,10 +3,12 @@
 class GfxRenderer;
 
 // Lightweight visual feedback for activity transitions.
-// Draws a centered label using FAST_REFRESH (~80ms) so the user
-// gets immediate confirmation that their button press was received.
+// show() draws a centered label instantly (FAST_REFRESH).
+// dismiss() does a HALF_REFRESH to cleanly clear any ghosting before
+// the next screen is drawn.
 namespace TransitionFeedback {
 
 void show(GfxRenderer& renderer, const char* message);
+void dismiss(GfxRenderer& renderer);
 
 }  // namespace TransitionFeedback

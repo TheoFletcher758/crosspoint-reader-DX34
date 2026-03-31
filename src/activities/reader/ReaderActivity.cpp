@@ -12,7 +12,6 @@
 #include "Xtc.h"
 #include "XtcReaderActivity.h"
 #include "activities/util/FullScreenMessageActivity.h"
-#include "util/StatusPopup.h"
 #include "util/StringUtils.h"
 
 std::string ReaderActivity::extractFolderPath(const std::string& filePath) {
@@ -124,8 +123,6 @@ void ReaderActivity::openBookPath(const std::string& bookPath) {
   if (bookPath.empty()) {
     return;
   }
-
-  StatusPopup::showBottomProgress(renderer, "Opening", 10);
 
   currentBookPath = bookPath;
   if (isXtcFile(bookPath)) {

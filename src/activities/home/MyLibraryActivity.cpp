@@ -259,13 +259,6 @@ void MyLibraryActivity::loadFilesWithLimit() {
     file.close();
     esp_task_wdt_reset();
 
-    if (files.size() >= kFileLoadProgressThreshold &&
-        files.size() % kFileLoadProgressInterval == 0) {
-      StatusPopup::showBottomProgress(
-          renderer, "Loading",
-          std::min(90, static_cast<int>(files.size() * 90 / fileLoadLimit)));
-    }
-
     // Only cap non-book folders (image-only folders like sleep library)
     if (!hasBooks && files.size() >= fileLoadLimit) {
       // Check if there are more relevant files in the directory
@@ -290,9 +283,6 @@ void MyLibraryActivity::loadFilesWithLimit() {
   root.close();
   folderHasBooks = hasBooks;
 
-  if (files.size() >= kFileLoadProgressThreshold) {
-    StatusPopup::showBottomProgress(renderer, "Sorting", 95);
-  }
   sortFileList(files);
   rebuildFilteredFileIndexes();
 }
