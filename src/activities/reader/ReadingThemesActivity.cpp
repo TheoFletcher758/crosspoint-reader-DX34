@@ -133,7 +133,7 @@ void ReadingThemesActivity::executeThemeAction() {
   switch (actionPopupSelectedIndex) {
     case 0: {
       actionPopupOpen = false;
-      TransitionFeedback::show(renderer, tr(STR_LOADING));
+      TransitionFeedback::sweepProgressBar(renderer);
       if (!READING_THEMES.applyTheme(actionPopupThemeIndex, bookCachePath)) {
         TransitionFeedback::dismiss(renderer);
         showMessage(tr(STR_APPLY_THEME_FAILED));

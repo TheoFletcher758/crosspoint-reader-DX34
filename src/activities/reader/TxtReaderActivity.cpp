@@ -406,7 +406,7 @@ void TxtReaderActivity::openReadingThemes() {
 }
 
 void TxtReaderActivity::reloadCurrentLayoutForDisplaySettings() {
-  TransitionFeedback::show(renderer, tr(STR_LOADING));
+  TransitionFeedback::showProgressBar(renderer, 0);
   flushProgressIfNeeded(true);
   pendingRelayoutPage = currentPage;
   pendingRelayoutPageCount = std::max(totalPages, 1);
