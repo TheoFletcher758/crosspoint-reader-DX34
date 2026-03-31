@@ -55,9 +55,10 @@ public:
     STATUS_TEXT_ALIGNMENT_COUNT
   };
   enum STATUS_BAR_PROGRESS_STYLE {
-    STATUS_BAR_THIN = 0,
-    STATUS_BAR_THICK = 1,
-    STATUS_BAR_DOTTED = 2,
+    STATUS_BAR_SOLID = 0,
+    STATUS_BAR_DOTS = 1,
+    STATUS_BAR_SEGMENTED = 2,
+    STATUS_BAR_OUTLINED = 3,
     STATUS_BAR_PROGRESS_STYLE_COUNT
   };
   enum STATUS_BAR_PAGE_COUNTER_MODE {
@@ -218,6 +219,14 @@ public:
     SHORT_PWRBTN_COUNT
   };
 
+  // Loading/progress bar style (boot screen, downloads, transfers)
+  enum LOADING_BAR_STYLE {
+    LOADING_BAR_OUTLINED = 0,
+    LOADING_BAR_STRIPED = 1,
+    LOADING_BAR_SEGMENTED = 2,
+    LOADING_BAR_STYLE_COUNT
+  };
+
   // Hide battery percentage
   enum HIDE_BATTERY_PERCENTAGE {
     HIDE_NEVER = 0,
@@ -236,6 +245,8 @@ public:
   uint8_t showSleepImageFilename = 0;
   // Show last sleep wallpaper triage popup on boot
   uint8_t showLastSleepWallpaperOnBoot = 0;
+  // Loading bar style (boot, downloads, transfers)
+  uint8_t loadingBarStyle = LOADING_BAR_OUTLINED;
   // Status bar settings
   uint8_t statusBar = FULL;
   uint8_t statusBarEnabled = 1;
@@ -258,7 +269,8 @@ public:
   uint8_t statusBarChapterBarPosition = STATUS_AT_BOTTOM;
   uint8_t statusBarTitlePosition = STATUS_AT_BOTTOM;
   uint8_t statusBarTextAlignment = STATUS_TEXT_RIGHT;
-  uint8_t statusBarProgressStyle = STATUS_BAR_THICK;
+  uint8_t statusBarBookBarStyle = STATUS_BAR_SOLID;
+  uint8_t statusBarChapterBarStyle = STATUS_BAR_SOLID;
   // Text rendering settings
   uint8_t extraParagraphSpacingLevel = EXTRA_SPACING_M;
   // Legacy field name retained for storage compatibility; value stores a
@@ -347,6 +359,7 @@ public:
   static int wordSpacingSettingToPixelDelta(uint8_t mode, int baseSpaceWidth);
   int getReaderFontId() const;
   int getStatusBarProgressBarHeight() const;
+  static int getProgressBarHeightForStyle(uint8_t style);
 
   bool saveToFile() const;
   bool loadFromFile();

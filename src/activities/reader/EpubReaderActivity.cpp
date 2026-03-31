@@ -70,18 +70,82 @@ void drawDottedRect(const GfxRenderer &renderer, int x, int y, int w, int h) {
 
 void drawStyledProgressBar(const GfxRenderer &renderer,
                            const size_t progressPercent, const int y,
-                           const int height) {
+                           const int height, const uint8_t style) {
   int vieweableMarginTop, vieweableMarginRight, vieweableMarginBottom,
       vieweableMarginLeft;
   renderer.getOrientedViewableTRBL(&vieweableMarginTop, &vieweableMarginRight,
                                    &vieweableMarginBottom,
                                    &vieweableMarginLeft);
-  const int progressBarMaxWidth =
+  const int maxWidth =
       renderer.getScreenWidth() - vieweableMarginLeft - vieweableMarginRight;
-  const int barWidth =
-      progressBarMaxWidth * static_cast<int>(progressPercent) / 100;
+  const int startX = vieweableMarginLeft;
 
-  renderer.fillRect(vieweableMarginLeft, y, barWidth, height, true);
+  switch (style) {
+  case CrossPointSettings::STATUS_BAR_DOTS: {
+    const int dotSize = std::min(height, 6);
+    const int gap = 4;
+    const int step = dotSize + gap;
+    const int count = (maxWidth + gap) / step;
+    if (count <= 0) break;
+    const int filledCount = count * static_cast<int>(progressPercent) / 100;
+    const int totalWidth = count * step - gap;
+    const int offsetX = startX + (maxWidth - totalWidth) / 2;
+    const int dotY = y + (height - dotSize) / 2;
+    const int radius = dotSize / 2;
+    for (int i = 0; i < count; ++i) {
+      const int dx = offsetX + i * step;
+      if (i < filledCount) {
+        renderer.fillRoundedRect(dx, dotY, dotSize, dotSize, radius, Black);
+      } else {
+        renderer.drawRoundedRect(dx, dotY, dotSize, dotSize, 1, radius, true);
+      }
+    }
+    break;
+  }
+  case CrossPointSettings::STATUS_BAR_SEGMENTED: {
+    const int segGap = 2;
+    const int segCount = 30;
+    const int segWidth =
+        (maxWidth - (segCount - 1) * segGap) / segCount;
+    if (segWidth <= 0) break;
+    const int filledSegs =
+        segCount * static_cast<int>(progressPercent) / 100;
+    const int segHeight = std::min(height, 6);
+    const int segY = y + (height - segHeight) / 2;
+    for (int i = 0; i < segCount; ++i) {
+      const int sx = startX + i * (segWidth + segGap);
+      if (i < filledSegs) {
+        renderer.fillRect(sx, segY, segWidth, segHeight, true);
+      } else {
+        renderer.drawRect(sx, segY, segWidth, segHeight);
+      }
+    }
+    break;
+  }
+  case CrossPointSettings::STATUS_BAR_OUTLINED: {
+    // Outer border
+    renderer.drawRect(startX, y, maxWidth, height);
+    // White interior
+    renderer.fillRect(startX + 1, y + 1, maxWidth - 2, height - 2, false);
+    // Filled portion
+    const int innerMargin = 2;
+    const int innerMaxWidth = maxWidth - innerMargin * 2;
+    const int fillWidth =
+        innerMaxWidth * static_cast<int>(progressPercent) / 100;
+    if (fillWidth > 0) {
+      renderer.fillRect(startX + innerMargin, y + innerMargin, fillWidth,
+                        height - innerMargin * 2, true);
+    }
+    break;
+  }
+  default: // STATUS_BAR_SOLID
+  {
+    const int barWidth =
+        maxWidth * static_cast<int>(progressPercent) / 100;
+    renderer.fillRect(startX, y, barWidth, height, true);
+    break;
+  }
+  }
 }
 
 void normalizeReaderMargins(int *top, int *right, int *bottom, int *left) {
@@ -1907,7 +1971,8 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
     int currentBarY = renderTopBand ? bandTopY
                                     : bandTopY + reservedHeight -
                                           renderedBarsHeight;
-    const auto drawBandBar = [&](const size_t progressPercent) {
+    const auto drawBandBar = [&](const size_t progressPercent,
+                                  const uint8_t style) {
       const bool isFirstBar = barIndex == 0;
       const bool isLastBar = barIndex == activeBars - 1;
       int barY = currentBarY + barIndex * progressBarHeight;
@@ -1919,15 +1984,18 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
       if (!renderTopBand && isLastBar) {
         barDrawHeight += statusBottomInset;
       }
-      drawStyledProgressBar(renderer, progressPercent, barY, barDrawHeight);
+      drawStyledProgressBar(renderer, progressPercent, barY, barDrawHeight,
+                            style);
       barIndex++;
     };
 
     if (showBandBookBar) {
-      drawBandBar(static_cast<size_t>(statusBarLayout.bookProgress));
+      drawBandBar(static_cast<size_t>(statusBarLayout.bookProgress),
+                  SETTINGS.statusBarBookBarStyle);
     }
     if (showBandChapterBar) {
-      drawBandBar(static_cast<size_t>(statusBarLayout.chapterProgress));
+      drawBandBar(static_cast<size_t>(statusBarLayout.chapterProgress),
+                  SETTINGS.statusBarChapterBarStyle);
     }
   };
 

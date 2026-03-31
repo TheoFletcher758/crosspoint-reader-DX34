@@ -113,7 +113,8 @@ ReadingTheme ReadingThemeStore::fromSettings(const std::string& name,
   theme.statusBarChapterBarPosition = settings.statusBarChapterBarPosition;
   theme.statusBarTitlePosition = settings.statusBarTitlePosition;
   theme.statusBarTextAlignment = settings.statusBarTextAlignment;
-  theme.statusBarProgressStyle = settings.statusBarProgressStyle;
+  theme.statusBarBookBarStyle = settings.statusBarBookBarStyle;
+  theme.statusBarChapterBarStyle = settings.statusBarChapterBarStyle;
   return theme;
 }
 
@@ -217,10 +218,14 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
       theme.statusBarTextAlignment, 0,
       CrossPointSettings::STATUS_TEXT_ALIGNMENT_COUNT - 1,
       CrossPointSettings::STATUS_TEXT_RIGHT);
-  settings.statusBarProgressStyle = clampRange(
-      theme.statusBarProgressStyle, 0,
+  settings.statusBarBookBarStyle = clampRange(
+      theme.statusBarBookBarStyle, 0,
       CrossPointSettings::STATUS_BAR_PROGRESS_STYLE_COUNT - 1,
-      CrossPointSettings::STATUS_BAR_THICK);
+      CrossPointSettings::STATUS_BAR_SOLID);
+  settings.statusBarChapterBarStyle = clampRange(
+      theme.statusBarChapterBarStyle, 0,
+      CrossPointSettings::STATUS_BAR_PROGRESS_STYLE_COUNT - 1,
+      CrossPointSettings::STATUS_BAR_SOLID);
 }
 
 bool ReadingThemeStore::matchesCurrent(const ReadingTheme& theme) const {
@@ -268,7 +273,8 @@ bool ReadingThemeStore::matchesCurrent(const ReadingTheme& theme) const {
              theme.statusBarChapterBarPosition &&
          current.statusBarTitlePosition == theme.statusBarTitlePosition &&
          current.statusBarTextAlignment == theme.statusBarTextAlignment &&
-         current.statusBarProgressStyle == theme.statusBarProgressStyle;
+         current.statusBarBookBarStyle == theme.statusBarBookBarStyle &&
+         current.statusBarChapterBarStyle == theme.statusBarChapterBarStyle;
 }
 
 int ReadingThemeStore::findMatchingTheme() const {
@@ -561,9 +567,13 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
       theme.statusBarTextAlignment, 0,
       CrossPointSettings::STATUS_TEXT_ALIGNMENT_COUNT - 1,
       CrossPointSettings::STATUS_TEXT_RIGHT);
-  normalized.statusBarProgressStyle = clampRange(
-      theme.statusBarProgressStyle, 0,
+  normalized.statusBarBookBarStyle = clampRange(
+      theme.statusBarBookBarStyle, 0,
       CrossPointSettings::STATUS_BAR_PROGRESS_STYLE_COUNT - 1,
-      CrossPointSettings::STATUS_BAR_THICK);
+      CrossPointSettings::STATUS_BAR_SOLID);
+  normalized.statusBarChapterBarStyle = clampRange(
+      theme.statusBarChapterBarStyle, 0,
+      CrossPointSettings::STATUS_BAR_PROGRESS_STYLE_COUNT - 1,
+      CrossPointSettings::STATUS_BAR_SOLID);
   return normalized;
 }
