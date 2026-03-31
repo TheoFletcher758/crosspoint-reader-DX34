@@ -1645,8 +1645,9 @@ void EpubReaderActivity::renderContents(const Page& page,
       effectiveTextRenderMode(SETTINGS.textRenderMode);
   renderer.setRenderMode(GfxRenderer::BW);
   renderer.setTextDarkeningEnabled(
-      textRenderMode ==
-      CrossPointSettings::TEXT_RENDER_DARK);
+      textRenderMode == CrossPointSettings::TEXT_RENDER_DARK);
+  renderer.setPaperbackModeEnabled(
+      textRenderMode == CrossPointSettings::TEXT_RENDER_PAPERBACK);
 
   const int viewportHeight =
       renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom;
@@ -1693,6 +1694,7 @@ void EpubReaderActivity::renderContents(const Page& page,
   }
 
   renderer.setTextDarkeningEnabled(false);
+  renderer.setPaperbackModeEnabled(false);
 }
 
 void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,

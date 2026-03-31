@@ -45,6 +45,7 @@ private:
   Orientation orientation;
   bool fadingFix;
   bool textDarkeningEnabled;
+  bool paperbackModeEnabled;
   uint8_t *frameBuffer = nullptr;
   uint8_t *bwBufferChunks[BW_BUFFER_NUM_CHUNKS] = {nullptr};
   std::map<int, EpdFontFamily> fontMap;
@@ -58,7 +59,7 @@ private:
 public:
   explicit GfxRenderer(HalDisplay &halDisplay)
       : display(halDisplay), renderMode(BW), orientation(Portrait),
-        fadingFix(false), textDarkeningEnabled(false) {}
+        fadingFix(false), textDarkeningEnabled(false), paperbackModeEnabled(false) {}
   ~GfxRenderer() { freeBwBufferChunks(); }
 
   static constexpr int VIEWABLE_MARGIN_TOP = 9;
@@ -166,6 +167,10 @@ public:
     textDarkeningEnabled = enabled;
   }
   bool isTextDarkeningEnabled() const { return textDarkeningEnabled; }
+  void setPaperbackModeEnabled(const bool enabled) {
+    paperbackModeEnabled = enabled;
+  }
+  bool isPaperbackModeEnabled() const { return paperbackModeEnabled; }
   void copyGrayscaleLsbBuffers() const;
   void copyGrayscaleMsbBuffers() const;
   void displayGrayBuffer() const;

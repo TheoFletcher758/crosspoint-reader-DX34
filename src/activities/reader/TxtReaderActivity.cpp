@@ -1160,8 +1160,9 @@ void TxtReaderActivity::renderPage() {
           : SETTINGS.textRenderMode;
   renderer.setRenderMode(GfxRenderer::BW);
   renderer.setTextDarkeningEnabled(
-      textRenderMode ==
-      CrossPointSettings::TEXT_RENDER_DARK);
+      textRenderMode == CrossPointSettings::TEXT_RENDER_DARK);
+  renderer.setPaperbackModeEnabled(
+      textRenderMode == CrossPointSettings::TEXT_RENDER_PAPERBACK);
 
   // Render text lines with alignment
   auto renderLines = [&]() {
