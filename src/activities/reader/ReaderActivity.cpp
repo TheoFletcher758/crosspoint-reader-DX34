@@ -13,6 +13,7 @@
 #include "XtcReaderActivity.h"
 #include "activities/util/FullScreenMessageActivity.h"
 #include "util/StringUtils.h"
+#include "util/TransitionFeedback.h"
 
 std::string ReaderActivity::extractFolderPath(const std::string& filePath) {
   const auto lastSlash = filePath.find_last_of('/');
@@ -123,6 +124,8 @@ void ReaderActivity::openBookPath(const std::string& bookPath) {
   if (bookPath.empty()) {
     return;
   }
+
+  TransitionFeedback::show(renderer, tr(STR_LOADING));
 
   currentBookPath = bookPath;
   if (isXtcFile(bookPath)) {

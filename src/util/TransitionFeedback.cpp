@@ -46,7 +46,7 @@ void show(GfxRenderer& renderer, const char* message) {
   renderer.drawText(UI_12_FONT_ID, textX, textY, upper.c_str(), true,
                     EpdFontFamily::REGULAR);
 
-  renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+  renderer.displayBuffer(HalDisplay::HALF_REFRESH);
   sActive = true;
 }
 

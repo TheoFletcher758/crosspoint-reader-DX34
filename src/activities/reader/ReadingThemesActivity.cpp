@@ -12,6 +12,7 @@
 #include "activities/util/KeyboardEntryActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/TransitionFeedback.h"
 
 namespace {
 constexpr int kBaseRowCount = 2;
@@ -132,7 +133,9 @@ void ReadingThemesActivity::executeThemeAction() {
   switch (actionPopupSelectedIndex) {
     case 0: {
       actionPopupOpen = false;
+      TransitionFeedback::show(renderer, tr(STR_LOADING));
       if (!READING_THEMES.applyTheme(actionPopupThemeIndex, bookCachePath)) {
+        TransitionFeedback::dismiss(renderer);
         showMessage(tr(STR_APPLY_THEME_FAILED));
         return;
       }

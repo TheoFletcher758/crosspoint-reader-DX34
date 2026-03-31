@@ -20,6 +20,7 @@
 #include "fontIds.h"
 #include "util/StatusPopup.h"
 #include "util/StringUtils.h"
+#include "util/TransitionFeedback.h"
 
 namespace {
 constexpr unsigned long goHomeMs = 1000;
@@ -405,6 +406,7 @@ void TxtReaderActivity::openReadingThemes() {
 }
 
 void TxtReaderActivity::reloadCurrentLayoutForDisplaySettings() {
+  TransitionFeedback::show(renderer, tr(STR_LOADING));
   flushProgressIfNeeded(true);
   pendingRelayoutPage = currentPage;
   pendingRelayoutPageCount = std::max(totalPages, 1);
@@ -965,6 +967,7 @@ void TxtReaderActivity::render(Activity::RenderLock &&) {
   // Initialize reader if not done
   if (!initialized) {
     initializeReader();
+    TransitionFeedback::dismiss(renderer);
   }
 
   if (pageOffsets.empty()) {

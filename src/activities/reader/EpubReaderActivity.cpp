@@ -700,6 +700,7 @@ void EpubReaderActivity::loop() {
                            mappedInput.getHeldTime() > skipChapterMs;
 
   if (skipChapter) {
+    TransitionFeedback::show(renderer, tr(STR_LOADING));
     // We don't want to delete the section mid-render, so grab the semaphore
     {
       RenderLock lock(*this);
@@ -731,6 +732,7 @@ void EpubReaderActivity::loop() {
       lastProgressChangeMs = millis();
       flushProgressIfNeeded(true);
     } else if (currentSpineIndex > 0) {
+      TransitionFeedback::show(renderer, tr(STR_LOADING));
       // We don't want to delete the section mid-render, so grab the semaphore
       {
         RenderLock lock(*this);
@@ -754,6 +756,7 @@ void EpubReaderActivity::loop() {
       lastProgressChangeMs = millis();
       flushProgressIfNeeded(true);
     } else {
+      TransitionFeedback::show(renderer, tr(STR_LOADING));
       // We don't want to delete the section mid-render, so grab the semaphore
       {
         RenderLock lock(*this);
@@ -800,6 +803,7 @@ void EpubReaderActivity::openReaderMenu() {
 }
 
 void EpubReaderActivity::toggleReaderBoldSwap() {
+  TransitionFeedback::show(renderer, tr(STR_LOADING));
   flushProgressIfNeeded(true);
   const bool enableSwap = SETTINGS.readerBoldSwap == 0;
   SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
@@ -914,6 +918,7 @@ void EpubReaderActivity::jumpToPercent(int percent) {
   }
 
   // Reset state so render() reloads and repositions on the target spine.
+  TransitionFeedback::show(renderer, tr(STR_LOADING));
   {
     RenderLock lock(*this);
     currentSpineIndex = targetSpineIndex;
@@ -957,6 +962,7 @@ void EpubReaderActivity::onReaderMenuConfirm(
 
           pendingAnchor = tocItem.anchor;
           if (currentSpineIndex != newSpineIndex || section) {
+            TransitionFeedback::show(renderer, tr(STR_LOADING));
             currentSpineIndex = newSpineIndex;
             nextPageNumber = 0;
             clearPageCache();
@@ -968,6 +974,7 @@ void EpubReaderActivity::onReaderMenuConfirm(
         [this](const int newSpineIndex, const int newPage) {
           if (currentSpineIndex != newSpineIndex ||
               (section && section->currentPage != newPage)) {
+            TransitionFeedback::show(renderer, tr(STR_LOADING));
             currentSpineIndex = newSpineIndex;
             nextPageNumber = newPage;
             clearPageCache();
@@ -1091,6 +1098,7 @@ void EpubReaderActivity::onReaderMenuConfirm(
             // On sync complete - update position and defer exit
             if (currentSpineIndex != newSpineIndex ||
                 (section && section->currentPage != newPage)) {
+              TransitionFeedback::show(renderer, tr(STR_LOADING));
               currentSpineIndex = newSpineIndex;
               nextPageNumber = newPage;
               clearPageCache();
@@ -1147,6 +1155,8 @@ void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
     return;
   }
 
+  TransitionFeedback::show(renderer, tr(STR_LOADING));
+
   // Preserve current reading position so we can restore after reflow.
   {
     RenderLock lock(*this);
@@ -1173,6 +1183,7 @@ void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
 }
 
 void EpubReaderActivity::reloadCurrentSectionForDisplaySettings() {
+  TransitionFeedback::show(renderer, tr(STR_LOADING));
   flushProgressIfNeeded(true);
   if (epub && SETTINGS.readerStyleMode == CrossPointSettings::READER_STYLE_HYBRID) {
     const bool showCssProgress =
@@ -1421,9 +1432,7 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
       pendingAnchor.clear();
     }
 
-    if (builtSection) {
-      finishLoadingBar(renderer);
-    }
+    finishLoadingBar(renderer);
   }
 
   renderer.clearScreen();
