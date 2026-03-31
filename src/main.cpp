@@ -34,6 +34,7 @@
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/ButtonNavigator.h"
+#include "util/TransitionFeedback.h"
 
 HalDisplay display;
 HalGPIO gpio;
@@ -181,44 +182,64 @@ void onGoToMyLibraryWithPath(const std::string& path);
 void onGoToRecentBooks();
 void onGoToReader(const std::string& initialEpubPath) {
   const std::string bookPath = initialEpubPath;  // Copy before exitActivity() invalidates the reference
+  TransitionFeedback::show(renderer, "Opening book...");
   exitActivity();
   enterNewActivity(new ReaderActivity(renderer, mappedInputManager, bookPath, onGoHome, onGoToMyLibraryWithPath));
 }
 
 void onGoToFileTransfer() {
+  TransitionFeedback::show(renderer, "Starting server...");
   exitActivity();
   enterNewActivity(new CrossPointWebServerActivity(renderer, mappedInputManager, onGoHome));
 }
 
 void onGoToSettings() {
+  TransitionFeedback::show(renderer, "Loading settings...");
   exitActivity();
   enterNewActivity(new SettingsActivity(renderer, mappedInputManager, onGoHome));
 }
 
 void onGoToMyLibrary() {
+  TransitionFeedback::show(renderer, "Loading library...");
   persistAppState("go to library");
   exitActivity();
   enterNewActivity(new MyLibraryActivity(renderer, mappedInputManager, onGoHome, onGoToReader));
 }
 
 void onGoToRecentBooks() {
+  TransitionFeedback::show(renderer, "Loading recents...");
   persistAppState("go to recents");
   exitActivity();
   enterNewActivity(new RecentBooksActivity(renderer, mappedInputManager, onGoHome, onGoToReader));
 }
 
 void onGoToMyLibraryWithPath(const std::string& path) {
+  TransitionFeedback::show(renderer, "Loading library...");
   persistAppState("go to library path");
   exitActivity();
   enterNewActivity(new MyLibraryActivity(renderer, mappedInputManager, onGoHome, onGoToReader, path));
 }
 
 void onGoToBrowser() {
+  TransitionFeedback::show(renderer, "Loading browser...");
   exitActivity();
   enterNewActivity(new OpdsBookBrowserActivity(renderer, mappedInputManager, onGoHome));
 }
 
+// Track whether home-screen data was loaded (deferred when booting to a book)
+static bool homeDataLoaded = false;
+
+void ensureHomeDataLoaded() {
+  if (!homeDataLoaded) {
+    SleepActivity::trimSleepFolderToLimit();
+    RECENT_BOOKS.loadFromFile();
+    homeDataLoaded = true;
+  }
+}
+
 void onGoHome() {
+  TransitionFeedback::show(renderer, "Loading home...");
+  ensureHomeDataLoaded();
   persistAppState("go home");
   exitActivity();
   enterNewActivity(new HomeActivity(renderer, mappedInputManager, onGoToReader, onGoToMyLibrary, onGoToRecentBooks,
@@ -301,9 +322,9 @@ void setup() {
   // Only start serial if USB connected
   if (gpio.isUsbConnected()) {
     Serial.begin(115200);
-    // Wait up to 3 seconds for Serial to be ready to catch early logs
+    // Wait up to 500ms for Serial to be ready (enough for USB CDC enumeration)
     unsigned long start = millis();
-    while (!Serial && (millis() - start) < 3000) {
+    while (!Serial && (millis() - start) < 500) {
       delay(10);
     }
   }
@@ -360,11 +381,6 @@ void setup() {
 
   bootActivity->setProgress(32, "Restoring state");
   APP_STATE.loadFromFile();
-  bootActivity->setProgress(56, "Refreshing sleep cache");
-  // FORCE trimming early if we were already in an OOM situation from a large playlist
-  SleepActivity::trimSleepFolderToLimit();
-  bootActivity->setProgress(80, "Loading recents");
-  RECENT_BOOKS.loadFromFile();
 
   LOG_INF("MAIN", "Booting complete, checking initial activity");
 
@@ -372,6 +388,18 @@ void setup() {
   const bool goHome = APP_STATE.openEpubPath.empty() || !APP_STATE.lastSleepFromReader ||
                       mappedInputManager.isPressed(MappedInputManager::Button::Back) ||
                       APP_STATE.readerActivityLoadCount > 0;
+
+  // Only load recents and trim sleep cache now if going to home screen.
+  // When resuming a book, defer this work until the user navigates to home.
+  if (goHome) {
+    bootActivity->setProgress(56, "Refreshing sleep cache");
+    SleepActivity::trimSleepFolderToLimit();
+    bootActivity->setProgress(80, "Loading recents");
+    RECENT_BOOKS.loadFromFile();
+    homeDataLoaded = true;
+  } else {
+    bootActivity->setProgress(80, "Resuming book");
+  }
 
   // Capture reader path before we potentially clear it.
   std::string readerPath;
@@ -389,7 +417,7 @@ void setup() {
 
   if (goHome) {
     bootActivity->setProgress(100, "Opening home");
-    SleepActivity::trimSleepFolderToLimit();
+    // trimSleepFolderToLimit() already called at line 365, no need to repeat
     if (showWallpaperTriage) {
       exitActivity();
       enterNewActivity(new LastSleepWallpaperActivity(renderer, mappedInputManager, [=]() { onGoHome(); }));
@@ -418,7 +446,14 @@ void loop() {
 
   gpio.update();
 
-  renderer.setFadingFix(SETTINGS.fadingFix);
+  // Only update fading fix when it changes (avoid calling every loop iteration)
+  {
+    static bool lastFadingFix = !SETTINGS.fadingFix;  // Force first-time update
+    if (SETTINGS.fadingFix != lastFadingFix) {
+      lastFadingFix = SETTINGS.fadingFix;
+      renderer.setFadingFix(lastFadingFix);
+    }
+  }
 
   if (Serial && millis() - lastMemPrint >= 10000) {
     LOG_INF("MEM", "Free: %d bytes, Total: %d bytes, Min Free: %d bytes", ESP.getFreeHeap(), ESP.getHeapSize(),

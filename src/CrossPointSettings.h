@@ -363,3 +363,7 @@ public:
 
 // Helper macro to access settings
 #define SETTINGS CrossPointSettings::getInstance()
+
+// Migration helper — converts legacy statusBar enum into individual flags.
+// Defined in CrossPointSettings.cpp, also used by JsonSettingsIO.cpp.
+void migrateLegacyStatusBarMode(CrossPointSettings &settings);

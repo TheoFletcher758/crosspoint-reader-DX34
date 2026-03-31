@@ -15,63 +15,8 @@
 #include "WifiCredentialStore.h"
 
 namespace {
-void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
-  settings.statusBarEnabled = 1;
-  settings.statusBarShowBattery = 1;
-  settings.statusBarShowPageCounter = 0;
-  settings.statusBarPageCounterMode =
-      CrossPointSettings::STATUS_PAGE_CURRENT_OVER_TOTAL;
-  settings.statusBarShowBookPercentage = 0;
-  settings.statusBarShowChapterPercentage = 0;
-  settings.statusBarShowBookBar = 0;
-  settings.statusBarShowChapterBar = 0;
-  settings.statusBarShowChapterTitle = 1;
-  settings.statusBarTopLine = 0;
-  settings.statusBarBatteryPosition = CrossPointSettings::STATUS_AT_BOTTOM;
-  settings.statusBarProgressTextPosition =
-      CrossPointSettings::STATUS_AT_BOTTOM;
-  settings.statusBarPageCounterPosition =
-      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER;
-  settings.statusBarBookPercentagePosition =
-      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER;
-  settings.statusBarChapterPercentagePosition =
-      CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER;
-  settings.statusBarBookBarPosition = CrossPointSettings::STATUS_AT_BOTTOM;
-  settings.statusBarChapterBarPosition = CrossPointSettings::STATUS_AT_BOTTOM;
-  settings.statusBarTitlePosition = CrossPointSettings::STATUS_AT_BOTTOM;
-  settings.statusBarTextAlignment = CrossPointSettings::STATUS_TEXT_RIGHT;
-  settings.statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THICK;
-
-  switch (
-      static_cast<CrossPointSettings::STATUS_BAR_MODE>(settings.statusBar)) {
-  case CrossPointSettings::STATUS_BAR_MODE::NONE:
-    settings.statusBarEnabled = 0;
-    settings.statusBarShowBattery = 0;
-    settings.statusBarShowChapterTitle = 0;
-    break;
-  case CrossPointSettings::STATUS_BAR_MODE::NO_PROGRESS:
-    break;
-  case CrossPointSettings::STATUS_BAR_MODE::FULL:
-    settings.statusBarShowPageCounter = 1;
-    settings.statusBarShowBookPercentage = 1;
-    break;
-  case CrossPointSettings::STATUS_BAR_MODE::BOOK_PROGRESS_BAR:
-    settings.statusBarShowPageCounter = 1;
-    settings.statusBarShowBookBar = 1;
-    break;
-  case CrossPointSettings::STATUS_BAR_MODE::ONLY_BOOK_PROGRESS_BAR:
-    settings.statusBarShowBattery = 0;
-    settings.statusBarShowChapterTitle = 0;
-    settings.statusBarShowBookBar = 1;
-    break;
-  case CrossPointSettings::STATUS_BAR_MODE::CHAPTER_PROGRESS_BAR:
-    settings.statusBarShowBookPercentage = 1;
-    settings.statusBarShowChapterBar = 1;
-    break;
-  default:
-    break;
-  }
-}
+// migrateLegacyStatusBarMode is now declared in CrossPointSettings.h
+// and defined in CrossPointSettings.cpp (single source of truth).
 
 void writeReadingThemeObject(JsonObject obj, const ReadingTheme& theme) {
   obj["name"] = theme.name;

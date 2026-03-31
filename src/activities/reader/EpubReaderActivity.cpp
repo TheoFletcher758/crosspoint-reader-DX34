@@ -26,6 +26,7 @@
 #include "activities/util/ConfirmDialogActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/DrawUtils.h"
 #include "util/StatusPopup.h"
 
 namespace {
@@ -50,23 +51,9 @@ int clampPercent(int percent) {
 
 void finishLoadingBar(GfxRenderer& renderer) {
   StatusPopup::showBottomProgress(renderer, tr(STR_LOADING), 100);
-  delay(70);
 }
 
-void drawDottedRect(const GfxRenderer &renderer, int x, int y, int w, int h) {
-  const int x2 = x + w - 1;
-  const int y2 = y + h - 1;
-  // Top and bottom edges
-  for (int px = x; px <= x2; px += 2) {
-    renderer.drawPixel(px, y);
-    renderer.drawPixel(px, y2);
-  }
-  // Left and right edges
-  for (int py = y + 1; py < y2; py += 2) {
-    renderer.drawPixel(x, py);
-    renderer.drawPixel(x2, py);
-  }
-}
+// Use shared DrawUtils::drawDottedRect instead of local copy
 
 void drawStyledProgressBar(const GfxRenderer &renderer,
                            const size_t progressPercent, const int y,
@@ -1653,7 +1640,7 @@ void EpubReaderActivity::renderContents(const Page& page,
 
   page.render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
   if (SETTINGS.debugBorders) {
-    drawDottedRect(renderer, orientedMarginLeft, orientedMarginTop,
+    DrawUtils::drawDottedRect(renderer, orientedMarginLeft, orientedMarginTop,
                    renderer.getScreenWidth() - orientedMarginLeft -
                        orientedMarginRight,
                    viewportHeight);
@@ -1768,7 +1755,7 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
     const int renderedBarsHeight = activeBars * progressBarHeight;
 
     if (SETTINGS.debugBorders) {
-      drawDottedRect(renderer, orientedMarginLeft, bandTopY,
+      DrawUtils::drawDottedRect(renderer, orientedMarginLeft, bandTopY,
                      renderer.getScreenWidth() - orientedMarginLeft -
                          orientedMarginRight,
                      reservedHeight);

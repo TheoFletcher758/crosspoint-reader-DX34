@@ -125,6 +125,8 @@ void ReaderActivity::openBookPath(const std::string& bookPath) {
     return;
   }
 
+  StatusPopup::showBottomProgress(renderer, "Opening", 10);
+
   currentBookPath = bookPath;
   if (isXtcFile(bookPath)) {
     auto xtc = loadXtc(bookPath);

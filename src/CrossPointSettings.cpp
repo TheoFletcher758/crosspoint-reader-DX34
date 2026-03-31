@@ -83,6 +83,8 @@ void applyLegacyFrontButtonLayout(CrossPointSettings &settings) {
   }
 }
 
+}  // namespace (temporarily close for external-linkage function)
+
 void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
   settings.statusBarEnabled = 1;
   settings.statusBarShowBattery = 1;
@@ -141,6 +143,8 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
     break;
   }
 }
+
+namespace {  // reopen anonymous namespace for remaining local helpers
 
 uint8_t legacyLineSpacingToPercent(const uint8_t legacy) {
   switch (legacy) {

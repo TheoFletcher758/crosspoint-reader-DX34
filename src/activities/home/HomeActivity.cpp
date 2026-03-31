@@ -24,6 +24,7 @@
 #include "components/themes/BaseTheme.h"
 #include "fontIds.h"
 #include "util/BookProgress.h"
+#include "util/DrawUtils.h"
 #include "util/FavoriteBmp.h"
 #include "util/StringUtils.h"
 
@@ -68,18 +69,7 @@ std::vector<HomeMenuItem> buildHomeMenuItems(bool hasOpdsUrl) {
   return items;
 }
 
-void drawDottedRectHome(const GfxRenderer& renderer, int x, int y, int w, int h) {
-  const int x2 = x + w - 1;
-  const int y2 = y + h - 1;
-  for (int px = x; px <= x2; px += 2) {
-    renderer.drawPixel(px, y);
-    renderer.drawPixel(px, y2);
-  }
-  for (int py = y + 1; py < y2; py += 2) {
-    renderer.drawPixel(x, py);
-    renderer.drawPixel(x2, py);
-  }
-}
+// Use shared DrawUtils::drawDottedRect instead of local copy
 
 } // namespace
 
@@ -112,27 +102,35 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
   seenPaths.reserve(books.size());
 
   for (const RecentBook &book : books) {
-    // Skip if file no longer exists
-    if (!Storage.exists(book.path.c_str())) {
-      continue;
-    }
-    const auto percent = BookProgress::getPercent(book.path);
-
     if (!seenPaths.insert(book.path).second) {
       continue;
     }
 
-    eligibleCount++;
-
-    if (recentBooks.size() < maxVisibleBooks) {
-      RecentBook bookWithoutCover = book;
-      bookWithoutCover.title =
-          (percent.has_value() ? std::to_string(percent.value()) : "0") +
-          "%  " + book.title;
-      // Home screen should never attempt to load/render cover images.
-      bookWithoutCover.coverBmpPath.clear();
-      recentBooks.push_back(bookWithoutCover);
+    // Once we have enough visible books, we only need to confirm one more
+    // eligible entry to show "See all...", then we can stop iterating.
+    if (recentBooks.size() >= maxVisibleBooks) {
+      if (Storage.exists(book.path.c_str())) {
+        eligibleCount++;
+        break;  // Found one more — enough to show "See all..."
+      }
+      continue;
     }
+
+    // Skip if file no longer exists
+    if (!Storage.exists(book.path.c_str())) {
+      continue;
+    }
+
+    eligibleCount++;
+    const auto percent = BookProgress::getPercent(book.path);
+
+    RecentBook bookWithoutCover = book;
+    bookWithoutCover.title =
+        (percent.has_value() ? std::to_string(percent.value()) : "0") +
+        "%  " + book.title;
+    // Home screen should never attempt to load/render cover images.
+    bookWithoutCover.coverBmpPath.clear();
+    recentBooks.push_back(bookWithoutCover);
   }
 
   if (eligibleCount > maxVisibleBooks && !recentBooks.empty()) {
@@ -313,7 +311,7 @@ void HomeActivity::render(Activity::RenderLock &&) {
   if (pagesSelected) {
     renderer.fillRect(pagesTileX, pagesTileY, pagesTileWidth, pagesTileHeight);
   } else {
-    drawDottedRectHome(renderer, pagesTileX, pagesTileY, pagesTileWidth,
+    DrawUtils::drawDottedRect(renderer, pagesTileX, pagesTileY, pagesTileWidth,
                        pagesTileHeight);
   }
   renderer.drawText(sessionStatFont, pagesTileX + 8,
