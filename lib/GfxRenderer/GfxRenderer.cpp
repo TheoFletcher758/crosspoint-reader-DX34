@@ -74,14 +74,11 @@ static void renderCharImpl(const GfxRenderer &renderer,
 
   const EpdFontData *fontData = fontFamily.getData(style);
   const bool is2Bit = fontData->is2Bit;
-  const bool paperbackMode = renderer.isPaperbackModeEnabled() && renderMode == GfxRenderer::BW;
   const uint8_t extraBoldPasses =
-      paperbackMode
-          ? 0  // paperback handles its own spread
-          : (renderMode == GfxRenderer::BW
-                 ? static_cast<uint8_t>(fontFamily.getSyntheticBoldPasses(style) +
-                                        (renderer.isTextDarkeningEnabled() ? 1 : 0))
-                 : 0);
+      renderMode == GfxRenderer::BW
+          ? static_cast<uint8_t>(fontFamily.getSyntheticBoldPasses(style) +
+                                 (renderer.isTextDarkeningEnabled() ? 1 : 0))
+          : 0;
   const uint8_t width = glyph->width;
   const uint8_t height = glyph->height;
   const int left = glyph->left;
@@ -127,23 +124,8 @@ static void renderCharImpl(const GfxRenderer &renderer,
 
           if (renderMode == GfxRenderer::BW && bmpVal < 3) {
             renderer.drawPixel(screenX, screenY, pixelState);
-            if (paperbackMode) {
-              // Deterministic ink spread: hash position to pick direction.
-              // Different pixels spread in different directions for organic look.
-              const uint8_t inkHash = static_cast<uint8_t>((screenX * 7) ^ (screenY * 13));
-              // Solid black pixels (bmpVal 0-1) always spread; gray edges (bmpVal 2) spread ~50%
-              if (bmpVal < 2 || (inkHash & 0x4)) {
-                switch (inkHash & 0x3) {
-                  case 0: renderer.drawPixel(screenX + 1, screenY, pixelState); break;
-                  case 1: renderer.drawPixel(screenX, screenY + 1, pixelState); break;
-                  case 2: renderer.drawPixel(screenX - 1, screenY, pixelState); break;
-                  case 3: renderer.drawPixel(screenX, screenY - 1, pixelState); break;
-                }
-              }
-            } else {
-              for (uint8_t pass = 1; pass <= extraBoldPasses; ++pass) {
-                renderer.drawPixel(screenX + pass, screenY, pixelState);
-              }
+            for (uint8_t pass = 1; pass <= extraBoldPasses; ++pass) {
+              renderer.drawPixel(screenX + pass, screenY, pixelState);
             }
           } else if (renderMode == GfxRenderer::GRAYSCALE_MSB &&
                      (bmpVal == 1 || bmpVal == 2)) {
@@ -176,21 +158,8 @@ static void renderCharImpl(const GfxRenderer &renderer,
 
           if ((byte >> bit_index) & 1) {
             renderer.drawPixel(screenX, screenY, pixelState);
-            if (paperbackMode) {
-              const uint8_t inkHash = static_cast<uint8_t>((screenX * 7) ^ (screenY * 13));
-              // 1-bit fonts: spread ~75% of pixels (skip when hash bits [4:3] == 0)
-              if (inkHash & 0x18) {
-                switch (inkHash & 0x3) {
-                  case 0: renderer.drawPixel(screenX + 1, screenY, pixelState); break;
-                  case 1: renderer.drawPixel(screenX, screenY + 1, pixelState); break;
-                  case 2: renderer.drawPixel(screenX - 1, screenY, pixelState); break;
-                  case 3: renderer.drawPixel(screenX, screenY - 1, pixelState); break;
-                }
-              }
-            } else {
-              for (uint8_t pass = 1; pass <= extraBoldPasses; ++pass) {
-                renderer.drawPixel(screenX + pass, screenY, pixelState);
-              }
+            for (uint8_t pass = 1; pass <= extraBoldPasses; ++pass) {
+              renderer.drawPixel(screenX + pass, screenY, pixelState);
             }
           }
         }

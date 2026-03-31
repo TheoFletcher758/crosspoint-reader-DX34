@@ -109,8 +109,7 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
   settings.statusBarChapterBarPosition = CrossPointSettings::STATUS_AT_BOTTOM;
   settings.statusBarTitlePosition = CrossPointSettings::STATUS_AT_BOTTOM;
   settings.statusBarTextAlignment = CrossPointSettings::STATUS_TEXT_RIGHT;
-  settings.statusBarBookBarStyle = CrossPointSettings::STATUS_BAR_SOLID;
-  settings.statusBarChapterBarStyle = CrossPointSettings::STATUS_BAR_SOLID;
+  settings.statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THICK;
 
   switch (
       static_cast<CrossPointSettings::STATUS_BAR_MODE>(settings.statusBar)) {
@@ -417,9 +416,7 @@ bool CrossPointSettings::loadFromBinaryFile() {
       break;
     {
       // Migration: old single statusBarProgressStyle → read and discard
-      uint8_t legacyStyle = STATUS_BAR_SOLID;
-      readAndValidate(inputFile, legacyStyle, STATUS_BAR_PROGRESS_STYLE_COUNT);
-      // Don't apply — new per-bar styles default to SOLID
+      readAndValidate(inputFile, statusBarProgressStyle, STATUS_BAR_PROGRESS_STYLE_COUNT);
     }
     statusBarGranularRead = true;
     if (++settingsRead >= fileSettingsCount)
@@ -675,12 +672,4 @@ int CrossPointSettings::getReaderFontId() const {
   }
 }
 
-int CrossPointSettings::getStatusBarProgressBarHeight() const {
-  const int bookH = getProgressBarHeightForStyle(statusBarBookBarStyle);
-  const int chapterH = getProgressBarHeightForStyle(statusBarChapterBarStyle);
-  return std::max(bookH, chapterH);
-}
-
-int CrossPointSettings::getProgressBarHeightForStyle(uint8_t style) {
-  return (style == STATUS_BAR_OUTLINED) ? 12 : 6;
-}
+int CrossPointSettings::getStatusBarProgressBarHeight() const { return 6; }

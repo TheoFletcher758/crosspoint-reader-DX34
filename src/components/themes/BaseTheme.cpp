@@ -244,45 +244,14 @@ void BaseTheme::drawProgressBar(const GfxRenderer& renderer, Rect rect, const si
 
   // Use 64-bit arithmetic to avoid overflow for large files
   const int percent = static_cast<int>((static_cast<uint64_t>(current) * 100) / total);
-  const uint8_t style = SETTINGS.loadingBarStyle;
 
-  if (style == CrossPointSettings::LOADING_BAR_STRIPED) {
-    // Outlined box with vertical stripe fill
-    renderer.drawRect(rect.x, rect.y, rect.width, rect.height);
-    renderer.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2,
-                      false);
-    const int innerX = rect.x + 3;
-    const int innerY = rect.y + 3;
-    const int innerW = rect.width - 6;
-    const int innerH = rect.height - 6;
-    const int fillWidth = innerW * percent / 100;
-    constexpr int stripeW = 3;
-    constexpr int stripeGap = 3;
-    for (int sx = 0; sx < fillWidth; sx += stripeW + stripeGap) {
-      const int w = std::min(stripeW, fillWidth - sx);
-      renderer.fillRect(innerX + sx, innerY, w, innerH, true);
-    }
-  } else if (style == CrossPointSettings::LOADING_BAR_SEGMENTED) {
-    // Discrete blocks with gaps
-    constexpr int segCount = 20;
-    constexpr int segGap = 4;
-    const int segWidth = (rect.width - (segCount - 1) * segGap) / segCount;
-    const int filledSegs = segCount * percent / 100;
-    for (int i = 0; i < segCount; ++i) {
-      const int sx = rect.x + i * (segWidth + segGap);
-      if (i < filledSegs) {
-        renderer.fillRect(sx, rect.y, segWidth, rect.height, true);
-      } else {
-        renderer.drawRect(sx, rect.y, segWidth, rect.height, true);
-      }
-    }
-  } else {
-    // Default: LOADING_BAR_OUTLINED — outlined box with inner fill
-    renderer.drawRect(rect.x, rect.y, rect.width, rect.height);
-    const int fillWidth = (rect.width - 4) * percent / 100;
-    if (fillWidth > 0) {
-      renderer.fillRect(rect.x + 2, rect.y + 2, fillWidth, rect.height - 4);
-    }
+  // Draw outline
+  renderer.drawRect(rect.x, rect.y, rect.width, rect.height);
+
+  // Draw filled portion
+  const int fillWidth = (rect.width - 4) * percent / 100;
+  if (fillWidth > 0) {
+    renderer.fillRect(rect.x + 2, rect.y + 2, fillWidth, rect.height - 4);
   }
 
   // Draw percentage text centered below bar

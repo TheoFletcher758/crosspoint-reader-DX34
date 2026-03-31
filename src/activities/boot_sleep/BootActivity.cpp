@@ -6,7 +6,6 @@
 #include <HalDisplay.h>
 #include <GfxRenderer.h>
 
-#include "CrossPointSettings.h"
 #include "fontIds.h"
 #include "images/BootImage.h"
 
@@ -14,7 +13,7 @@ namespace {
 
 constexpr int kBootImageVerticalOffset = -24;
 constexpr int kProgressBarWidth = 300;
-constexpr int kProgressBarHeight = 18;
+constexpr int kProgressBarHeight = 24;
 constexpr int kProgressBarBorderWidth = 1;
 constexpr int kProgressBarInnerPadding = 3;
 constexpr int kProgressBarTopGap = 34;
@@ -66,65 +65,26 @@ void BootActivity::drawDynamicBootScreen() const {
   const int y = centeredY + kBootImageVerticalOffset;
   const int barX = (pageWidth - kProgressBarWidth) / 2;
   const int barY = y + kBootImageHeight + kProgressBarTopGap;
+  const int innerX = barX + kProgressBarInnerPadding;
+  const int innerY = barY + kProgressBarInnerPadding;
+  const int innerWidth = kProgressBarWidth - kProgressBarInnerPadding * 2;
+  const int innerHeight = kProgressBarHeight - kProgressBarInnerPadding * 2;
+  const int fillWidth = innerWidth * progressPercent / 100;
   const int dynamicRegionTop = barY - kDynamicRegionPadding;
   const int dynamicRegionBottom =
       barY + kProgressBarHeight + kDynamicRegionPadding;
 
-  // Clear the dynamic region
   renderer.fillRect(barX - kDynamicRegionPadding, dynamicRegionTop,
                     kProgressBarWidth + kDynamicRegionPadding * 2,
                     dynamicRegionBottom - dynamicRegionTop, false);
+  renderer.drawRect(barX, barY, kProgressBarWidth, kProgressBarHeight, true);
+  renderer.fillRect(barX + kProgressBarBorderWidth,
+                    barY + kProgressBarBorderWidth,
+                    kProgressBarWidth - kProgressBarBorderWidth * 2,
+                    kProgressBarHeight - kProgressBarBorderWidth * 2, false);
 
-  const uint8_t style = SETTINGS.loadingBarStyle;
-
-  if (style == CrossPointSettings::LOADING_BAR_STRIPED) {
-    // Outlined box with vertical stripe fill
-    renderer.drawRect(barX, barY, kProgressBarWidth, kProgressBarHeight, true);
-    renderer.fillRect(barX + kProgressBarBorderWidth,
-                      barY + kProgressBarBorderWidth,
-                      kProgressBarWidth - kProgressBarBorderWidth * 2,
-                      kProgressBarHeight - kProgressBarBorderWidth * 2, false);
-    const int innerX = barX + kProgressBarInnerPadding;
-    const int innerY = barY + kProgressBarInnerPadding;
-    const int innerWidth = kProgressBarWidth - kProgressBarInnerPadding * 2;
-    const int innerHeight = kProgressBarHeight - kProgressBarInnerPadding * 2;
-    const int fillWidth = innerWidth * progressPercent / 100;
-    constexpr int stripeW = 3;
-    constexpr int stripeGap = 3;
-    for (int sx = 0; sx < fillWidth; sx += stripeW + stripeGap) {
-      const int w = std::min(stripeW, fillWidth - sx);
-      renderer.fillRect(innerX + sx, innerY, w, innerHeight, true);
-    }
-  } else if (style == CrossPointSettings::LOADING_BAR_SEGMENTED) {
-    // Discrete blocks with gaps
-    constexpr int segCount = 20;
-    constexpr int segGap = 4;
-    const int segWidth =
-        (kProgressBarWidth - (segCount - 1) * segGap) / segCount;
-    const int filledSegs = segCount * progressPercent / 100;
-    for (int i = 0; i < segCount; ++i) {
-      const int sx = barX + i * (segWidth + segGap);
-      if (i < filledSegs) {
-        renderer.fillRect(sx, barY, segWidth, kProgressBarHeight, true);
-      } else {
-        renderer.drawRect(sx, barY, segWidth, kProgressBarHeight, true);
-      }
-    }
-  } else {
-    // Default: LOADING_BAR_OUTLINED — outlined box with inner fill
-    renderer.drawRect(barX, barY, kProgressBarWidth, kProgressBarHeight, true);
-    renderer.fillRect(barX + kProgressBarBorderWidth,
-                      barY + kProgressBarBorderWidth,
-                      kProgressBarWidth - kProgressBarBorderWidth * 2,
-                      kProgressBarHeight - kProgressBarBorderWidth * 2, false);
-    const int innerX = barX + kProgressBarInnerPadding;
-    const int innerY = barY + kProgressBarInnerPadding;
-    const int innerWidth = kProgressBarWidth - kProgressBarInnerPadding * 2;
-    const int innerHeight = kProgressBarHeight - kProgressBarInnerPadding * 2;
-    const int fillWidth = innerWidth * progressPercent / 100;
-    if (fillWidth > 0) {
-      renderer.fillRect(innerX, innerY, fillWidth, innerHeight, true);
-    }
+  if (fillWidth > 0) {
+    renderer.fillRect(innerX, innerY, fillWidth, innerHeight, true);
   }
 }
 

@@ -40,8 +40,7 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
   settings.statusBarChapterBarPosition = CrossPointSettings::STATUS_AT_BOTTOM;
   settings.statusBarTitlePosition = CrossPointSettings::STATUS_AT_BOTTOM;
   settings.statusBarTextAlignment = CrossPointSettings::STATUS_TEXT_RIGHT;
-  settings.statusBarBookBarStyle = CrossPointSettings::STATUS_BAR_SOLID;
-  settings.statusBarChapterBarStyle = CrossPointSettings::STATUS_BAR_SOLID;
+  settings.statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THICK;
 
   switch (
       static_cast<CrossPointSettings::STATUS_BAR_MODE>(settings.statusBar)) {
@@ -114,8 +113,7 @@ void writeReadingThemeObject(JsonObject obj, const ReadingTheme& theme) {
   obj["statusBarChapterBarPosition"] = theme.statusBarChapterBarPosition;
   obj["statusBarTitlePosition"] = theme.statusBarTitlePosition;
   obj["statusBarTextAlignment"] = theme.statusBarTextAlignment;
-  obj["statusBarBookBarStyle"] = theme.statusBarBookBarStyle;
-  obj["statusBarChapterBarStyle"] = theme.statusBarChapterBarStyle;
+  obj["statusBarProgressStyle"] = theme.statusBarProgressStyle;
 }
 
 void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
@@ -202,12 +200,9 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
   theme.statusBarTextAlignment =
       obj["statusBarTextAlignment"] |
       (uint8_t)CrossPointSettings::STATUS_TEXT_RIGHT;
-  theme.statusBarBookBarStyle =
-      obj["statusBarBookBarStyle"] |
-      (uint8_t)CrossPointSettings::STATUS_BAR_SOLID;
-  theme.statusBarChapterBarStyle =
-      obj["statusBarChapterBarStyle"] |
-      (uint8_t)CrossPointSettings::STATUS_BAR_SOLID;
+  theme.statusBarProgressStyle =
+      obj["statusBarProgressStyle"] |
+      (uint8_t)CrossPointSettings::STATUS_BAR_THICK;
   theme = ReadingThemeStore::normalizeTheme(theme);
 }
 } // namespace
@@ -464,7 +459,6 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["sleepScreenCoverFilter"] = s.sleepScreenCoverFilter;
   doc["showSleepImageFilename"] = s.showSleepImageFilename;
   doc["showLastSleepWallpaperOnBoot"] = s.showLastSleepWallpaperOnBoot;
-  doc["loadingBarStyle"] = s.loadingBarStyle;
   doc["statusBar"] = s.statusBar;
   doc["statusBarEnabled"] = s.statusBarEnabled;
   doc["statusBarShowBattery"] = s.statusBarShowBattery;
@@ -487,8 +481,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["statusBarChapterBarPosition"] = s.statusBarChapterBarPosition;
   doc["statusBarTitlePosition"] = s.statusBarTitlePosition;
   doc["statusBarTextAlignment"] = s.statusBarTextAlignment;
-  doc["statusBarBookBarStyle"] = s.statusBarBookBarStyle;
-  doc["statusBarChapterBarStyle"] = s.statusBarChapterBarStyle;
+  doc["statusBarProgressStyle"] = s.statusBarProgressStyle;
   doc["extraParagraphSpacingLevel"] = s.extraParagraphSpacingLevel;
   // Legacy compatibility key for older builds that still expect a toggle.
   doc["extraParagraphSpacing"] =
@@ -559,9 +552,6 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
             S::SLEEP_SCREEN_COVER_FILTER_COUNT, S::NO_FILTER);
   s.showSleepImageFilename = doc["showSleepImageFilename"] | (uint8_t)0;
   s.showLastSleepWallpaperOnBoot = doc["showLastSleepWallpaperOnBoot"] | (uint8_t)0;
-  s.loadingBarStyle =
-      clamp(doc["loadingBarStyle"] | (uint8_t)S::LOADING_BAR_OUTLINED,
-            S::LOADING_BAR_STYLE_COUNT, S::LOADING_BAR_OUTLINED);
   s.statusBar = clamp(doc["statusBar"] | (uint8_t)S::FULL,
                       S::STATUS_BAR_MODE_COUNT, S::FULL);
   const bool hasGranularStatusBar = !doc["statusBarEnabled"].isNull() &&
@@ -574,8 +564,7 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
                                     !doc["statusBarShowChapterTitle"].isNull() &&
                                     !doc["statusBarTopLine"].isNull() &&
                                     !doc["statusBarTextAlignment"].isNull() &&
-                                    (!doc["statusBarProgressStyle"].isNull() ||
-                                     !doc["statusBarBookBarStyle"].isNull());
+                                    !doc["statusBarProgressStyle"].isNull();
   if (hasGranularStatusBar) {
     s.statusBarEnabled = doc["statusBarEnabled"] | (uint8_t)1;
     s.statusBarShowBattery = doc["statusBarShowBattery"] | (uint8_t)1;
@@ -690,12 +679,9 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
     s.statusBarTextAlignment =
         clamp(doc["statusBarTextAlignment"] | (uint8_t)S::STATUS_TEXT_RIGHT,
               S::STATUS_TEXT_ALIGNMENT_COUNT, S::STATUS_TEXT_RIGHT);
-    s.statusBarBookBarStyle =
-        clamp(doc["statusBarBookBarStyle"] | (uint8_t)S::STATUS_BAR_SOLID,
-              S::STATUS_BAR_PROGRESS_STYLE_COUNT, S::STATUS_BAR_SOLID);
-    s.statusBarChapterBarStyle =
-        clamp(doc["statusBarChapterBarStyle"] | (uint8_t)S::STATUS_BAR_SOLID,
-              S::STATUS_BAR_PROGRESS_STYLE_COUNT, S::STATUS_BAR_SOLID);
+    s.statusBarProgressStyle =
+        clamp(doc["statusBarProgressStyle"] | (uint8_t)S::STATUS_BAR_THICK,
+              S::STATUS_BAR_PROGRESS_STYLE_COUNT, S::STATUS_BAR_THICK);
   } else {
     migrateLegacyStatusBarMode(s);
     if (needsResave)

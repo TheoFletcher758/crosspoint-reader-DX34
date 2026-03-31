@@ -45,8 +45,7 @@ struct ReadingTheme {
   uint8_t statusBarChapterBarPosition = CrossPointSettings::STATUS_AT_BOTTOM;
   uint8_t statusBarTitlePosition = CrossPointSettings::STATUS_AT_BOTTOM;
   uint8_t statusBarTextAlignment = CrossPointSettings::STATUS_TEXT_RIGHT;
-  uint8_t statusBarBookBarStyle = CrossPointSettings::STATUS_BAR_SOLID;
-  uint8_t statusBarChapterBarStyle = CrossPointSettings::STATUS_BAR_SOLID;
+  uint8_t statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THICK;
 };
 
 class ReadingThemeStore;
