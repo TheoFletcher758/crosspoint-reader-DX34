@@ -166,9 +166,9 @@ static void renderCharImpl(const GfxRenderer &renderer,
   }
 
   if constexpr (rotation == TextRotation::Rotated90CW) {
-    *cursorY -= glyph->advanceX;
+    *cursorY -= fp4::toPixel(glyph->advanceX);
   } else {
-    *cursorX += glyph->advanceX;
+    *cursorX += fp4::toPixel(glyph->advanceX);
   }
 }
 
@@ -937,7 +937,7 @@ int GfxRenderer::getSpaceWidth(const int fontId,
   }
 
   const EpdGlyph *spaceGlyph = fontIt->second.getGlyph(' ', style);
-  return spaceGlyph ? spaceGlyph->advanceX : 0;
+  return spaceGlyph ? fp4::toPixel(spaceGlyph->advanceX) : 0;
 }
 
 int GfxRenderer::getTextAdvanceX(const int fontId, const char *text,
@@ -962,7 +962,7 @@ int GfxRenderer::getTextAdvanceXSpaced(const int fontId, const char *text,
     if (!glyph)
       glyph = font.getGlyph(REPLACEMENT_GLYPH, style);
     if (glyph) {
-      width += glyph->advanceX;
+      width += fp4::toPixel(glyph->advanceX);
       if (letterSpacing != 0 && text != nullptr && *text != '\0') {
         width += letterSpacing;
       }
