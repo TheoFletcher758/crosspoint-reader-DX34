@@ -22,9 +22,6 @@
 #include <builtinFonts/chareink_19_bold.h>
 #include <builtinFonts/chareink_19_italic.h>
 
-#include <builtinFonts/unifont_14_regular.h>
-#include <builtinFonts/unifont_18_regular.h>
-
 #include <builtinFonts/ui_8_regular.h>
 #include <builtinFonts/ui_10_regular.h>
 #include <builtinFonts/ui_12_regular.h>
