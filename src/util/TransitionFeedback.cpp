@@ -1,6 +1,5 @@
 #include "TransitionFeedback.h"
 
-#include <Arduino.h>
 #include <GfxRenderer.h>
 #include <HalDisplay.h>
 
@@ -12,8 +11,6 @@
 namespace TransitionFeedback {
 namespace {
 bool sActive = false;
-int sCurrentPercent = 0;
-constexpr int kBarHeight = 36;
 }
 
 void show(GfxRenderer& renderer, const char* message) {
@@ -53,48 +50,11 @@ void show(GfxRenderer& renderer, const char* message) {
   sActive = true;
 }
 
-void showProgressBar(GfxRenderer& renderer, int percent) {
-  if (percent < 0) percent = 0;
-  if (percent > 100) percent = 100;
-
-  // Progress only moves forward; skip if not advancing
-  if (sActive && percent <= sCurrentPercent) {
-    return;
-  }
-
-  sCurrentPercent = percent;
-
-  const int screenW = renderer.getScreenWidth();
-  const int screenH = renderer.getScreenHeight();
-  const int barY = screenH - kBarHeight;
-  const int fillW = screenW * percent / 100;
-
-  // Clear bar area then draw filled portion
-  renderer.fillRect(0, barY, screenW, kBarHeight, false);
-  if (fillW > 0) {
-    renderer.fillRect(0, barY, fillW, kBarHeight, true);
-  }
-  renderer.displayBuffer(HalDisplay::FAST_REFRESH);
-  sActive = true;
-}
-
-void sweepProgressBar(GfxRenderer& renderer, int steps) {
-  if (steps < 2) steps = 2;
-  sCurrentPercent = 0;  // Reset so sweep always starts fresh
-  for (int i = 1; i <= steps; i++) {
-    showProgressBar(renderer, i * 100 / steps);
-    if (i < steps) {
-      delay(30);
-    }
-  }
-}
-
 void dismiss(GfxRenderer& renderer) {
   if (!sActive) {
     return;
   }
   sActive = false;
-  sCurrentPercent = 0;
   renderer.clearScreen();
   renderer.displayBuffer(HalDisplay::HALF_REFRESH);
 }

@@ -182,46 +182,46 @@ void onGoToMyLibraryWithPath(const std::string& path);
 void onGoToRecentBooks();
 void onGoToReader(const std::string& initialEpubPath) {
   const std::string bookPath = initialEpubPath;  // Copy before exitActivity() invalidates the reference
-  TransitionFeedback::showProgressBar(renderer, 10);
+  TransitionFeedback::show(renderer, "Opening book...");
   exitActivity();
   enterNewActivity(new ReaderActivity(renderer, mappedInputManager, bookPath, onGoHome, onGoToMyLibraryWithPath));
 }
 
 void onGoToFileTransfer() {
-  TransitionFeedback::sweepProgressBar(renderer);
+  TransitionFeedback::show(renderer, "Starting server...");
   exitActivity();
   enterNewActivity(new CrossPointWebServerActivity(renderer, mappedInputManager, onGoHome));
 }
 
 void onGoToSettings() {
-  TransitionFeedback::sweepProgressBar(renderer);
+  TransitionFeedback::show(renderer, "Loading settings...");
   exitActivity();
   enterNewActivity(new SettingsActivity(renderer, mappedInputManager, onGoHome));
 }
 
 void onGoToMyLibrary() {
-  TransitionFeedback::sweepProgressBar(renderer);
+  TransitionFeedback::show(renderer, "Loading library...");
   persistAppState("go to library");
   exitActivity();
   enterNewActivity(new MyLibraryActivity(renderer, mappedInputManager, onGoHome, onGoToReader));
 }
 
 void onGoToRecentBooks() {
-  TransitionFeedback::sweepProgressBar(renderer);
+  TransitionFeedback::show(renderer, "Loading recents...");
   persistAppState("go to recents");
   exitActivity();
   enterNewActivity(new RecentBooksActivity(renderer, mappedInputManager, onGoHome, onGoToReader));
 }
 
 void onGoToMyLibraryWithPath(const std::string& path) {
-  TransitionFeedback::sweepProgressBar(renderer);
+  TransitionFeedback::show(renderer, "Loading library...");
   persistAppState("go to library path");
   exitActivity();
   enterNewActivity(new MyLibraryActivity(renderer, mappedInputManager, onGoHome, onGoToReader, path));
 }
 
 void onGoToBrowser() {
-  TransitionFeedback::sweepProgressBar(renderer);
+  TransitionFeedback::show(renderer, "Loading browser...");
   exitActivity();
   enterNewActivity(new OpdsBookBrowserActivity(renderer, mappedInputManager, onGoHome));
 }
@@ -237,7 +237,7 @@ void ensureHomeDataLoaded() {
 }
 
 void onGoHome() {
-  TransitionFeedback::sweepProgressBar(renderer);
+  TransitionFeedback::show(renderer, "Loading home...");
   ensureHomeDataLoaded();
   persistAppState("go home");
   exitActivity();
