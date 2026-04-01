@@ -158,13 +158,9 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
       theme.textRenderMode, 0,
       CrossPointSettings::TEXT_RENDER_MODE_COUNT - 1,
       CrossPointSettings::TEXT_RENDER_CRISP);
-  if (settings.textRenderMode == CrossPointSettings::TEXT_RENDER_SMOOTH) {
-    settings.textRenderMode = CrossPointSettings::TEXT_RENDER_CRISP;
-  }
   settings.embeddedStyle =
       settings.readerStyleMode == CrossPointSettings::READER_STYLE_HYBRID ? 1 : 0;
-  settings.textAntiAliasing =
-      settings.textRenderMode == CrossPointSettings::TEXT_RENDER_SMOOTH ? 1 : 0;
+  settings.textAntiAliasing = 0;
   settings.hyphenationEnabled = theme.hyphenationEnabled ? 1 : 0;
   settings.statusBarEnabled = theme.statusBarEnabled ? 1 : 0;
   settings.statusBarShowBattery = theme.statusBarShowBattery ? 1 : 0;
@@ -505,9 +501,6 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
       theme.textRenderMode, 0,
       CrossPointSettings::TEXT_RENDER_MODE_COUNT - 1,
       CrossPointSettings::TEXT_RENDER_CRISP);
-  if (normalized.textRenderMode == CrossPointSettings::TEXT_RENDER_SMOOTH) {
-    normalized.textRenderMode = CrossPointSettings::TEXT_RENDER_CRISP;
-  }
   normalized.hyphenationEnabled = theme.hyphenationEnabled ? 1 : 0;
   normalized.statusBarEnabled = theme.statusBarEnabled ? 1 : 0;
   normalized.statusBarShowBattery = theme.statusBarShowBattery ? 1 : 0;

@@ -1157,13 +1157,8 @@ void TxtReaderActivity::renderPage() {
   const StatusBarLayout statusBarLayout =
       buildStatusBarLayout(usableWidth, statusBarTopReserved,
                            statusBarBottomReserved, resolvedTitleLineCount);
-  const uint8_t textRenderMode =
-      SETTINGS.textRenderMode == CrossPointSettings::TEXT_RENDER_SMOOTH
-          ? CrossPointSettings::TEXT_RENDER_CRISP
-          : SETTINGS.textRenderMode;
   renderer.setRenderMode(GfxRenderer::BW);
-  renderer.setTextDarkeningEnabled(
-      textRenderMode == CrossPointSettings::TEXT_RENDER_DARK);
+  renderer.setTextRenderStyle(SETTINGS.textRenderMode);
 
   // Render text lines with alignment
   auto renderLines = [&]() {
@@ -1189,7 +1184,7 @@ void TxtReaderActivity::renderPage() {
     pagesUntilFullRefresh--;
   }
 
-  renderer.setTextDarkeningEnabled(false);
+  renderer.setTextRenderStyle(0);
 }
 
 void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,

@@ -645,9 +645,11 @@ int CrossPointSettings::wordSpacingSettingToPixelDelta(const uint8_t mode,
                                                        const int baseSpaceWidth) {
   switch (mode) {
     case WORD_SPACING_TIGHT:
-      return -(baseSpaceWidth * 2 / 5);
+      return -(baseSpaceWidth * 3 / 10);
     case WORD_SPACING_WIDE:
       return (baseSpaceWidth * 4 / 5);
+    case WORD_SPACING_EXTRA_WIDE:
+      return (baseSpaceWidth * 8 / 5);
     case WORD_SPACING_NORMAL:
     default:
       return 0;

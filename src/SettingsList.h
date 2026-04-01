@@ -66,13 +66,14 @@ inline std::vector<SettingInfo> getSettingsList() {
                         {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_INVERTED, StrId::STR_LANDSCAPE_CCW},
                         "orientation", StrId::STR_CAT_READER),
       SettingInfo::Enum(StrId::STR_WORD_SPACING, &CrossPointSettings::wordSpacingPercent,
-                        {StrId::STR_TIGHT, StrId::STR_NORMAL, StrId::STR_WIDE},
+                        {StrId::STR_TIGHT, StrId::STR_NORMAL, StrId::STR_WIDE, StrId::STR_EXTRA_WIDE},
                         "wordSpacingPercent", StrId::STR_CAT_READER),
       SettingInfo::Enum(StrId::STR_EXTRA_SPACING, &CrossPointSettings::extraParagraphSpacingLevel,
                         {StrId::STR_NONE_OPT, StrId::STR_SMALL, StrId::STR_MEDIUM, StrId::STR_LARGE},
                         "extraParagraphSpacingLevel", StrId::STR_CAT_READER),
       SettingInfo::Enum(StrId::STR_TEXT_RENDER_MODE, &CrossPointSettings::textRenderMode,
-                        {StrId::STR_RENDER_CRISP, StrId::STR_RENDER_DARK},
+                        {StrId::STR_RENDER_CRISP, StrId::STR_RENDER_LIGHT,
+                         StrId::STR_RENDER_DARK, StrId::STR_RENDER_EXTRA_DARK},
                         "textRenderMode", StrId::STR_CAT_READER),
 
       // Status bar customization

@@ -45,7 +45,7 @@ private:
   Orientation orientation;
   bool fadingFix;
   bool pendingFullRefresh;
-  bool textDarkeningEnabled;
+  uint8_t textRenderStyle;  // 0=crisp, 1=light, 2=dark, 3=extra dark
   uint8_t *frameBuffer = nullptr;
   uint8_t *bwBufferChunks[BW_BUFFER_NUM_CHUNKS] = {nullptr};
   std::map<int, EpdFontFamily> fontMap;
@@ -59,7 +59,7 @@ private:
 public:
   explicit GfxRenderer(HalDisplay &halDisplay)
       : display(halDisplay), renderMode(BW), orientation(Portrait),
-        fadingFix(false), pendingFullRefresh(false), textDarkeningEnabled(false) {}
+        fadingFix(false), pendingFullRefresh(false), textRenderStyle(0) {}
   ~GfxRenderer() { freeBwBufferChunks(); }
 
   static constexpr int VIEWABLE_MARGIN_TOP = 9;
@@ -166,10 +166,8 @@ public:
   // Grayscale functions
   void setRenderMode(const RenderMode mode) { this->renderMode = mode; }
   RenderMode getRenderMode() const { return renderMode; }
-  void setTextDarkeningEnabled(const bool enabled) {
-    textDarkeningEnabled = enabled;
-  }
-  bool isTextDarkeningEnabled() const { return textDarkeningEnabled; }
+  void setTextRenderStyle(const uint8_t style) { textRenderStyle = style; }
+  uint8_t getTextRenderStyle() const { return textRenderStyle; }
   void copyGrayscaleLsbBuffers() const;
   void copyGrayscaleMsbBuffers() const;
   void displayGrayBuffer() const;

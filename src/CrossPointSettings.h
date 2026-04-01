@@ -170,8 +170,9 @@ public:
   };
   enum TEXT_RENDER_MODE {
     TEXT_RENDER_CRISP = 0,
-    TEXT_RENDER_DARK = 1,
-    TEXT_RENDER_SMOOTH = 2,  // Legacy, treated as Crisp
+    TEXT_RENDER_LIGHT = 1,
+    TEXT_RENDER_DARK = 2,
+    TEXT_RENDER_EXTRA_DARK = 3,
     TEXT_RENDER_MODE_COUNT
   };
   enum EXTRA_PARAGRAPH_SPACING_LEVEL {
@@ -186,6 +187,7 @@ public:
     WORD_SPACING_TIGHT = 0,
     WORD_SPACING_NORMAL = 1,
     WORD_SPACING_WIDE = 2,
+    WORD_SPACING_EXTRA_WIDE = 3,
     WORD_SPACING_MODE_COUNT
   };
 
@@ -266,8 +268,8 @@ public:
   uint8_t firstLineIndentMode = INDENT_BOOK;
   uint8_t readerStyleMode = READER_STYLE_USER;
   uint8_t textRenderMode = TEXT_RENDER_CRISP;
-  // Legacy compatibility field migrated into textRenderMode.
-  uint8_t textAntiAliasing = 1;
+  // Legacy binary-compat field; always 0. Do not remove (breaks serialization).
+  uint8_t textAntiAliasing = 0;
   // Short power button click behaviour
   uint8_t shortPwrBtn = IGNORE;
   // EPUB reading orientation settings

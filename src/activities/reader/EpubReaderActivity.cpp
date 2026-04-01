@@ -103,12 +103,6 @@ bool statusTextPositionIsTop(const uint8_t position) {
   return position <= CrossPointSettings::STATUS_TEXT_TOP_RIGHT;
 }
 
-uint8_t effectiveTextRenderMode(const uint8_t textRenderMode) {
-  if (textRenderMode == CrossPointSettings::TEXT_RENDER_SMOOTH) {
-    return CrossPointSettings::TEXT_RENDER_CRISP;
-  }
-  return textRenderMode;
-}
 
 int statusTextPositionHorizontalSlot(const uint8_t position) {
   switch (position) {
@@ -1363,7 +1357,7 @@ void EpubReaderActivity::render(Activity::RenderLock &&lock) {
     clearPageCache();
 
     const uint8_t sectionTextRenderMode =
-        effectiveTextRenderMode(SETTINGS.textRenderMode);
+        SETTINGS.textRenderMode;
 
     if (!section->loadSectionFile(
             SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
@@ -1523,7 +1517,7 @@ void EpubReaderActivity::silentIndexNextChapterIfNeeded(const uint16_t viewportW
     return;
   }
 
-  const uint8_t sectionTextRenderMode = effectiveTextRenderMode(SETTINGS.textRenderMode);
+  const uint8_t sectionTextRenderMode = SETTINGS.textRenderMode;
 
   Section nextSection(epub, nextSpineIndex, renderer);
   if (nextSection.loadSectionFile(
@@ -1627,11 +1621,8 @@ void EpubReaderActivity::renderContents(const Page& page,
                                         const int orientedMarginBottom,
                                         const int orientedMarginLeft,
                                         const StatusBarLayout& statusBarLayout) {
-  const uint8_t textRenderMode =
-      effectiveTextRenderMode(SETTINGS.textRenderMode);
   renderer.setRenderMode(GfxRenderer::BW);
-  renderer.setTextDarkeningEnabled(
-      textRenderMode == CrossPointSettings::TEXT_RENDER_DARK);
+  renderer.setTextRenderStyle(SETTINGS.textRenderMode);
 
   const int viewportHeight =
       renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom;
@@ -1677,7 +1668,7 @@ void EpubReaderActivity::renderContents(const Page& page,
     renderer.setRenderMode(GfxRenderer::BW);
   }
 
-  renderer.setTextDarkeningEnabled(false);
+  renderer.setTextRenderStyle(0);
 }
 
 void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,

@@ -32,10 +32,9 @@ void writeReadingThemeObject(JsonObject obj, const ReadingTheme& theme) {
   obj["firstLineIndentMode"] = theme.firstLineIndentMode;
   obj["readerStyleMode"] = theme.readerStyleMode;
   obj["textRenderMode"] = theme.textRenderMode;
+  obj["textRenderModeV2"] = true;
   obj["embeddedStyle"] =
       theme.readerStyleMode == CrossPointSettings::READER_STYLE_HYBRID;
-  obj["textAntiAliasing"] =
-      theme.textRenderMode == CrossPointSettings::TEXT_RENDER_SMOOTH;
   obj["hyphenationEnabled"] = theme.hyphenationEnabled;
   obj["statusBarEnabled"] = theme.statusBarEnabled;
   obj["statusBarShowBattery"] = theme.statusBarShowBattery;
@@ -92,12 +91,11 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
                   ? (uint8_t)CrossPointSettings::READER_STYLE_HYBRID
                   : (uint8_t)CrossPointSettings::READER_STYLE_USER));
   theme.textRenderMode =
-      obj["textRenderMode"] |
-      (obj["textAntiAliasing"].isNull()
-           ? (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP
-           : ((obj["textAntiAliasing"] | (uint8_t)0)
-                  ? (uint8_t)CrossPointSettings::TEXT_RENDER_SMOOTH
-                  : (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP));
+      obj["textRenderMode"] | (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP;
+  // Migrate old enum: v1 had Crisp=0, Dark=1. v2 has Crisp=0, Light=1, Dark=2, ExtraDark=3.
+  if (obj["textRenderModeV2"].isNull() && theme.textRenderMode == 1) {
+    theme.textRenderMode = (uint8_t)CrossPointSettings::TEXT_RENDER_DARK;
+  }
   theme.hyphenationEnabled = obj["hyphenationEnabled"] | (uint8_t)0;
   theme.statusBarEnabled = obj["statusBarEnabled"] | (uint8_t)1;
   theme.statusBarShowBattery = obj["statusBarShowBattery"] | (uint8_t)1;
@@ -435,8 +433,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["firstLineIndentMode"] = s.firstLineIndentMode;
   doc["readerStyleMode"] = s.readerStyleMode;
   doc["textRenderMode"] = s.textRenderMode;
-  doc["textAntiAliasing"] =
-      s.textRenderMode == CrossPointSettings::TEXT_RENDER_SMOOTH;
+  doc["textRenderModeV2"] = true;
   doc["shortPwrBtn"] = s.shortPwrBtn;
   doc["orientation"] = s.orientation;
   doc["sideButtonLayout"] = s.sideButtonLayout;
@@ -671,14 +668,7 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
         S::READER_STYLE_MODE_COUNT, S::READER_STYLE_USER);
   }
   if (doc["textRenderMode"].isNull()) {
-    if (doc["textAntiAliasing"].isNull()) {
-      s.textRenderMode = (uint8_t)S::TEXT_RENDER_CRISP;
-    } else {
-      s.textRenderMode =
-          (doc["textAntiAliasing"] | (uint8_t)0)
-              ? (uint8_t)S::TEXT_RENDER_SMOOTH
-              : (uint8_t)S::TEXT_RENDER_CRISP;
-    }
+    s.textRenderMode = (uint8_t)S::TEXT_RENDER_CRISP;
     if (needsResave) {
       *needsResave = true;
     }
@@ -686,15 +676,15 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
     s.textRenderMode = clamp(
         doc["textRenderMode"] | (uint8_t)S::TEXT_RENDER_CRISP,
         S::TEXT_RENDER_MODE_COUNT, S::TEXT_RENDER_CRISP);
-  }
-  if (s.textRenderMode == S::TEXT_RENDER_SMOOTH) {
-    s.textRenderMode = (uint8_t)S::TEXT_RENDER_CRISP;
-    if (needsResave) {
-      *needsResave = true;
+    // Migrate old enum: v1 had Crisp=0, Dark=1. v2 has Crisp=0, Light=1, Dark=2, ExtraDark=3.
+    if (doc["textRenderModeV2"].isNull() && s.textRenderMode == 1) {
+      s.textRenderMode = (uint8_t)S::TEXT_RENDER_DARK;
+      if (needsResave) {
+        *needsResave = true;
+      }
     }
   }
-  s.textAntiAliasing =
-      s.textRenderMode == S::TEXT_RENDER_SMOOTH ? (uint8_t)1 : (uint8_t)0;
+  s.textAntiAliasing = 0;
   s.shortPwrBtn = clamp(doc["shortPwrBtn"] | (uint8_t)S::IGNORE,
                         S::SHORT_PWRBTN_COUNT, S::IGNORE);
   s.orientation = clamp(doc["orientation"] | (uint8_t)S::PORTRAIT,

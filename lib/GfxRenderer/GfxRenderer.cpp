@@ -74,11 +74,16 @@ static void renderCharImpl(const GfxRenderer &renderer,
 
   const EpdFontData *fontData = fontFamily.getData(style);
   const bool is2Bit = fontData->is2Bit;
-  const uint8_t extraBoldPasses =
+  // textRenderStyle: 0=crisp, 1=light, 2=dark, 3=extra dark
+  const uint8_t textStyle =
+      renderMode == GfxRenderer::BW ? renderer.getTextRenderStyle() : 0;
+  const uint8_t synthBold =
       renderMode == GfxRenderer::BW
-          ? static_cast<uint8_t>(fontFamily.getSyntheticBoldPasses(style) +
-                                 (renderer.isTextDarkeningEnabled() ? 1 : 0))
+          ? fontFamily.getSyntheticBoldPasses(style)
           : 0;
+  // Light: reduce synthetic bold by 1 (thinner strokes)
+  const uint8_t extraBoldPasses =
+      textStyle == 1 ? (synthBold > 0 ? synthBold - 1 : 0) : synthBold;
   const uint8_t width = glyph->width;
   const uint8_t height = glyph->height;
   const int left = glyph->left;
@@ -127,6 +132,15 @@ static void renderCharImpl(const GfxRenderer &renderer,
             for (uint8_t pass = 1; pass <= extraBoldPasses; ++pass) {
               renderer.drawPixel(screenX + pass, screenY, pixelState);
             }
+            if (textStyle == 2) { // Dark: +1 right, +1 down
+              renderer.drawPixel(screenX + 1, screenY, pixelState);
+              renderer.drawPixel(screenX, screenY + 1, pixelState);
+            } else if (textStyle == 3) { // Extra Dark: all 4 cardinal
+              renderer.drawPixel(screenX + 1, screenY, pixelState);
+              renderer.drawPixel(screenX - 1, screenY, pixelState);
+              renderer.drawPixel(screenX, screenY + 1, pixelState);
+              renderer.drawPixel(screenX, screenY - 1, pixelState);
+            }
           } else if (renderMode == GfxRenderer::GRAYSCALE_MSB &&
                      (bmpVal == 1 || bmpVal == 2)) {
             // Light gray (also mark the MSB if it's going to be a dark gray
@@ -160,6 +174,15 @@ static void renderCharImpl(const GfxRenderer &renderer,
             renderer.drawPixel(screenX, screenY, pixelState);
             for (uint8_t pass = 1; pass <= extraBoldPasses; ++pass) {
               renderer.drawPixel(screenX + pass, screenY, pixelState);
+            }
+            if (textStyle == 2) { // Dark: +1 right, +1 down
+              renderer.drawPixel(screenX + 1, screenY, pixelState);
+              renderer.drawPixel(screenX, screenY + 1, pixelState);
+            } else if (textStyle == 3) { // Extra Dark: all 4 cardinal
+              renderer.drawPixel(screenX + 1, screenY, pixelState);
+              renderer.drawPixel(screenX - 1, screenY, pixelState);
+              renderer.drawPixel(screenX, screenY + 1, pixelState);
+              renderer.drawPixel(screenX, screenY - 1, pixelState);
             }
           }
         }
