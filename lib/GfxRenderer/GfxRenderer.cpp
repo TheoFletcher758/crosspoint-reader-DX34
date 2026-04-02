@@ -74,16 +74,13 @@ static void renderCharImpl(const GfxRenderer &renderer,
 
   const EpdFontData *fontData = fontFamily.getData(style);
   const bool is2Bit = fontData->is2Bit;
-  // textRenderStyle: 0=crisp, 1=light, 2=dark, 3=extra dark
+  // textRenderStyle: 0=crisp, 1=dark
   const uint8_t textStyle =
       renderMode == GfxRenderer::BW ? renderer.getTextRenderStyle() : 0;
-  const uint8_t synthBold =
+  const uint8_t extraBoldPasses =
       renderMode == GfxRenderer::BW
           ? fontFamily.getSyntheticBoldPasses(style)
           : 0;
-  // Light: reduce synthetic bold by 1 (thinner strokes)
-  const uint8_t extraBoldPasses =
-      textStyle == 1 ? (synthBold > 0 ? synthBold - 1 : 0) : synthBold;
   const uint8_t width = glyph->width;
   const uint8_t height = glyph->height;
   const int left = glyph->left;
@@ -132,14 +129,9 @@ static void renderCharImpl(const GfxRenderer &renderer,
             for (uint8_t pass = 1; pass <= extraBoldPasses; ++pass) {
               renderer.drawPixel(screenX + pass, screenY, pixelState);
             }
-            if (textStyle == 2) { // Dark: +1 right, +1 down
+            if (textStyle == 1) { // Dark: +1 right, +1 down
               renderer.drawPixel(screenX + 1, screenY, pixelState);
               renderer.drawPixel(screenX, screenY + 1, pixelState);
-            } else if (textStyle == 3) { // Extra Dark: all 4 cardinal
-              renderer.drawPixel(screenX + 1, screenY, pixelState);
-              renderer.drawPixel(screenX - 1, screenY, pixelState);
-              renderer.drawPixel(screenX, screenY + 1, pixelState);
-              renderer.drawPixel(screenX, screenY - 1, pixelState);
             }
           } else if (renderMode == GfxRenderer::GRAYSCALE_MSB &&
                      (bmpVal == 1 || bmpVal == 2)) {
@@ -175,14 +167,9 @@ static void renderCharImpl(const GfxRenderer &renderer,
             for (uint8_t pass = 1; pass <= extraBoldPasses; ++pass) {
               renderer.drawPixel(screenX + pass, screenY, pixelState);
             }
-            if (textStyle == 2) { // Dark: +1 right, +1 down
+            if (textStyle == 1) { // Dark: +1 right, +1 down
               renderer.drawPixel(screenX + 1, screenY, pixelState);
               renderer.drawPixel(screenX, screenY + 1, pixelState);
-            } else if (textStyle == 3) { // Extra Dark: all 4 cardinal
-              renderer.drawPixel(screenX + 1, screenY, pixelState);
-              renderer.drawPixel(screenX - 1, screenY, pixelState);
-              renderer.drawPixel(screenX, screenY + 1, pixelState);
-              renderer.drawPixel(screenX, screenY - 1, pixelState);
             }
           }
         }

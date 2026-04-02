@@ -94,6 +94,7 @@ class ReadingThemeStore {
   bool updateTheme(size_t index);
   bool renameTheme(size_t index, const std::string& desiredName);
   bool deleteTheme(size_t index);
+  void sortByName();
   bool applyTheme(size_t index, const std::string& cachePath = {});
   bool canRevertTheme(const std::string& cachePath) const;
   bool revertThemeChange(const std::string& cachePath);

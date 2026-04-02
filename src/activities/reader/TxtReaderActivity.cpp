@@ -514,7 +514,7 @@ void TxtReaderActivity::loop() {
     if (pendingThemesOpen &&
         now - lastConfirmReleaseMs <= confirmDoubleTapMs) {
       pendingThemesOpen = false;
-      toggleReaderBoldSwap();
+      toggleTextRenderMode();
       return;
     }
     pendingThemesOpen = true;
@@ -592,14 +592,15 @@ void TxtReaderActivity::loop() {
   }
 }
 
-void TxtReaderActivity::toggleReaderBoldSwap() {
+void TxtReaderActivity::toggleTextRenderMode() {
   flushProgressIfNeeded(true);
-  const bool enableSwap = SETTINGS.readerBoldSwap == 0;
-  SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
+  SETTINGS.textRenderMode =
+      (SETTINGS.textRenderMode == CrossPointSettings::TEXT_RENDER_DARK)
+          ? CrossPointSettings::TEXT_RENDER_CRISP
+          : CrossPointSettings::TEXT_RENDER_DARK;
   if (!SETTINGS.saveToFile()) {
-    LOG_ERR("TRS", "Failed to save settings after bold swap toggle");
+    LOG_ERR("TRS", "Failed to save settings after text render mode toggle");
   }
-  EpdFontFamily::setReaderBoldSwapEnabled(enableSwap);
 
   if (txt) {
     Storage.remove((txt->getCachePath() + "/index.bin").c_str());

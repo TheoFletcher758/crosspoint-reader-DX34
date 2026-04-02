@@ -125,7 +125,7 @@ void XtcReaderActivity::loop() {
     return;
   }
 
-  // Single tap opens chapter menu; double tap toggles reader bold swap mode.
+  // Single tap opens chapter menu; double tap toggles text render mode (Dark/Crisp).
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     if (suppressNextConfirmRelease) {
       suppressNextConfirmRelease = false;
@@ -135,7 +135,7 @@ void XtcReaderActivity::loop() {
     const unsigned long now = millis();
     if (pendingMenuOpen && now - lastConfirmReleaseMs <= confirmDoubleTapMs) {
       pendingMenuOpen = false;
-      toggleReaderBoldSwap();
+      toggleTextRenderMode();
       return;
     }
     pendingMenuOpen = true;
@@ -253,14 +253,15 @@ void XtcReaderActivity::openChapterMenu() {
       }));
 }
 
-void XtcReaderActivity::toggleReaderBoldSwap() {
+void XtcReaderActivity::toggleTextRenderMode() {
   flushProgressIfNeeded(true);
-  const bool enableSwap = SETTINGS.readerBoldSwap == 0;
-  SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
+  SETTINGS.textRenderMode =
+      (SETTINGS.textRenderMode == CrossPointSettings::TEXT_RENDER_DARK)
+          ? CrossPointSettings::TEXT_RENDER_CRISP
+          : CrossPointSettings::TEXT_RENDER_DARK;
   if (!SETTINGS.saveToFile()) {
-    LOG_ERR("XRS", "Failed to save settings after bold swap toggle");
+    LOG_ERR("XRS", "Failed to save settings after text render mode toggle");
   }
-  EpdFontFamily::setReaderBoldSwapEnabled(enableSwap);
   requestUpdate();
 }
 

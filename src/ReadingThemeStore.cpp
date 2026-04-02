@@ -383,6 +383,23 @@ bool ReadingThemeStore::deleteTheme(const size_t index) {
   return saveToFile();
 }
 
+void ReadingThemeStore::sortByName() {
+  std::sort(themes.begin(), themes.end(),
+            [](const ReadingTheme& a, const ReadingTheme& b) {
+              // Case-insensitive comparison
+              const size_t len = std::min(a.name.size(), b.name.size());
+              for (size_t i = 0; i < len; i++) {
+                const char ca = static_cast<char>(
+                    std::tolower(static_cast<unsigned char>(a.name[i])));
+                const char cb = static_cast<char>(
+                    std::tolower(static_cast<unsigned char>(b.name[i])));
+                if (ca != cb) return ca < cb;
+              }
+              return a.name.size() < b.name.size();
+            });
+  lastEditedThemeIndex = -1;
+}
+
 bool ReadingThemeStore::applyTheme(const size_t index,
                                    const std::string& cachePath) {
   if (index >= themes.size()) {

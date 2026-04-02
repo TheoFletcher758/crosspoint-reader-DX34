@@ -44,7 +44,7 @@ class XtcReaderActivity final : public ActivityWithSubactivity {
   void flushProgressIfNeeded(bool force);
   void loadProgress();
   void openChapterMenu();
-  void toggleReaderBoldSwap();
+  void toggleTextRenderMode();
 
  public:
   explicit XtcReaderActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::unique_ptr<Xtc> xtc,

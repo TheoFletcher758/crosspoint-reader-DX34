@@ -98,7 +98,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   void applyOrientation(uint8_t orientation);
   void reloadCurrentSectionForDisplaySettings();
   void openReaderMenu();
-  void toggleReaderBoldSwap();
+  void toggleTextRenderMode();
   void addSessionPagesRead(uint32_t amount = 1);
 
  public:

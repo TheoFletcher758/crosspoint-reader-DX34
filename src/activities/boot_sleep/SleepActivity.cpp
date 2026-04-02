@@ -500,16 +500,22 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap &bitmap,
   int x, y;
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
+  const bool hasBorder =
+      SETTINGS.sleepScreenBorder != CrossPointSettings::SLEEP_BORDER_OFF;
+  constexpr int borderWidth = 3;
+  const int inset = hasBorder ? borderWidth : 0;
+  const int drawWidth = pageWidth - 2 * inset;
+  const int drawHeight = pageHeight - 2 * inset;
   float cropX = 0, cropY = 0;
 
   LOG_DBG("SLP", "bitmap %d x %d, screen %d x %d", bitmap.getWidth(),
           bitmap.getHeight(), pageWidth, pageHeight);
-  if (bitmap.getWidth() > pageWidth || bitmap.getHeight() > pageHeight) {
+  if (bitmap.getWidth() > drawWidth || bitmap.getHeight() > drawHeight) {
     // image will scale, make sure placement is right
     float ratio = static_cast<float>(bitmap.getWidth()) /
                   static_cast<float>(bitmap.getHeight());
     const float screenRatio =
-        static_cast<float>(pageWidth) / static_cast<float>(pageHeight);
+        static_cast<float>(drawWidth) / static_cast<float>(drawHeight);
 
     LOG_DBG("SLP", "bitmap ratio: %f, screen ratio: %f", ratio, screenRatio);
     if (ratio > screenRatio) {
@@ -522,9 +528,9 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap &bitmap,
         ratio = (1.0f - cropX) * static_cast<float>(bitmap.getWidth()) /
                 static_cast<float>(bitmap.getHeight());
       }
-      x = 0;
-      y = std::round((static_cast<float>(pageHeight) -
-                      static_cast<float>(pageWidth) / ratio) /
+      x = inset;
+      y = inset + std::round((static_cast<float>(drawHeight) -
+                      static_cast<float>(drawWidth) / ratio) /
                      2);
       LOG_DBG("SLP", "Centering with ratio %f to y=%d", ratio, y);
     } else {
@@ -537,27 +543,38 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap &bitmap,
         ratio = static_cast<float>(bitmap.getWidth()) /
                 ((1.0f - cropY) * static_cast<float>(bitmap.getHeight()));
       }
-      x = std::round((static_cast<float>(pageWidth) -
-                      static_cast<float>(pageHeight) * ratio) /
+      x = inset + std::round((static_cast<float>(drawWidth) -
+                      static_cast<float>(drawHeight) * ratio) /
                      2);
-      y = 0;
+      y = inset;
       LOG_DBG("SLP", "Centering with ratio %f to x=%d", ratio, x);
     }
   } else {
     // center the image
-    x = (pageWidth - bitmap.getWidth()) / 2;
-    y = (pageHeight - bitmap.getHeight()) / 2;
+    x = inset + (drawWidth - bitmap.getWidth()) / 2;
+    y = inset + (drawHeight - bitmap.getHeight()) / 2;
   }
 
   LOG_DBG("SLP", "drawing to %d x %d", x, y);
   renderer.clearScreen();
+
+  if (hasBorder) {
+    const bool borderBlack =
+        SETTINGS.sleepScreenBorder == CrossPointSettings::SLEEP_BORDER_BLACK;
+    renderer.fillRect(0, 0, pageWidth, borderWidth, borderBlack);
+    renderer.fillRect(0, pageHeight - borderWidth, pageWidth, borderWidth,
+                      borderBlack);
+    renderer.fillRect(0, 0, borderWidth, pageHeight, borderBlack);
+    renderer.fillRect(pageWidth - borderWidth, 0, borderWidth, pageHeight,
+                      borderBlack);
+  }
 
   const bool hasGreyscale =
       bitmap.hasGreyscale() &&
       SETTINGS.sleepScreenCoverFilter ==
           CrossPointSettings::SLEEP_SCREEN_COVER_FILTER::NO_FILTER;
 
-  renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight, cropX, cropY);
+  renderer.drawBitmap(bitmap, x, y, drawWidth, drawHeight, cropX, cropY);
 
   if (SETTINGS.sleepScreenCoverFilter ==
       CrossPointSettings::SLEEP_SCREEN_COVER_FILTER::INVERTED_BLACK_AND_WHITE) {
@@ -577,13 +594,13 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap &bitmap,
     bitmap.rewindToData();
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-    renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight, cropX, cropY);
+    renderer.drawBitmap(bitmap, x, y, drawWidth, drawHeight, cropX, cropY);
     renderer.copyGrayscaleLsbBuffers();
 
     bitmap.rewindToData();
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-    renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight, cropX, cropY);
+    renderer.drawBitmap(bitmap, x, y, drawWidth, drawHeight, cropX, cropY);
     renderer.copyGrayscaleMsbBuffers();
 
     renderer.displayGrayBuffer();

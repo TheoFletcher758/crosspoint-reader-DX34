@@ -90,11 +90,18 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
            : ((obj["embeddedStyle"] | (uint8_t)0)
                   ? (uint8_t)CrossPointSettings::READER_STYLE_HYBRID
                   : (uint8_t)CrossPointSettings::READER_STYLE_USER));
-  theme.textRenderMode =
-      obj["textRenderMode"] | (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP;
-  // Migrate old enum: v1 had Crisp=0, Dark=1. v2 has Crisp=0, Light=1, Dark=2, ExtraDark=3.
-  if (obj["textRenderModeV2"].isNull() && theme.textRenderMode == 1) {
-    theme.textRenderMode = (uint8_t)CrossPointSettings::TEXT_RENDER_DARK;
+  {
+    const uint8_t raw =
+        obj["textRenderMode"] | (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP;
+    if (obj["textRenderModeV2"].isNull() && raw == 1) {
+      theme.textRenderMode = (uint8_t)CrossPointSettings::TEXT_RENDER_DARK;
+    } else if (raw == 2 || raw == 3) {
+      theme.textRenderMode = (uint8_t)CrossPointSettings::TEXT_RENDER_DARK;
+    } else if (raw >= CrossPointSettings::TEXT_RENDER_MODE_COUNT) {
+      theme.textRenderMode = (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP;
+    } else {
+      theme.textRenderMode = raw;
+    }
   }
   theme.hyphenationEnabled = obj["hyphenationEnabled"] | (uint8_t)0;
   theme.statusBarEnabled = obj["statusBarEnabled"] | (uint8_t)1;
@@ -400,6 +407,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["sleepScreen"] = s.sleepScreen;
   doc["sleepScreenCoverMode"] = s.sleepScreenCoverMode;
   doc["sleepScreenCoverFilter"] = s.sleepScreenCoverFilter;
+  doc["sleepScreenBorder"] = s.sleepScreenBorder;
   doc["showSleepImageFilename"] = s.showSleepImageFilename;
   doc["showLastSleepWallpaperOnBoot"] = s.showLastSleepWallpaperOnBoot;
   doc["statusBar"] = s.statusBar;
@@ -492,6 +500,9 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
   s.sleepScreenCoverFilter =
       clamp(doc["sleepScreenCoverFilter"] | (uint8_t)S::NO_FILTER,
             S::SLEEP_SCREEN_COVER_FILTER_COUNT, S::NO_FILTER);
+  s.sleepScreenBorder =
+      clamp(doc["sleepScreenBorder"] | (uint8_t)S::SLEEP_BORDER_OFF,
+            S::SLEEP_BORDER_MODE_COUNT, S::SLEEP_BORDER_OFF);
   s.showSleepImageFilename = doc["showSleepImageFilename"] | (uint8_t)0;
   s.showLastSleepWallpaperOnBoot = doc["showLastSleepWallpaperOnBoot"] | (uint8_t)0;
   s.statusBar = clamp(doc["statusBar"] | (uint8_t)S::FULL,
@@ -673,15 +684,25 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
       *needsResave = true;
     }
   } else {
-    s.textRenderMode = clamp(
-        doc["textRenderMode"] | (uint8_t)S::TEXT_RENDER_CRISP,
-        S::TEXT_RENDER_MODE_COUNT, S::TEXT_RENDER_CRISP);
-    // Migrate old enum: v1 had Crisp=0, Dark=1. v2 has Crisp=0, Light=1, Dark=2, ExtraDark=3.
-    if (doc["textRenderModeV2"].isNull() && s.textRenderMode == 1) {
+    // Migrate from v2 enum (Crisp=0, Light=1, Dark=2, ExtraDark=3) to v3 (Crisp=0, Dark=1).
+    const uint8_t raw =
+        doc["textRenderMode"] | (uint8_t)S::TEXT_RENDER_CRISP;
+    if (doc["textRenderModeV2"].isNull() && raw == 1) {
+      // v1 had Dark=1, map to new Dark=1 (no change needed)
       s.textRenderMode = (uint8_t)S::TEXT_RENDER_DARK;
-      if (needsResave) {
-        *needsResave = true;
-      }
+    } else if (raw == 2) {
+      // v2 Dark=2 → v3 Dark=1
+      s.textRenderMode = (uint8_t)S::TEXT_RENDER_DARK;
+    } else if (raw == 3) {
+      // v2 ExtraDark=3 → v3 Dark=1
+      s.textRenderMode = (uint8_t)S::TEXT_RENDER_DARK;
+    } else if (raw >= S::TEXT_RENDER_MODE_COUNT) {
+      s.textRenderMode = (uint8_t)S::TEXT_RENDER_CRISP;
+    } else {
+      s.textRenderMode = raw;
+    }
+    if (needsResave && s.textRenderMode != raw) {
+      *needsResave = true;
     }
   }
   s.textAntiAliasing = 0;

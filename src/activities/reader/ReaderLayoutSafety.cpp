@@ -11,6 +11,7 @@ namespace ReaderLayoutSafety {
 namespace {
 constexpr int kProgressBarMarginTop = 1;
 constexpr int kStatusTextTopPadding = 2;
+constexpr int kStatusTextBottomPadding = 2;
 constexpr int kStatusTextLineGap = 1;
 constexpr int kStatusTextToBarsGap = 0;
 
@@ -182,6 +183,9 @@ int computeReservedHeight(const GfxRenderer& renderer,
       reservedHeight += kStatusTextToBarsGap;
     }
     reservedHeight += barsHeight;
+  }
+  if (reservedHeight > 0) {
+    reservedHeight += kStatusTextBottomPadding;
   }
   return reservedHeight;
 }

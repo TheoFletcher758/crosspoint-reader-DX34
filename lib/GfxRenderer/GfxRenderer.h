@@ -45,7 +45,7 @@ private:
   Orientation orientation;
   bool fadingFix;
   bool pendingFullRefresh;
-  uint8_t textRenderStyle;  // 0=crisp, 1=light, 2=dark, 3=extra dark
+  uint8_t textRenderStyle;  // 0=crisp, 1=dark
   uint8_t *frameBuffer = nullptr;
   uint8_t *bwBufferChunks[BW_BUFFER_NUM_CHUNKS] = {nullptr};
   std::map<int, EpdFontFamily> fontMap;

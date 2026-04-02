@@ -617,7 +617,7 @@ void EpubReaderActivity::loop() {
     return;
   }
 
-  // Single tap opens menu; double tap toggles reader bold swap mode.
+  // Single tap opens menu; double tap toggles text render mode (Dark/Crisp).
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     if (suppressNextConfirmRelease) {
       suppressNextConfirmRelease = false;
@@ -627,7 +627,7 @@ void EpubReaderActivity::loop() {
     const unsigned long now = millis();
     if (pendingMenuOpen && now - lastConfirmReleaseMs <= confirmDoubleTapMs) {
       pendingMenuOpen = false;
-      toggleReaderBoldSwap();
+      toggleTextRenderMode();
       return;
     }
     pendingMenuOpen = true;
@@ -796,15 +796,16 @@ void EpubReaderActivity::openReaderMenu() {
       }));
 }
 
-void EpubReaderActivity::toggleReaderBoldSwap() {
+void EpubReaderActivity::toggleTextRenderMode() {
   TransitionFeedback::show(renderer, tr(STR_LOADING));
   flushProgressIfNeeded(true);
-  const bool enableSwap = SETTINGS.readerBoldSwap == 0;
-  SETTINGS.readerBoldSwap = enableSwap ? 1 : 0;
+  SETTINGS.textRenderMode =
+      (SETTINGS.textRenderMode == CrossPointSettings::TEXT_RENDER_DARK)
+          ? CrossPointSettings::TEXT_RENDER_CRISP
+          : CrossPointSettings::TEXT_RENDER_DARK;
   if (!SETTINGS.saveToFile()) {
-    LOG_ERR("ERS", "Failed to save settings after bold swap toggle");
+    LOG_ERR("ERS", "Failed to save settings after text render mode toggle");
   }
-  EpdFontFamily::setReaderBoldSwapEnabled(enableSwap);
 
   uint16_t backupSpine = 0;
   uint16_t backupPage = 0;

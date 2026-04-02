@@ -103,7 +103,7 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   void saveProgress() const;
   void flushProgressIfNeeded(bool force);
   void loadProgress();
-  void toggleReaderBoldSwap();
+  void toggleTextRenderMode();
 
  public:
   explicit TxtReaderActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::unique_ptr<Txt> txt,

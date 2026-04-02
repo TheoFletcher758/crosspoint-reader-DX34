@@ -427,6 +427,9 @@ enum class StrId : uint16_t {
   STR_RENDER_LIGHT,
   STR_RENDER_EXTRA_DARK,
   STR_EXTRA_WIDE,
+  STR_SLEEP_BORDER,
+  STR_BORDER_BLACK,
+  STR_BORDER_WHITE,
   // Sentinel - must be last
   _COUNT
 };

@@ -37,6 +37,7 @@ const char* themeActionLabel(const int index) {
 
 void ReadingThemesActivity::onEnter() {
   ActivityWithSubactivity::onEnter();
+  READING_THEMES.sortByName();
   selectedRowIndex = 0;
   requestUpdate();
 }
@@ -334,6 +335,17 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
   if (READING_THEMES.isEmpty()) {
     renderer.drawCenteredText(UI_10_FONT_ID, pageHeight - 70,
                               tr(STR_NO_SAVED_THEMES));
+  }
+
+  {
+    const std::string counter =
+        std::to_string(READING_THEMES.getCount()) + " / " +
+        std::to_string(ReadingThemeStore::MAX_THEMES);
+    const int counterW = renderer.getTextWidth(UI_10_FONT_ID, counter.c_str());
+    renderer.drawText(UI_10_FONT_ID,
+                      pageWidth - metrics.contentSidePadding - counterW,
+                      pageHeight - metrics.buttonHintsHeight - 4,
+                      counter.c_str());
   }
 
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT),
