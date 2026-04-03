@@ -3,6 +3,8 @@
 #include <EpdFontFamily.h>
 #include <HalDisplay.h>
 
+class FontCacheManager;
+
 #include <map>
 
 #include "Bitmap.h"
@@ -49,6 +51,11 @@ private:
   uint8_t *frameBuffer = nullptr;
   uint8_t *bwBufferChunks[BW_BUFFER_NUM_CHUNKS] = {nullptr};
   std::map<int, EpdFontFamily> fontMap;
+
+  // Mutable because drawText() is const but needs to delegate scan-mode
+  // recording to the (non-const) FontCacheManager.
+  mutable FontCacheManager* fontCacheManager_ = nullptr;
+
   void renderChar(const EpdFontFamily &fontFamily, uint32_t cp, int *x, int *y,
                   bool pixelState, EpdFontFamily::Style style) const;
   void freeBwBufferChunks();
@@ -174,6 +181,11 @@ public:
   bool storeBwBuffer();   // Returns true if buffer was stored successfully
   void restoreBwBuffer(); // Restore and free the stored buffer
   void cleanupGrayscaleWithFrameBuffer() const;
+
+  // Font cache manager
+  void setFontCacheManager(FontCacheManager* m) { fontCacheManager_ = m; }
+  FontCacheManager* getFontCacheManager() const { return fontCacheManager_; }
+  const std::map<int, EpdFontFamily>& getFontMap() const { return fontMap; }
 
   // Font helpers
   const uint8_t *getGlyphBitmap(const EpdFontData *fontData,

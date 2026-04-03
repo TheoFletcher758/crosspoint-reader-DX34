@@ -1,6 +1,7 @@
 #include "TxtReaderActivity.h"
 
 #include <EpdFontFamily.h>
+#include <FontCacheManager.h>
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <I18n.h>
@@ -1172,7 +1173,15 @@ void TxtReaderActivity::renderPage() {
     }
   };
 
-  // First pass: BW rendering
+  // Two-pass font prewarm: scan pass collects text, then decompress needed glyphs
+  auto* fcm = renderer.getFontCacheManager();
+  if (fcm) {
+    auto scope = fcm->createPrewarmScope();
+    renderLines();  // scan pass
+    scope.endScanAndPrewarm();
+  }
+
+  // BW rendering
   renderLines();
   renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
                   orientedMarginLeft);

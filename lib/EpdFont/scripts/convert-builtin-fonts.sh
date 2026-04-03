@@ -9,7 +9,7 @@ for size in ${CHAREINK_FONT_SIZES[@]}; do
     lower_style=$(echo $style | tr '[:upper:]' '[:lower:]')
     font_name="chareink_${size}_${lower_style}"
     echo "Generating ${font_name}..."
-    "$PYTHON_BIN" fontconvert.py "${font_name}" $size "../builtinFonts/source/ChareInk/ChareInk7SP-${style}.ttf" --2bit > "../builtinFonts/${font_name}.h"
+    "$PYTHON_BIN" fontconvert.py "${font_name}" $size "../builtinFonts/source/ChareInk/ChareInk7SP-${style}.ttf" --2bit --compress > "../builtinFonts/${font_name}.h"
   done
 done
 
@@ -22,7 +22,7 @@ for size in ${BOOKERLY_FONT_SIZES[@]}; do
     lower_style=$(echo $style | tr '[:upper:]' '[:lower:]')
     font_name="bookerly_${size}_${lower_style}"
     echo "Generating ${font_name}..."
-    "$PYTHON_BIN" fontconvert.py "${font_name}" $size "../builtinFonts/source/Bookerly/${filename}" --2bit > "../builtinFonts/${font_name}.h"
+    "$PYTHON_BIN" fontconvert.py "${font_name}" $size "../builtinFonts/source/Bookerly/${filename}" --2bit --compress > "../builtinFonts/${font_name}.h"
   done
 done
 

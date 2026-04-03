@@ -1,5 +1,7 @@
 #include "GfxRenderer.h"
 
+#include <FontCacheManager.h>
+#include <FontDecompressor.h>
 #include <Logging.h>
 #include <Utf8.h>
 
@@ -251,6 +253,12 @@ void GfxRenderer::drawTextSpaced(const int fontId, const int x, const int y,
                                  const char *text, const int letterSpacing,
                                  const bool black,
                                  const EpdFontFamily::Style style) const {
+  // Scan mode: record text for font cache prewarming, skip rendering
+  if (fontCacheManager_ && fontCacheManager_->isScanning()) {
+    if (text && *text) fontCacheManager_->recordText(text, fontId, style);
+    return;
+  }
+
   int yPos = y + getFontAscenderSize(fontId);
   int xpos = x;
 
@@ -611,6 +619,7 @@ void GfxRenderer::drawIcon(const uint8_t bitmap[], const int x, const int y,
 void GfxRenderer::drawBitmap(const Bitmap &bitmap, const int x, const int y,
                              const int maxWidth, const int maxHeight,
                              const float cropX, const float cropY) const {
+  if (fontCacheManager_ && fontCacheManager_->isScanning()) return;
   // For 1-bit bitmaps, use optimized 1-bit rendering path (no crop support for
   // 1-bit)
   if (bitmap.is1Bit() && cropX == 0.0f && cropY == 0.0f) {
@@ -1154,6 +1163,15 @@ const uint8_t *GfxRenderer::getGlyphBitmap(const EpdFontData *fontData,
                                            const EpdGlyph *glyph) const {
   if (!fontData || !glyph)
     return nullptr;
+  if (fontData->groups != nullptr) {
+    auto* fd = fontCacheManager_ ? fontCacheManager_->getDecompressor() : nullptr;
+    if (!fd) {
+      LOG_ERR("GFX", "Compressed font but no decompressor");
+      return nullptr;
+    }
+    uint32_t glyphIndex = static_cast<uint32_t>(glyph - fontData->glyph);
+    return fd->getBitmap(fontData, glyph, glyphIndex);
+  }
   return &fontData->bitmap[glyph->dataOffset];
 }
 

@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <EpdFontFamily.h>
 #include <Epub/Page.h>
+#include <FontCacheManager.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
 #include <HalStorage.h>
@@ -1628,6 +1629,14 @@ void EpubReaderActivity::renderContents(const Page& page,
   const int viewportHeight =
       renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom;
   const int contentY = orientedMarginTop;
+
+  // Two-pass font prewarm: scan pass collects text, then decompress needed glyphs
+  auto* fcm = renderer.getFontCacheManager();
+  if (fcm) {
+    auto scope = fcm->createPrewarmScope();
+    page.render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);  // scan pass
+    scope.endScanAndPrewarm();
+  }
 
   page.render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
   if (SETTINGS.debugBorders) {
