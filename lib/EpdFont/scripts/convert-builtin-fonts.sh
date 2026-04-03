@@ -13,7 +13,7 @@ for size in ${CHAREINK_FONT_SIZES[@]}; do
   done
 done
 
-BOOKERLY_FONT_SIZES=(14 17)
+BOOKERLY_FONT_SIZES=(13 15)
 BOOKERLY_STYLES=("Regular:Bookerly.ttf" "Bold:Bookerly Bold.ttf" "Italic:Bookerly Italic.ttf")
 for size in ${BOOKERLY_FONT_SIZES[@]}; do
   for entry in "${BOOKERLY_STYLES[@]}"; do

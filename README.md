@@ -152,12 +152,10 @@ ChareInk supports **7 reader sizes**:
 
 ### Bookerly sizes
 
-Bookerly supports **4 reader sizes**:
+Bookerly supports **2 reader sizes**:
 
-- 16
-- 17
-- 18
-- 19
+- 13
+- 15
 
 ### Notes about size behavior
 

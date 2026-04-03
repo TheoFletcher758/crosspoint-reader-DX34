@@ -32,9 +32,9 @@ int readerFontIdFor(const uint8_t family, const uint8_t fontSize) {
 
   if (CrossPointSettings::normalizeFontFamily(family) ==
       CrossPointSettings::BOOKERLY) {
-    return (normalizedFontSize == CrossPointSettings::LARGE)
-               ? BOOKERLY_17_FONT_ID
-               : BOOKERLY_14_FONT_ID;
+    return (normalizedFontSize == CrossPointSettings::MEDIUM)
+               ? BOOKERLY_15_FONT_ID
+               : BOOKERLY_13_FONT_ID;
   }
   switch (normalizedFontSize) {
     case CrossPointSettings::SIZE_14:
@@ -541,51 +541,46 @@ void ReaderSettingsActivity::render(Activity::RenderLock&&) {
                       labels.btn4);
 
   if (fontSizeEditMode) {
-    const int popupW = std::min(pageWidth - 30, 280);
-    const int popupH = 176;
+    const int popupW = std::min(pageWidth - 30, 300);
+    const int popupH = 230;
     const int popupX = (pageWidth - popupW) / 2;
     const int popupY = (pageHeight - popupH) / 2;
-    const int optionCount =
-        CrossPointSettings::fontSizeOptionCount(SETTINGS.fontFamily);
-    const int draftIndex = static_cast<int>(fontSizeEditDraftIndex);
-    const int prevIndex = std::max(0, draftIndex - 1);
-    const int nextIndex = std::min(optionCount - 1, draftIndex + 1);
-    const uint8_t prevFontSize = CrossPointSettings::displayIndexToFontSize(
-        SETTINGS.fontFamily, static_cast<uint8_t>(prevIndex));
     const uint8_t currentFontSize = CrossPointSettings::displayIndexToFontSize(
         SETTINGS.fontFamily, fontSizeEditDraftIndex);
-    const uint8_t nextFontSize = CrossPointSettings::displayIndexToFontSize(
-        SETTINGS.fontFamily, static_cast<uint8_t>(nextIndex));
+    const std::string sizeLabel =
+        fontSizeValueLabel(SETTINGS.fontFamily, currentFontSize);
 
     renderer.fillRect(popupX - 2, popupY - 2, popupW + 4, popupH + 4, true);
     renderer.fillRect(popupX, popupY, popupW, popupH, false);
     renderer.drawCenteredText(UI_10_FONT_ID, popupY + 8, tr(STR_FONT_SIZE));
 
-    if (prevIndex != draftIndex) {
-      const std::string prevLabel =
-          fontSizeValueLabel(SETTINGS.fontFamily, prevFontSize);
-      const int prevFontId = readerFontIdFor(SETTINGS.fontFamily, prevFontSize);
-      const int prevTextW = renderer.getTextWidth(prevFontId, prevLabel.c_str());
-      renderer.drawText(prevFontId, popupX + (popupW - prevTextW) / 2,
-                        popupY + 42, prevLabel.c_str(), true);
-    }
+    const int sizeW = renderer.getTextWidth(UI_12_FONT_ID, sizeLabel.c_str());
+    renderer.drawText(UI_12_FONT_ID, popupX + (popupW - sizeW) / 2,
+                      popupY + 30, sizeLabel.c_str(), true);
 
-    const std::string currentLabel =
-        fontSizeValueLabel(SETTINGS.fontFamily, currentFontSize);
-    const int currentFontId =
+    const int sepY = popupY + 52;
+    renderer.drawLine(popupX + 10, sepY, popupX + popupW - 10, sepY, true);
+
+    const int fontId =
         readerFontIdFor(SETTINGS.fontFamily, currentFontSize);
-    const int currentTextW =
-        renderer.getTextWidth(currentFontId, currentLabel.c_str());
-    renderer.drawText(currentFontId, popupX + (popupW - currentTextW) / 2,
-                      popupY + 80, currentLabel.c_str(), true);
+    const int baseLineH = renderer.getLineHeight(fontId);
+    const float lineCompression =
+        static_cast<float>(SETTINGS.lineSpacingPercent) / 100.0f;
+    const int lineH = std::max(
+        1, static_cast<int>(baseLineH * lineCompression));
+    const int previewX = popupX + 12;
+    const int previewStartY = sepY + 8;
+    const int previewMaxY = popupY + popupH - 6;
 
-    if (nextIndex != draftIndex) {
-      const std::string nextLabel =
-          fontSizeValueLabel(SETTINGS.fontFamily, nextFontSize);
-      const int nextFontId = readerFontIdFor(SETTINGS.fontFamily, nextFontSize);
-      const int nextTextW = renderer.getTextWidth(nextFontId, nextLabel.c_str());
-      renderer.drawText(nextFontId, popupX + (popupW - nextTextW) / 2,
-                        popupY + 122, nextLabel.c_str(), true);
+    static const char* sampleLines[] = {
+        "The quick brown fox",   "jumps over the lazy",
+        "dog. She sells sea",    "shells by the shore.",
+        "How vexingly quick",
+    };
+    for (int i = 0; i < 5; ++i) {
+      const int y = previewStartY + i * lineH;
+      if (y + baseLineH > previewMaxY) break;
+      renderer.drawText(fontId, previewX, y, sampleLines[i], true);
     }
   }
 
@@ -596,8 +591,10 @@ void ReaderSettingsActivity::render(Activity::RenderLock&&) {
       const auto& setting = (*settings)[valueEditSettingIndex];
       const char* settingLabel = I18N.get(setting.nameId);
       const std::string valueText = currentValueEditText();
+      const bool isLineSpacing =
+          setting.valuePtr == &CrossPointSettings::lineSpacingPercent;
       const int popupW = std::min(pageWidth - 30, 300);
-      const int popupH = 86;
+      const int popupH = isLineSpacing ? 230 : 86;
       const int popupX = (pageWidth - popupW) / 2;
       const int popupY = (pageHeight - popupH) / 2;
 
@@ -613,7 +610,7 @@ void ReaderSettingsActivity::render(Activity::RenderLock&&) {
                         popupY + 30, valueText.c_str(), true);
 
       const int barX = popupX + 20;
-      const int barY = popupY + popupH - 22;
+      const int barY = isLineSpacing ? popupY + 56 : popupY + popupH - 22;
       const int barW = popupW - 40;
       const int barH = 8;
       renderer.drawRect(barX, barY, barW, barH, true);
@@ -626,6 +623,33 @@ void ReaderSettingsActivity::render(Activity::RenderLock&&) {
                   range;
       renderer.fillRect(barX + 2, barY + 2, filledW, std::max(1, barH - 4),
                         true);
+
+      if (isLineSpacing) {
+        const int sepY = popupY + 72;
+        renderer.drawLine(popupX + 10, sepY, popupX + popupW - 10, sepY, true);
+
+        const int fontId =
+            readerFontIdFor(SETTINGS.fontFamily, SETTINGS.fontSize);
+        const int baseLineH = renderer.getLineHeight(fontId);
+        const int lineH = std::max(
+            1, static_cast<int>(baseLineH * valueEditDraft / 100.0f));
+        const int previewX = popupX + 12;
+        const int previewMaxX = popupX + popupW - 12;
+        const int previewStartY = sepY + 8;
+        const int previewMaxY = popupY + popupH - 6;
+        const int maxW = previewMaxX - previewX;
+
+        static const char* sampleLines[] = {
+            "The quick brown fox",   "jumps over the lazy",
+            "dog. She sells sea",    "shells by the shore.",
+            "How vexingly quick",
+        };
+        for (int i = 0; i < 5; ++i) {
+          const int y = previewStartY + i * lineH;
+          if (y + baseLineH > previewMaxY) break;
+          renderer.drawText(fontId, previewX, y, sampleLines[i], true);
+        }
+      }
     }
   }
 
