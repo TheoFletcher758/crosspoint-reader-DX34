@@ -407,7 +407,6 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["sleepScreen"] = s.sleepScreen;
   doc["sleepScreenCoverMode"] = s.sleepScreenCoverMode;
   doc["sleepScreenCoverFilter"] = s.sleepScreenCoverFilter;
-  doc["sleepScreenBorder"] = s.sleepScreenBorder;
   doc["showSleepImageFilename"] = s.showSleepImageFilename;
   doc["showLastSleepWallpaperOnBoot"] = s.showLastSleepWallpaperOnBoot;
   doc["statusBar"] = s.statusBar;
@@ -500,9 +499,6 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
   s.sleepScreenCoverFilter =
       clamp(doc["sleepScreenCoverFilter"] | (uint8_t)S::NO_FILTER,
             S::SLEEP_SCREEN_COVER_FILTER_COUNT, S::NO_FILTER);
-  s.sleepScreenBorder =
-      clamp(doc["sleepScreenBorder"] | (uint8_t)S::SLEEP_BORDER_OFF,
-            S::SLEEP_BORDER_MODE_COUNT, S::SLEEP_BORDER_OFF);
   s.showSleepImageFilename = doc["showSleepImageFilename"] | (uint8_t)0;
   s.showLastSleepWallpaperOnBoot = doc["showLastSleepWallpaperOnBoot"] | (uint8_t)0;
   s.statusBar = clamp(doc["statusBar"] | (uint8_t)S::FULL,

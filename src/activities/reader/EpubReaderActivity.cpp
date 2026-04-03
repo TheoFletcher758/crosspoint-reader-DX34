@@ -37,7 +37,7 @@ constexpr unsigned long goHomeMs = 1000;
 constexpr unsigned long confirmDoubleTapMs = 350;
 constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int progressBarMarginTop = 1;
-constexpr int statusTextTopPadding = 2;
+constexpr int statusTextTopPadding = 4;
 constexpr int statusTextLineGap = 1;
 constexpr int statusTextToBarsGap = 0;
 int clampPercent(int percent) {

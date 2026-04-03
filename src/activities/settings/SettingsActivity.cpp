@@ -568,13 +568,15 @@ void SettingsActivity::render(Activity::RenderLock&&) {
     const int rowFont = UI_10_FONT_ID;
     const bool isSelected = (i == selectedRowIndex);
     const char* settingName = I18N.get(setting.nameId);
-    constexpr int kChipPadX = 2;
-    constexpr int kChipRightEdgeFix = 1;
+    constexpr int kChipPad = 1;
+    const int textH = renderer.getTextHeight(rowFont);
+    const int chipH = textH + kChipPad * 2;
+    const int chipY = rowY + (rowHeight - chipH) / 2;
 
     if (isSelected) {
       const int nameWidth = renderer.getTextWidth(rowFont, settingName);
-      renderer.fillRect(metrics.contentSidePadding - kChipPadX, rowY,
-                        nameWidth + kChipPadX * 2 + kChipRightEdgeFix, rowHeight, true);
+      renderer.fillRect(metrics.contentSidePadding - kChipPad, chipY,
+                        nameWidth + kChipPad * 2, chipH, true);
     }
     renderer.drawText(rowFont, metrics.contentSidePadding, rowY, settingName, !isSelected);
 
@@ -605,7 +607,7 @@ void SettingsActivity::render(Activity::RenderLock&&) {
       const int valueW = renderer.getTextWidth(rowFont, valueText.c_str());
       const int valueX = pageWidth - metrics.contentSidePadding - valueW;
       if (isSelected) {
-        renderer.fillRect(valueX - kChipPadX, rowY, valueW + kChipPadX * 2 + kChipRightEdgeFix, rowHeight, true);
+        renderer.fillRect(valueX - kChipPad, chipY, valueW + kChipPad * 2, chipH, true);
       }
       renderer.drawText(rowFont, valueX, rowY, valueText.c_str(), !isSelected);
     }

@@ -29,7 +29,7 @@ constexpr unsigned long progressSaveDebounceMs = 800;
 constexpr int progressBarMarginTop = 1;
 constexpr int recentSwitcherRows = 8;
 constexpr size_t CHUNK_SIZE = 8 * 1024; // 8KB chunk for reading
-constexpr int statusTextTopPadding = 2;
+constexpr int statusTextTopPadding = 4;
 constexpr int statusTextLineGap = 1;
 constexpr int statusTextToBarsGap = 0;
 

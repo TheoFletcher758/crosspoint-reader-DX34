@@ -18,24 +18,30 @@ class ParsedText {
   std::vector<bool> wordContinues;  // true = word attaches to previous (no space before it)
   BlockStyle blockStyle;
   bool extraParagraphSpacing;
+  bool hyphenationEnabled;
   uint8_t wordSpacingPercent;
   uint8_t firstLineIndentMode;
   bool usePublisherStyles;
 
   void applyParagraphIndent(const GfxRenderer& renderer, int fontId);
+  void expandHyphenationBreaks(const GfxRenderer& renderer, int fontId,
+                               std::vector<uint16_t>& wordWidths,
+                               std::vector<bool>& canBreakBefore);
   std::vector<size_t> computeLineBreaks(const GfxRenderer& renderer, int fontId, int pageWidth, int spaceWidth,
-                                        std::vector<uint16_t>& wordWidths, std::vector<bool>& continuesVec);
+                                        std::vector<uint16_t>& wordWidths, std::vector<bool>& continuesVec,
+                                        const std::vector<bool>& canBreakBefore);
   void extractLine(size_t breakIndex, int pageWidth, int spaceWidth, const std::vector<uint16_t>& wordWidths,
                    const std::vector<bool>& continuesVec, const std::vector<size_t>& lineBreakIndices,
                    const std::function<void(std::shared_ptr<TextBlock>)>& processLine);
   std::vector<uint16_t> calculateWordWidths(const GfxRenderer& renderer, int fontId);
 
  public:
-  explicit ParsedText(const bool extraParagraphSpacing, const bool /*hyphenationEnabled*/ = false,
+  explicit ParsedText(const bool extraParagraphSpacing, const bool hyphenationEnabled = false,
                       const BlockStyle& blockStyle = BlockStyle(), const uint8_t wordSpacingPercent = 1,
                       const uint8_t firstLineIndentMode = 0, const bool usePublisherStyles = true)
       : blockStyle(blockStyle),
         extraParagraphSpacing(extraParagraphSpacing),
+        hyphenationEnabled(hyphenationEnabled),
         wordSpacingPercent(wordSpacingPercent),
         firstLineIndentMode(firstLineIndentMode),
         usePublisherStyles(usePublisherStyles) {}

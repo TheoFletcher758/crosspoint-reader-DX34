@@ -451,9 +451,15 @@ void ReaderSettingsActivity::render(Activity::RenderLock&&) {
     const auto& setting = (*settings)[row.settingIndex];
     const bool isSelected = (i == selectedRowIndex);
     const char* settingName = I18N.get(setting.nameId);
+    constexpr int kChipPad = 1;
+    const int textH = renderer.getTextHeight(UI_10_FONT_ID);
+    const int chipH = textH + kChipPad * 2;
+    const int chipY = rowY + (rowHeight - chipH) / 2;
 
     if (isSelected) {
-      renderer.fillRect(0, rowY, pageWidth, rowHeight, true);
+      const int nameWidth = renderer.getTextWidth(UI_10_FONT_ID, settingName);
+      renderer.fillRect(metrics.contentSidePadding - kChipPad, chipY,
+                        nameWidth + kChipPad * 2, chipH, true);
     }
     renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, rowY,
                       settingName, !isSelected);
@@ -486,8 +492,11 @@ void ReaderSettingsActivity::render(Activity::RenderLock&&) {
 
     if (!valueText.empty()) {
       const int valueW = renderer.getTextWidth(UI_10_FONT_ID, valueText.c_str());
-      renderer.drawText(UI_10_FONT_ID,
-                        pageWidth - metrics.contentSidePadding - valueW, rowY,
+      const int valueX = pageWidth - metrics.contentSidePadding - valueW;
+      if (isSelected) {
+        renderer.fillRect(valueX - kChipPad, chipY, valueW + kChipPad * 2, chipH, true);
+      }
+      renderer.drawText(UI_10_FONT_ID, valueX, rowY,
                         valueText.c_str(), !isSelected);
     }
   }

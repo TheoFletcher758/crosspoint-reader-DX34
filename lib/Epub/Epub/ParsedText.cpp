@@ -8,6 +8,8 @@
 #include <limits>
 #include <vector>
 
+#include "hyphenation/Hyphenator.h"
+
 constexpr int MAX_COST = std::numeric_limits<int>::max();
 
 namespace {
@@ -19,9 +21,11 @@ int wordSpacingSettingToPixelDelta(const uint8_t mode,
                                    const int baseSpaceWidth) {
   switch (mode) {
     case 0:  // Tight
-      return -(baseSpaceWidth * 2 / 5);
+      return -(baseSpaceWidth * 3 / 10);
     case 2:  // Wide
       return (baseSpaceWidth * 4 / 5);
+    case 3:  // Extra Wide
+      return (baseSpaceWidth * 12 / 5);
     case 1:  // Normal
     default:
       return 0;
@@ -117,7 +121,17 @@ void ParsedText::layoutAndExtractLines(
   const int spaceWidth = std::max(0, userSpaceWidth + blockStyle.wordSpacing);
   auto wordWidths = calculateWordWidths(renderer, fontId);
 
-  std::vector<size_t> lineBreakIndices = computeLineBreaks(renderer, fontId, pageWidth, spaceWidth, wordWidths, wordContinues);
+  // Build canBreakBefore: by default, can break before any non-continuation word.
+  std::vector<bool> canBreakBefore(words.size());
+  for (size_t i = 0; i < words.size(); ++i) {
+    canBreakBefore[i] = !wordContinues[i];
+  }
+
+  if (hyphenationEnabled) {
+    expandHyphenationBreaks(renderer, fontId, wordWidths, canBreakBefore);
+  }
+
+  std::vector<size_t> lineBreakIndices = computeLineBreaks(renderer, fontId, pageWidth, spaceWidth, wordWidths, wordContinues, canBreakBefore);
   const size_t lineCount =
       includeLastLine ? lineBreakIndices.size() : lineBreakIndices.size() - 1;
 
@@ -150,11 +164,84 @@ ParsedText::calculateWordWidths(const GfxRenderer &renderer, const int fontId) {
   return wordWidths;
 }
 
+void ParsedText::expandHyphenationBreaks(
+    const GfxRenderer &renderer, const int fontId,
+    std::vector<uint16_t> &wordWidths,
+    std::vector<bool> &canBreakBefore) {
+  // Walk the word list and split hyphenable words into sub-tokens.
+  // Process in forward order; new sub-tokens are inserted right after the
+  // current index, so we advance past them.
+  for (size_t i = 0; i < words.size(); ++i) {
+    // Skip very short words and continuation tokens (punctuation attached to
+    // previous word) — those should not be independently hyphenated.
+    if (words[i].size() < 5 || wordContinues[i]) {
+      continue;
+    }
+
+    const auto breaks = Hyphenator::breakOffsets(words[i], false);
+    if (breaks.empty()) {
+      continue;
+    }
+
+    // Split this word into (breaks.size() + 1) sub-tokens.
+    const std::string original = words[i];
+    const EpdFontFamily::Style style = wordStyles[i];
+
+    // Build sub-token strings from break offsets.
+    std::vector<std::string> parts;
+    std::vector<bool> partNeedsHyphen;
+    parts.reserve(breaks.size() + 1);
+    partNeedsHyphen.reserve(breaks.size() + 1);
+
+    size_t prev = 0;
+    for (const auto &b : breaks) {
+      std::string prefix = original.substr(prev, b.byteOffset - prev);
+      if (b.requiresInsertedHyphen) {
+        prefix.push_back('-');
+      }
+      parts.push_back(std::move(prefix));
+      partNeedsHyphen.push_back(false);  // prefix already has hyphen baked in
+      prev = b.byteOffset;
+    }
+    // Last part (suffix after final break)
+    parts.push_back(original.substr(prev));
+    partNeedsHyphen.push_back(false);
+
+    if (parts.size() < 2) {
+      continue;
+    }
+
+    // Replace the original word at position i with the first part.
+    words[i] = parts[0];
+    wordWidths[i] = measureWordWidth(renderer, fontId, parts[0], style,
+                                     blockStyle.letterSpacing);
+    // canBreakBefore[i] stays as it was (inherits from the original word).
+
+    // Insert remaining parts after position i.
+    for (size_t p = 1; p < parts.size(); ++p) {
+      const size_t insertPos = i + p;
+      const uint16_t w = measureWordWidth(renderer, fontId, parts[p], style,
+                                          blockStyle.letterSpacing);
+      words.insert(words.begin() + insertPos, parts[p]);
+      wordWidths.insert(wordWidths.begin() + insertPos, w);
+      wordStyles.insert(wordStyles.begin() + insertPos, style);
+      wordContinues.insert(wordContinues.begin() + insertPos,
+                           true);  // no space before sub-token
+      canBreakBefore.insert(canBreakBefore.begin() + insertPos,
+                            true);  // but CAN break here (hyphenation point)
+    }
+
+    // Advance i past all the new sub-tokens so we don't re-process them.
+    i += parts.size() - 1;
+  }
+}
+
 std::vector<size_t>
 ParsedText::computeLineBreaks(const GfxRenderer &renderer, const int fontId,
                               const int pageWidth, const int spaceWidth,
                               std::vector<uint16_t> &wordWidths,
-                              std::vector<bool> &continuesVec) {
+                              std::vector<bool> &continuesVec,
+                              const std::vector<bool> &canBreakBefore) {
   (void)renderer;
   (void)fontId;
   if (words.empty()) {
@@ -200,9 +287,10 @@ ParsedText::computeLineBreaks(const GfxRenderer &renderer, const int fontId,
         break;
       }
 
-      // Cannot break after word j if the next word attaches to it (continuation
-      // group)
-      if (j + 1 < totalWordCount && continuesVec[j + 1]) {
+      // Cannot break after word j if the next token cannot start a new line
+      // (true continuation like punctuation). Hyphenation sub-tokens have
+      // canBreakBefore=true so the DP may still break before them.
+      if (j + 1 < totalWordCount && !canBreakBefore[j + 1]) {
         continue;
       }
 

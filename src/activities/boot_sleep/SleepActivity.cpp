@@ -500,12 +500,8 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap &bitmap,
   int x, y;
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
-  const bool hasBorder =
-      SETTINGS.sleepScreenBorder != CrossPointSettings::SLEEP_BORDER_OFF;
-  constexpr int borderWidth = 3;
-  const int inset = hasBorder ? borderWidth : 0;
-  const int drawWidth = pageWidth - 2 * inset;
-  const int drawHeight = pageHeight - 2 * inset;
+  const int drawWidth = pageWidth;
+  const int drawHeight = pageHeight;
   float cropX = 0, cropY = 0;
 
   LOG_DBG("SLP", "bitmap %d x %d, screen %d x %d", bitmap.getWidth(),
@@ -528,8 +524,8 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap &bitmap,
         ratio = (1.0f - cropX) * static_cast<float>(bitmap.getWidth()) /
                 static_cast<float>(bitmap.getHeight());
       }
-      x = inset;
-      y = inset + std::round((static_cast<float>(drawHeight) -
+      x = 0;
+      y = std::round((static_cast<float>(drawHeight) -
                       static_cast<float>(drawWidth) / ratio) /
                      2);
       LOG_DBG("SLP", "Centering with ratio %f to y=%d", ratio, y);
@@ -543,31 +539,20 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap &bitmap,
         ratio = static_cast<float>(bitmap.getWidth()) /
                 ((1.0f - cropY) * static_cast<float>(bitmap.getHeight()));
       }
-      x = inset + std::round((static_cast<float>(drawWidth) -
+      x = std::round((static_cast<float>(drawWidth) -
                       static_cast<float>(drawHeight) * ratio) /
                      2);
-      y = inset;
+      y = 0;
       LOG_DBG("SLP", "Centering with ratio %f to x=%d", ratio, x);
     }
   } else {
     // center the image
-    x = inset + (drawWidth - bitmap.getWidth()) / 2;
-    y = inset + (drawHeight - bitmap.getHeight()) / 2;
+    x = (drawWidth - bitmap.getWidth()) / 2;
+    y = (drawHeight - bitmap.getHeight()) / 2;
   }
 
   LOG_DBG("SLP", "drawing to %d x %d", x, y);
   renderer.clearScreen();
-
-  if (hasBorder) {
-    const bool borderBlack =
-        SETTINGS.sleepScreenBorder == CrossPointSettings::SLEEP_BORDER_BLACK;
-    renderer.fillRect(0, 0, pageWidth, borderWidth, borderBlack);
-    renderer.fillRect(0, pageHeight - borderWidth, pageWidth, borderWidth,
-                      borderBlack);
-    renderer.fillRect(0, 0, borderWidth, pageHeight, borderBlack);
-    renderer.fillRect(pageWidth - borderWidth, 0, borderWidth, pageHeight,
-                      borderBlack);
-  }
 
   const bool hasGreyscale =
       bitmap.hasGreyscale() &&
