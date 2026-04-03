@@ -451,7 +451,7 @@ std::string MyLibraryActivity::getDisplayNameForRawFile(const size_t rawIndex) {
 
   const std::string& name = files[rawIndex];
   if (!name.empty() && name.back() == '/') {
-    return name;
+    return "[" + name.substr(0, name.size() - 1) + "]";
   }
 
   if (isBmpFile(name)) {
