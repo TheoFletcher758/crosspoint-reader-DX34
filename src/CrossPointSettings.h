@@ -120,22 +120,19 @@ public:
   // Font family options
   enum FONT_FAMILY {
     CHAREINK = 0,
-    LEGACY_REMOVED_FAMILY = 1,
-    FREESERIF = 2,
-    LEGACY_REMOVED_FAMILY_2 = 3,
+    BOOKERLY = 1,
+    FREESERIF = 2,          // legacy, normalize to CHAREINK
+    LEGACY_REMOVED_FAMILY_2 = 3, // legacy, normalize to CHAREINK
     FONT_FAMILY_COUNT
   };
-  // Reader font sizes use ChareInk only.
-  // Legacy family enum values stay available so older saved settings can still
-  // deserialize and normalize safely back to ChareInk.
   enum FONT_SIZE {
     MEDIUM = 0,   // legacy 15 -> normalize to 16
     LARGE = 1,    // legacy 17
-    X_LARGE = 2,  // legacy 19
+    X_LARGE = 2,  // legacy 19 -> normalize to SIZE_18
     SIZE_14 = 3,  // legacy 14 -> normalize to 16
     SIZE_16 = 4,
     SIZE_18 = 5,
-    SIZE_13 = 6,  // legacy 13 -> normalize to 16
+    SIZE_13 = 6,  // legacy 13 -> normalize to SIZE_14
     SIZE_12 = 7,
     FONT_SIZE_COUNT
   };
@@ -303,6 +300,7 @@ public:
   // migration)
   uint8_t screenMargin = 20;
   // Reader screen margin settings
+  uint8_t uniformMargins = 0; // 0 = separate margins, 1 = uniform (all sides equal)
   uint8_t screenMarginHorizontal = 20;
   uint8_t screenMarginTop = 20;
   uint8_t screenMarginBottom = 20;

@@ -13,6 +13,19 @@ for size in ${CHAREINK_FONT_SIZES[@]}; do
   done
 done
 
+BOOKERLY_FONT_SIZES=(14 17)
+BOOKERLY_STYLES=("Regular:Bookerly.ttf" "Bold:Bookerly Bold.ttf" "Italic:Bookerly Italic.ttf")
+for size in ${BOOKERLY_FONT_SIZES[@]}; do
+  for entry in "${BOOKERLY_STYLES[@]}"; do
+    style="${entry%%:*}"
+    filename="${entry#*:}"
+    lower_style=$(echo $style | tr '[:upper:]' '[:lower:]')
+    font_name="bookerly_${size}_${lower_style}"
+    echo "Generating ${font_name}..."
+    "$PYTHON_BIN" fontconvert.py "${font_name}" $size "../builtinFonts/source/Bookerly/${filename}" --2bit > "../builtinFonts/${font_name}.h"
+  done
+done
+
 FREESERIF_FONT_SIZES=(15 16 17 18 19 21 23)
 for size in ${FREESERIF_FONT_SIZES[@]}; do
   for style in ${READER_FONT_STYLES[@]}; do

@@ -8,13 +8,14 @@ font_id() {
   ruby -rdigest -e 'puts(ARGV.map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16)}.sum % (2**32) - (2**31))' "$@"
 }
 
-echo "#define CHAREINK_13_FONT_ID ($(font_id ./chareink_13_regular.h ./chareink_13_bold.h ./chareink_13_italic.h))"
 echo "#define CHAREINK_14_FONT_ID ($(font_id ./chareink_14_regular.h ./chareink_14_bold.h ./chareink_14_italic.h))"
 echo "#define CHAREINK_15_FONT_ID ($(font_id ./chareink_15_regular.h ./chareink_15_bold.h ./chareink_15_italic.h))"
 echo "#define CHAREINK_16_FONT_ID ($(font_id ./chareink_16_regular.h ./chareink_16_bold.h ./chareink_16_italic.h))"
 echo "#define CHAREINK_17_FONT_ID ($(font_id ./chareink_17_regular.h ./chareink_17_bold.h ./chareink_17_italic.h))"
 echo "#define CHAREINK_18_FONT_ID ($(font_id ./chareink_18_regular.h ./chareink_18_bold.h ./chareink_18_italic.h))"
-echo "#define CHAREINK_19_FONT_ID ($(font_id ./chareink_19_regular.h ./chareink_19_bold.h ./chareink_19_italic.h))"
+echo ""
+echo "#define BOOKERLY_14_FONT_ID ($(font_id ./bookerly_14_regular.h ./bookerly_14_bold.h ./bookerly_14_italic.h))"
+echo "#define BOOKERLY_17_FONT_ID ($(font_id ./bookerly_17_regular.h ./bookerly_17_bold.h ./bookerly_17_italic.h))"
 echo ""
 echo "#define UNIFONT_14_FONT_ID ($(font_id ./unifont_14_regular.h))"
 echo "#define UNIFONT_18_FONT_ID ($(font_id ./unifont_18_regular.h))"

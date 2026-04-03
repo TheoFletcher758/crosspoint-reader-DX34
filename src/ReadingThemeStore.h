@@ -12,6 +12,7 @@ struct ReadingTheme {
   uint8_t fontFamily = CrossPointSettings::CHAREINK;
   uint8_t fontSize = CrossPointSettings::SIZE_16;
   uint8_t lineSpacingPercent = 110;
+  uint8_t uniformMargins = 0;
   uint8_t screenMarginHorizontal = 20;
   uint8_t screenMarginTop = 20;
   uint8_t screenMarginBottom = 20;

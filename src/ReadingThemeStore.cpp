@@ -82,6 +82,7 @@ ReadingTheme ReadingThemeStore::fromSettings(const std::string& name,
   theme.fontFamily = settings.fontFamily;
   theme.fontSize = settings.fontSize;
   theme.lineSpacingPercent = settings.lineSpacingPercent;
+  theme.uniformMargins = settings.uniformMargins;
   theme.screenMarginHorizontal = settings.screenMarginHorizontal;
   theme.screenMarginTop = settings.screenMarginTop;
   theme.screenMarginBottom = settings.screenMarginBottom;
@@ -129,6 +130,7 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
       settings.fontFamily, theme.fontSize);
   settings.lineSpacingPercent =
       clampRange(theme.lineSpacingPercent, 65, 150, 110);
+  settings.uniformMargins = theme.uniformMargins ? 1 : 0;
   settings.screenMarginHorizontal =
       clampRange(theme.screenMarginHorizontal, 0, 55, 20);
   settings.screenMarginTop = clampRange(theme.screenMarginTop, 0, 55, 20);
@@ -224,6 +226,7 @@ bool ReadingThemeStore::matchesCurrent(const ReadingTheme& theme) const {
   return current.fontFamily == theme.fontFamily &&
          current.fontSize == theme.fontSize &&
          current.lineSpacingPercent == theme.lineSpacingPercent &&
+         current.uniformMargins == theme.uniformMargins &&
          current.screenMarginHorizontal == theme.screenMarginHorizontal &&
          current.screenMarginTop == theme.screenMarginTop &&
          current.screenMarginBottom == theme.screenMarginBottom &&
@@ -489,6 +492,7 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
       normalized.fontFamily, theme.fontSize);
   normalized.lineSpacingPercent =
       clampRange(theme.lineSpacingPercent, 65, 150, 110);
+  normalized.uniformMargins = theme.uniformMargins ? 1 : 0;
   normalized.screenMarginHorizontal =
       clampRange(theme.screenMarginHorizontal, 0, 55, 20);
   normalized.screenMarginTop = clampRange(theme.screenMarginTop, 0, 55, 20);

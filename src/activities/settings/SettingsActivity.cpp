@@ -50,8 +50,6 @@ void persistSettingsWithLog(const char* context) {
 
 const char* fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
   switch (CrossPointSettings::fontSizeToPointSize(family, fontSize)) {
-    case 13:
-      return "13";
     case 14:
       return "14";
     case 15:
@@ -62,8 +60,6 @@ const char* fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
       return "17";
     case 18:
       return "18";
-    case 19:
-      return "19";
     default:
       return "16";
   }
@@ -164,6 +160,11 @@ void SettingsActivity::applyValueEdit() {
 
   const auto& setting = (*settings)[valueEditSettingIndex];
   SETTINGS.*(setting.valuePtr) = valueEditDraft;
+  if (SETTINGS.uniformMargins &&
+      setting.valuePtr == &CrossPointSettings::screenMarginHorizontal) {
+    SETTINGS.screenMarginTop = valueEditDraft;
+    SETTINGS.screenMarginBottom = valueEditDraft;
+  }
 
   persistSettingsWithLog("settings value confirm");
   valueEditMode = false;
@@ -223,6 +224,25 @@ void SettingsActivity::buildSettingsList() {
     readerSettings.erase(
         std::remove_if(readerSettings.begin(), readerSettings.end(),
                        [](const SettingInfo& s) { return s.valuePtr == &CrossPointSettings::fontSize; }),
+        readerSettings.end());
+  }
+
+  // Filter margin entries based on uniform/separate mode.
+  {
+    const bool uniform = SETTINGS.uniformMargins;
+    readerSettings.erase(
+        std::remove_if(readerSettings.begin(), readerSettings.end(),
+                       [uniform](const SettingInfo& s) {
+                         if (uniform) {
+                           // Uniform: hide separate margin entries
+                           return s.nameId == StrId::STR_SCREEN_MARGIN_HORIZONTAL ||
+                                  s.nameId == StrId::STR_SCREEN_MARGIN_TOP ||
+                                  s.nameId == StrId::STR_SCREEN_MARGIN_BOTTOM;
+                         } else {
+                           // Separate: hide uniform margin entry
+                           return s.nameId == StrId::STR_SCREEN_MARGIN;
+                         }
+                       }),
         readerSettings.end());
   }
 
@@ -422,6 +442,14 @@ void SettingsActivity::toggleCurrentSetting() {
     // Toggle the boolean value using the member pointer
     const bool currentValue = SETTINGS.*(setting.valuePtr);
     SETTINGS.*(setting.valuePtr) = !currentValue;
+    if (setting.valuePtr == &CrossPointSettings::uniformMargins) {
+      if (SETTINGS.uniformMargins) {
+        SETTINGS.screenMarginTop = SETTINGS.screenMarginHorizontal;
+        SETTINGS.screenMarginBottom = SETTINGS.screenMarginHorizontal;
+      }
+      buildSettingsList();
+      selectedRowIndex = std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
+    }
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
     if (setting.valuePtr == &CrossPointSettings::fontSize) {
@@ -453,6 +481,10 @@ void SettingsActivity::toggleCurrentSetting() {
     }
     if (setting.valuePtr == &CrossPointSettings::screenMarginHorizontal) {
       SETTINGS.*(setting.valuePtr) = nextReaderMarginValue(SETTINGS.*(setting.valuePtr));
+      if (SETTINGS.uniformMargins) {
+        SETTINGS.screenMarginTop = SETTINGS.screenMarginHorizontal;
+        SETTINGS.screenMarginBottom = SETTINGS.screenMarginHorizontal;
+      }
     } else {
       const int currentValue = SETTINGS.*(setting.valuePtr);
       if (currentValue < setting.valueRange.min ||

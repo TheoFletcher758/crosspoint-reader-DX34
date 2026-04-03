@@ -38,11 +38,20 @@ inline std::vector<SettingInfo> getSettingsList() {
                           StrId::STR_CAT_DISPLAY),
 
       // --- Reader ---
+      SettingInfo::Enum(StrId::STR_FONT_FAMILY, &CrossPointSettings::fontFamily,
+                        {StrId::STR_CHAREINK, StrId::STR_BOOKERLY}, "fontFamily",
+                        StrId::STR_CAT_READER),
       SettingInfo::Enum(StrId::STR_FONT_SIZE, &CrossPointSettings::fontSize,
                         {StrId::STR_SMALL, StrId::STR_MEDIUM, StrId::STR_LARGE}, "fontSize",
                         StrId::STR_CAT_READER),
       SettingInfo::Value(StrId::STR_LINE_SPACING, &CrossPointSettings::lineSpacingPercent, {65, 150, 5},
                          "lineSpacingPercent", StrId::STR_CAT_READER),
+      SettingInfo::Toggle(StrId::STR_UNIFORM_MARGINS, &CrossPointSettings::uniformMargins,
+                          "uniformMargins", StrId::STR_CAT_READER),
+      // Uniform margin entry (shown when uniformMargins == 1)
+      SettingInfo::Value(StrId::STR_SCREEN_MARGIN, &CrossPointSettings::screenMarginHorizontal, {0, 55, 5},
+                         "screenMarginHorizontal", StrId::STR_CAT_READER),
+      // Separate margin entries (shown when uniformMargins == 0)
       SettingInfo::Value(StrId::STR_SCREEN_MARGIN_HORIZONTAL, &CrossPointSettings::screenMarginHorizontal, {0, 55, 5},
                          "screenMarginHorizontal", StrId::STR_CAT_READER),
       SettingInfo::Value(StrId::STR_SCREEN_MARGIN_TOP, &CrossPointSettings::screenMarginTop, {0, 55, 5},

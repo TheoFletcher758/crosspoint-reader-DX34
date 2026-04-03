@@ -30,9 +30,13 @@ int readerFontIdFor(const uint8_t family, const uint8_t fontSize) {
   const uint8_t normalizedFontSize =
       CrossPointSettings::normalizeFontSizeForFamily(family, fontSize);
 
+  if (CrossPointSettings::normalizeFontFamily(family) ==
+      CrossPointSettings::BOOKERLY) {
+    return (normalizedFontSize == CrossPointSettings::LARGE)
+               ? BOOKERLY_17_FONT_ID
+               : BOOKERLY_14_FONT_ID;
+  }
   switch (normalizedFontSize) {
-    case CrossPointSettings::SIZE_13:
-      return CHAREINK_13_FONT_ID;
     case CrossPointSettings::SIZE_14:
       return CHAREINK_14_FONT_ID;
     case CrossPointSettings::MEDIUM:
@@ -42,10 +46,8 @@ int readerFontIdFor(const uint8_t family, const uint8_t fontSize) {
     case CrossPointSettings::LARGE:
       return CHAREINK_17_FONT_ID;
     case CrossPointSettings::SIZE_18:
-      return CHAREINK_18_FONT_ID;
-    case CrossPointSettings::X_LARGE:
     default:
-      return CHAREINK_19_FONT_ID;
+      return CHAREINK_18_FONT_ID;
     }
 }
 }  // namespace
@@ -158,6 +160,12 @@ void ReaderSettingsActivity::applyValueEdit() {
 
   const auto& setting = (*settings)[valueEditSettingIndex];
   SETTINGS.*(setting.valuePtr) = valueEditDraft;
+  // In uniform mode, sync all margin fields when any margin is changed
+  if (SETTINGS.uniformMargins &&
+      setting.valuePtr == &CrossPointSettings::screenMarginHorizontal) {
+    SETTINGS.screenMarginTop = valueEditDraft;
+    SETTINGS.screenMarginBottom = valueEditDraft;
+  }
   valueEditMode = false;
   persistSettings("reader settings value");
 }
@@ -203,6 +211,20 @@ void ReaderSettingsActivity::buildSettingsList() {
       if (isTxtContext() &&
           setting.valuePtr == &CrossPointSettings::readerStyleMode) {
         continue;
+      }
+      // Filter margin entries based on uniform/separate mode
+      if (SETTINGS.uniformMargins) {
+        // Uniform: skip separate margin entries (Horizontal, Top, Bottom)
+        if (setting.nameId == StrId::STR_SCREEN_MARGIN_HORIZONTAL ||
+            setting.nameId == StrId::STR_SCREEN_MARGIN_TOP ||
+            setting.nameId == StrId::STR_SCREEN_MARGIN_BOTTOM) {
+          continue;
+        }
+      } else {
+        // Separate: skip uniform margin entry
+        if (setting.nameId == StrId::STR_SCREEN_MARGIN) {
+          continue;
+        }
       }
       readerSettings.push_back(std::move(setting));
     } else if (setting.category == StrId::STR_STATUS_BAR) {
@@ -267,6 +289,16 @@ void ReaderSettingsActivity::toggleCurrentSetting() {
   const auto& setting = (*settings)[row.settingIndex];
   if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
     SETTINGS.*(setting.valuePtr) = !(SETTINGS.*(setting.valuePtr));
+    if (setting.valuePtr == &CrossPointSettings::uniformMargins) {
+      if (SETTINGS.uniformMargins) {
+        // Switching to uniform: sync all margins to horizontal value
+        SETTINGS.screenMarginTop = SETTINGS.screenMarginHorizontal;
+        SETTINGS.screenMarginBottom = SETTINGS.screenMarginHorizontal;
+      }
+      buildSettingsList();
+      selectedRowIndex =
+          std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
+    }
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     if (setting.valuePtr == &CrossPointSettings::fontSize) {
       startFontSizeEdit();

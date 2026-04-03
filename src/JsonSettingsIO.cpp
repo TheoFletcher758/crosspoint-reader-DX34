@@ -23,6 +23,7 @@ void writeReadingThemeObject(JsonObject obj, const ReadingTheme& theme) {
   obj["fontFamily"] = theme.fontFamily;
   obj["fontSize"] = theme.fontSize;
   obj["lineSpacingPercent"] = theme.lineSpacingPercent;
+  obj["uniformMargins"] = theme.uniformMargins;
   obj["screenMarginHorizontal"] = theme.screenMarginHorizontal;
   obj["screenMarginTop"] = theme.screenMarginTop;
   obj["screenMarginBottom"] = theme.screenMarginBottom;
@@ -66,6 +67,8 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
       obj["fontFamily"] | (uint8_t)CrossPointSettings::CHAREINK;
   theme.fontSize = obj["fontSize"] | (uint8_t)CrossPointSettings::SIZE_16;
   theme.lineSpacingPercent = obj["lineSpacingPercent"] | (uint8_t)110;
+  theme.uniformMargins = obj["uniformMargins"] | (uint8_t)0;
+  if (theme.uniformMargins > 1) theme.uniformMargins = 0;
   theme.screenMarginHorizontal = obj["screenMarginHorizontal"] | (uint8_t)20;
   theme.screenMarginTop = obj["screenMarginTop"] | (uint8_t)20;
   theme.screenMarginBottom = obj["screenMarginBottom"] | (uint8_t)20;
@@ -456,6 +459,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["sleepTimeout"] = s.sleepTimeout;
   doc["refreshFrequency"] = s.refreshFrequency;
   doc["screenMargin"] = s.screenMargin;
+  doc["uniformMargins"] = s.uniformMargins;
   doc["screenMarginHorizontal"] = s.screenMarginHorizontal;
   doc["screenMarginTop"] = s.screenMarginTop;
   doc["screenMarginBottom"] = s.screenMarginBottom;
@@ -761,6 +765,8 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
   s.refreshFrequency = clamp(doc["refreshFrequency"] | (uint8_t)S::REFRESH_15,
                              S::REFRESH_FREQUENCY_COUNT, S::REFRESH_15);
   s.screenMargin = doc["screenMargin"] | (uint8_t)5;
+  s.uniformMargins = doc["uniformMargins"] | (uint8_t)0;
+  if (s.uniformMargins > 1) s.uniformMargins = 0;
   const bool hasSplitMargins = !doc["screenMarginHorizontal"].isNull() &&
                                !doc["screenMarginTop"].isNull() &&
                                !doc["screenMarginBottom"].isNull();
