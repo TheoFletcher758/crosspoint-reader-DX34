@@ -1173,16 +1173,17 @@ void TxtReaderActivity::renderPage() {
     }
   };
 
-  // Two-pass font prewarm: scan pass collects text, then decompress needed glyphs
+  // Two-pass font prewarm: scan pass collects text, then decompress needed glyphs.
+  // The actual render must happen inside the scope so page buffers stay alive.
   auto* fcm = renderer.getFontCacheManager();
   if (fcm) {
     auto scope = fcm->createPrewarmScope();
     renderLines();  // scan pass
     scope.endScanAndPrewarm();
+    renderLines();  // actual render (BW)
+  } else {
+    renderLines();
   }
-
-  // BW rendering
-  renderLines();
   renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
                   orientedMarginLeft);
 

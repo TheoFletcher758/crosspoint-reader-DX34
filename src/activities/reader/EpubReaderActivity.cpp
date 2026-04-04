@@ -1630,15 +1630,17 @@ void EpubReaderActivity::renderContents(const Page& page,
       renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom;
   const int contentY = orientedMarginTop;
 
-  // Two-pass font prewarm: scan pass collects text, then decompress needed glyphs
+  // Two-pass font prewarm: scan pass collects text, then decompress needed glyphs.
+  // The actual render must happen inside the scope so page buffers stay alive.
   auto* fcm = renderer.getFontCacheManager();
   if (fcm) {
     auto scope = fcm->createPrewarmScope();
     page.render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);  // scan pass
     scope.endScanAndPrewarm();
+    page.render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);  // actual render
+  } else {
+    page.render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
   }
-
-  page.render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
   if (SETTINGS.debugBorders) {
     DrawUtils::drawDottedRect(renderer, orientedMarginLeft, orientedMarginTop,
                    renderer.getScreenWidth() - orientedMarginLeft -
