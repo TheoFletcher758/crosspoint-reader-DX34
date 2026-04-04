@@ -342,10 +342,12 @@ void ReadingThemesActivity::render(Activity::RenderLock&&) {
         std::to_string(READING_THEMES.getCount()) + " / " +
         std::to_string(ReadingThemeStore::MAX_THEMES);
     const int counterW = renderer.getTextWidth(UI_10_FONT_ID, counter.c_str());
+    const int counterH = renderer.getLineHeight(UI_10_FONT_ID);
+    const int counterY =
+        pageHeight - metrics.buttonHintsHeight - 4 - counterH;
     renderer.drawText(UI_10_FONT_ID,
                       pageWidth - metrics.contentSidePadding - counterW,
-                      pageHeight - metrics.buttonHintsHeight - 4,
-                      counter.c_str());
+                      counterY, counter.c_str());
   }
 
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT),
