@@ -230,19 +230,21 @@ void HomeActivity::loop() {
   });
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    if (selectorIndex < recentBooks.size()) {
-      const std::string &selectedPath = recentBooks[selectorIndex].path;
+    if (selectorIndex == 0) {
+      // Pages read counter (tap to reset)
+      APP_STATE.sessionPagesRead = 0;
+      APP_STATE.saveToFile();
+      requestUpdate();
+    } else if (selectorIndex <= static_cast<int>(recentBooks.size())) {
+      const int bookIndex = selectorIndex - 1;
+      const std::string &selectedPath = recentBooks[bookIndex].path;
       if (selectedPath.empty()) {
         onRecentsOpen();
       } else {
         onSelectBook(selectedPath);
       }
-    } else if (selectorIndex < recentSlots) {
+    } else if (selectorIndex < recentSlots + 1) {
       onMyLibraryOpen();
-    } else if (selectorIndex == recentSlots) {
-      APP_STATE.sessionPagesRead = 0;
-      APP_STATE.saveToFile();
-      requestUpdate();
     } else {
       const int menuSelectedIndex = selectorIndex - recentSlots - 1;
       if (menuSelectedIndex >= static_cast<int>(menuItems.size())) {
@@ -301,7 +303,7 @@ void HomeActivity::render(Activity::RenderLock &&) {
   const std::string sessionPagesText =
       std::string(tr(STR_SESSION_PAGES)) + ": " +
       std::to_string(APP_STATE.sessionPagesRead);
-  const bool pagesSelected = selectorIndex == recentSlots;
+  const bool pagesSelected = selectorIndex == 0;
   const int pagesTextWidth =
       renderer.getTextWidth(sessionStatFont, sessionPagesText.c_str());
   const int pagesTileX = metrics.contentSidePadding;
@@ -334,7 +336,7 @@ void HomeActivity::render(Activity::RenderLock &&) {
       std::max(0, menuY - recentAreaBottomGap - recentAreaY);
   GUI.drawRecentBookCover(
       renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
-      selectorIndex, coverRendered, coverBufferStored, bufferRestored,
+      selectorIndex - 1, coverRendered, coverBufferStored, bufferRestored,
       std::bind(&HomeActivity::storeCoverBuffer, this));
 
   for (int i = 0; i < menuCount; ++i) {
