@@ -14,21 +14,21 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
 
   // Info about a single word on a page, flattened from the PageLine/TextBlock hierarchy
   struct WordInfo {
-    int x;       // screen x position
-    int y;       // screen y position
-    int width;   // pixel width of the word
+    int x;      // screen x position
+    int y;      // screen y position
+    int width;  // pixel width of the word
     std::string text;
     EpdFontFamily::Style style;
     int16_t letterSpacing;
   };
 
   HighlightState highlightState = HighlightState::NONE;
-  int highlightCursorIndex = 0;       // current cursor position (flat word index on current page)
-  int highlightStartSpine = -1;       // spine index where selection started
-  int highlightStartPage = -1;        // page number where selection started
-  int highlightStartWordIndex = -1;   // flat word index of start on start page
-  int highlightEndPage = -1;          // page number of end cursor (may differ from start)
-  int highlightEndWordIndex = -1;     // flat word index of end on end page
+  int highlightCursorIndex = 0;      // current cursor position (flat word index on current page)
+  int highlightStartSpine = -1;      // spine index where selection started
+  int highlightStartPage = -1;       // page number where selection started
+  int highlightStartWordIndex = -1;  // flat word index of start on start page
+  int highlightEndPage = -1;         // page number of end cursor (may differ from start)
+  int highlightEndWordIndex = -1;    // flat word index of end on end page
 
   std::vector<WordInfo> buildWordList(const Page& page, int xOffset, int yOffset, int fontId) const;
   void enterHighlightMode();
@@ -106,8 +106,8 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   const std::function<void()> onGoHome;
   const std::function<void(const std::string&)> onOpenBook;
 
-  void renderContents(const Page& page, int orientedMarginTop, int orientedMarginRight,
-                      int orientedMarginBottom, int orientedMarginLeft, const StatusBarLayout& statusBarLayout);
+  void renderContents(const Page& page, int orientedMarginTop, int orientedMarginRight, int orientedMarginBottom,
+                      int orientedMarginLeft, const StatusBarLayout& statusBarLayout);
   void renderStatusBar(const StatusBarLayout& statusBarLayout, int orientedMarginRight, int orientedMarginBottom,
                        int orientedMarginLeft);
   void silentIndexNextChapterIfNeeded(uint16_t viewportWidth, uint16_t viewportHeight);
@@ -121,8 +121,8 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   int getWrappedStatusBarReserveLineCount(int usableWidth);
   const std::vector<std::string>& getStatusBarTitleLines(int tocIndex, int usableWidth, bool noTitleTruncation,
                                                          int maxTitleLineCount);
-  StatusBarLayout buildStatusBarLayout(int usableWidth, int topReservedHeight,
-                                       int bottomReservedHeight, int maxTitleLineCount);
+  StatusBarLayout buildStatusBarLayout(int usableWidth, int topReservedHeight, int bottomReservedHeight,
+                                       int maxTitleLineCount);
   // Jump to a percentage of the book (0-100), mapping it to spine and page.
   void jumpToPercent(int percent);
   void onReaderMenuBack(uint8_t orientation);
