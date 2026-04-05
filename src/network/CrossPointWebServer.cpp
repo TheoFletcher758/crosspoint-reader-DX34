@@ -519,29 +519,25 @@ void CrossPointWebServer::handleDownload() const {
     filename = nameBuf;
   }
 
-  server->setContentLength(file.size());
+  const size_t fileSize = file.size();
+  server->setContentLength(fileSize);
   server->sendHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+  server->sendHeader("Connection", "close");
   server->send(200, contentType.c_str(), "");
 
-  WiFiClient client = server->client();
-
-  // Stream in chunks to avoid watchdog timeouts on large files
-  uint8_t buf[4096];
+  // Stream file in chunks using sendContent for proper WebServer integration
+  char buf[4096];
   size_t totalSent = 0;
-  const size_t fileSize = file.size();
-  while (totalSent < fileSize && client.connected()) {
+  while (totalSent < fileSize) {
     esp_task_wdt_reset();
     const size_t remaining = fileSize - totalSent;
     const size_t toRead = remaining < sizeof(buf) ? remaining : sizeof(buf);
-    const int bytesRead = file.read(buf, toRead);
+    const int bytesRead = file.read(reinterpret_cast<uint8_t*>(buf), toRead);
     if (bytesRead <= 0) break;
-    const size_t written = client.write(buf, bytesRead);
-    if (written == 0) break;
-    totalSent += written;
+    server->sendContent(buf, bytesRead);
+    totalSent += bytesRead;
   }
   file.close();
-  client.flush();
-  client.stop();
 }
 
 void CrossPointWebServer::handlePreview() const {
@@ -572,25 +568,23 @@ void CrossPointWebServer::handlePreview() const {
   }
 
   server->setContentLength(file.size());
+  const size_t fileSize = file.size();
+  server->setContentLength(fileSize);
+  server->sendHeader("Connection", "close");
   server->send(200, "image/bmp", "");
 
-  WiFiClient client = server->client();
-  uint8_t buf[4096];
+  char buf[4096];
   size_t totalSent = 0;
-  const size_t fileSize = file.size();
-  while (totalSent < fileSize && client.connected()) {
+  while (totalSent < fileSize) {
     esp_task_wdt_reset();
     const size_t remaining = fileSize - totalSent;
     const size_t toRead = remaining < sizeof(buf) ? remaining : sizeof(buf);
-    const int bytesRead = file.read(buf, toRead);
+    const int bytesRead = file.read(reinterpret_cast<uint8_t*>(buf), toRead);
     if (bytesRead <= 0) break;
-    const size_t written = client.write(buf, bytesRead);
-    if (written == 0) break;
-    totalSent += written;
+    server->sendContent(buf, bytesRead);
+    totalSent += bytesRead;
   }
   file.close();
-  client.flush();
-  client.stop();
 }
 
 // Diagnostic counters for upload performance analysis
