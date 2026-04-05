@@ -21,6 +21,7 @@
 #include "fontIds.h"
 #include "util/BookProgress.h"
 #include "util/FavoriteBmp.h"
+#include "activities/network/QRShareActivity.h"
 #include "util/StatusPopup.h"
 #include "util/StringUtils.h"
 
@@ -523,7 +524,7 @@ void MyLibraryActivity::enterFileMoveBrowser() {
 }
 
 int MyLibraryActivity::getFileActionCount() const {
-  return isBmpFile(selectedFilePath) ? 6 : 4;
+  return isBmpFile(selectedFilePath) ? 7 : 5;
 }
 
 std::string MyLibraryActivity::getFileActionLabel(const int index) const {
@@ -538,6 +539,8 @@ std::string MyLibraryActivity::getFileActionLabel(const int index) const {
       case 3:
         return FavoriteBmp::isFavoritePath(selectedFilePath) ? "Unfavorite" : "Favorite";
       case 4:
+        return "Share via QR";
+      case 5:
         return "Delete File";
       default:
         return "Cancel";
@@ -550,6 +553,8 @@ std::string MyLibraryActivity::getFileActionLabel(const int index) const {
     case 1:
       return "Move File";
     case 2:
+      return "Share via QR";
+    case 3:
       return "Delete File";
     default:
       return "Cancel";
@@ -830,7 +835,12 @@ void MyLibraryActivity::loop() {
             requestCleanRefresh();
             break;
           }
-          case 4: {
+          case 4:
+            exitActivity();
+            enterNewActivity(new QRShareActivity(renderer, mappedInput,
+                [this] { exitActivity(); requestCleanRefresh(); }, selectedFilePath));
+            return;
+          case 5: {
             const std::string pathToDelete = selectedFilePath;
             if (deleteSelectedFile()) {
               if (const auto rawIndex = rawFileIndexForPath(pathToDelete);
@@ -856,7 +866,12 @@ void MyLibraryActivity::loop() {
           case 1:
             enterFileMoveBrowser();
             break;
-          case 2: {
+          case 2:
+            exitActivity();
+            enterNewActivity(new QRShareActivity(renderer, mappedInput,
+                [this] { exitActivity(); requestCleanRefresh(); }, selectedFilePath));
+            return;
+          case 3: {
             const std::string pathToDelete = selectedFilePath;
             StatusPopup::showBlocking(renderer, "Deleting file");
             if (deleteSelectedFile()) {
