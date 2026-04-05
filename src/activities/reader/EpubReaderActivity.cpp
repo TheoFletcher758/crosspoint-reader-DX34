@@ -300,6 +300,7 @@ void EpubReaderActivity::onEnter() {
 void EpubReaderActivity::onExit() {
   flushProgressIfNeeded(true);
   pendingMenuOpen = false;
+  highlightState = HighlightState::NONE;
   EpdFontFamily::setReaderBoldSwapEnabled(false);
   ActivityWithSubactivity::onExit();
 
@@ -589,6 +590,12 @@ void EpubReaderActivity::loop() {
     return; // Don't access 'this' after callback
   }
 
+  // Highlight mode intercepts all input while active
+  if (highlightState != HighlightState::NONE) {
+    handleHighlightInput();
+    return;
+  }
+
   if (pendingMenuOpen &&
       !mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
       millis() - lastConfirmReleaseMs > confirmDoubleTapMs) {
@@ -636,18 +643,13 @@ void EpubReaderActivity::loop() {
     return;
   }
 
-  // Long press CONFIRM (1s+) toggles orientation: Portrait <-> Landscape CCW.
+  // Long press CONFIRM (1s+) enters text highlight/quote selection mode.
   if (!confirmLongPressHandled &&
       mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
       mappedInput.getHeldTime() >= goHomeMs) {
     confirmLongPressHandled = true;
     suppressNextConfirmRelease = true;
-    const uint8_t nextOrientation =
-        (SETTINGS.orientation == CrossPointSettings::ORIENTATION::LANDSCAPE_CCW)
-            ? CrossPointSettings::ORIENTATION::PORTRAIT
-            : CrossPointSettings::ORIENTATION::LANDSCAPE_CCW;
-    applyOrientation(nextOrientation);
-    requestUpdate();
+    enterHighlightMode();
     return;
   }
 
@@ -1617,6 +1619,308 @@ void EpubReaderActivity::addSessionPagesRead(const uint32_t amount) {
   APP_STATE.sessionPagesRead += amount;
 }
 
+// ── Highlight / Quote selection mode ──────────────────────────────────────────
+
+std::vector<EpubReaderActivity::WordInfo> EpubReaderActivity::buildWordList(
+    const Page& page, const int xOffset, const int yOffset, const int fontId) const {
+  std::vector<WordInfo> result;
+  for (const auto& el : page.elements) {
+    if (el->getTag() != TAG_PageLine) continue;
+    const auto& line = static_cast<const PageLine&>(*el);
+    const auto& tb = line.getTextBlock();
+    const auto& words = tb.getWords();
+    const auto& xpos = tb.getWordXpos();
+    const auto& styles = tb.getWordStyles();
+    const int16_t ls = tb.getLetterSpacing();
+    for (size_t i = 0; i < words.size(); i++) {
+      WordInfo wi;
+      wi.x = static_cast<int>(xpos[i]) + line.xPos + xOffset;
+      wi.y = line.yPos + yOffset;
+      wi.width = renderer.getTextWidthSpaced(fontId, words[i].c_str(), ls, styles[i]);
+      wi.text = words[i];
+      wi.style = styles[i];
+      wi.letterSpacing = ls;
+      result.push_back(std::move(wi));
+    }
+  }
+  return result;
+}
+
+void EpubReaderActivity::enterHighlightMode() {
+  if (!section || section->pageCount == 0) return;
+  highlightState = HighlightState::SELECT_START;
+  highlightCursorIndex = 0;
+  highlightStartSpine = -1;
+  highlightStartPage = -1;
+  highlightStartWordIndex = -1;
+  highlightEndPage = -1;
+  highlightEndWordIndex = -1;
+  requestUpdate();
+}
+
+void EpubReaderActivity::exitHighlightMode() {
+  highlightState = HighlightState::NONE;
+  highlightCursorIndex = 0;
+  highlightStartSpine = -1;
+  highlightStartPage = -1;
+  highlightStartWordIndex = -1;
+  highlightEndPage = -1;
+  highlightEndWordIndex = -1;
+  requestUpdate();
+}
+
+void EpubReaderActivity::highlightMoveCursor(const int direction) {
+  if (!section) return;
+
+  if (highlightState == HighlightState::SELECT_START) {
+    // Load current page to get word count
+    auto page = loadAndCachePage(section->currentPage);
+    if (!page) return;
+
+    int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
+    renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight,
+                                     &orientedMarginBottom, &orientedMarginLeft);
+    const int contentY = orientedMarginTop;
+    auto wordList = buildWordList(*page, orientedMarginLeft, contentY, SETTINGS.getReaderFontId());
+    const int wordCount = static_cast<int>(wordList.size());
+    if (wordCount == 0) return;
+
+    int newIndex = highlightCursorIndex + direction;
+    if (newIndex < 0) newIndex = 0;
+    if (newIndex >= wordCount) newIndex = wordCount - 1;
+    highlightCursorIndex = newIndex;
+    requestUpdate();
+  } else if (highlightState == HighlightState::SELECT_END) {
+    auto page = loadAndCachePage(section->currentPage);
+    if (!page) return;
+
+    int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
+    renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight,
+                                     &orientedMarginBottom, &orientedMarginLeft);
+    const int contentY = orientedMarginTop;
+    auto wordList = buildWordList(*page, orientedMarginLeft, contentY, SETTINGS.getReaderFontId());
+    const int wordCount = static_cast<int>(wordList.size());
+
+    int newIndex = highlightEndWordIndex + direction;
+
+    // Check if we need to go to next page
+    if (newIndex >= wordCount) {
+      if (section->currentPage < section->pageCount - 1) {
+        section->currentPage++;
+        highlightEndPage = section->currentPage;
+        highlightEndWordIndex = 0;
+        requestUpdate();
+        return;
+      }
+      // At last page, clamp
+      newIndex = wordCount > 0 ? wordCount - 1 : 0;
+    }
+
+    // Check if we need to go to previous page
+    if (newIndex < 0) {
+      if (section->currentPage > highlightStartPage ||
+          (highlightStartSpine == currentSpineIndex && section->currentPage > highlightStartPage)) {
+        section->currentPage--;
+        highlightEndPage = section->currentPage;
+        // Load previous page to get its word count
+        auto prevPage = loadAndCachePage(section->currentPage);
+        if (prevPage) {
+          auto prevWordList = buildWordList(*prevPage, orientedMarginLeft, contentY, SETTINGS.getReaderFontId());
+          highlightEndWordIndex = static_cast<int>(prevWordList.size()) - 1;
+          if (highlightEndWordIndex < 0) highlightEndWordIndex = 0;
+        }
+        requestUpdate();
+        return;
+      }
+      // Can't go before start position
+      if (section->currentPage == highlightStartPage) {
+        newIndex = highlightStartWordIndex;
+      } else {
+        newIndex = 0;
+      }
+    }
+
+    // Don't allow end to go before start on the same page
+    if (section->currentPage == highlightStartPage && newIndex < highlightStartWordIndex) {
+      newIndex = highlightStartWordIndex;
+    }
+
+    highlightEndWordIndex = newIndex;
+    requestUpdate();
+  }
+}
+
+void EpubReaderActivity::highlightConfirmSelection() {
+  if (highlightState == HighlightState::SELECT_START) {
+    // Lock start position, switch to selecting end
+    highlightStartSpine = currentSpineIndex;
+    highlightStartPage = section->currentPage;
+    highlightStartWordIndex = highlightCursorIndex;
+    highlightEndPage = section->currentPage;
+    highlightEndWordIndex = highlightCursorIndex;
+    highlightState = HighlightState::SELECT_END;
+    requestUpdate();
+  } else if (highlightState == HighlightState::SELECT_END) {
+    // Extract quote and save
+    std::string quote = extractQuoteText();
+    if (!quote.empty()) {
+      saveQuoteToFile(quote);
+      StatusPopup::showBlocking(renderer, "Quote saved!");
+    }
+    exitHighlightMode();
+  }
+}
+
+void EpubReaderActivity::handleHighlightInput() {
+  // Back cancels highlight mode
+  if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
+    exitHighlightMode();
+    return;
+  }
+
+  // Confirm (release) advances state
+  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+    highlightConfirmSelection();
+    return;
+  }
+
+  // Up/PageBack = move cursor backward (previous word)
+  if (mappedInput.wasPressed(MappedInputManager::Button::Up) ||
+      mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
+      mappedInput.wasPressed(MappedInputManager::Button::Left)) {
+    highlightMoveCursor(-1);
+    return;
+  }
+
+  // Down/PageForward = move cursor forward (next word)
+  if (mappedInput.wasPressed(MappedInputManager::Button::Down) ||
+      mappedInput.wasPressed(MappedInputManager::Button::PageForward) ||
+      mappedInput.wasPressed(MappedInputManager::Button::Right)) {
+    highlightMoveCursor(+1);
+    return;
+  }
+}
+
+void EpubReaderActivity::renderHighlights(const Page& page, const int fontId,
+                                           const int xOffset, const int yOffset) {
+  auto wordList = buildWordList(page, xOffset, yOffset, fontId);
+  if (wordList.empty()) return;
+
+  const int lineHeight = renderer.getLineHeight(fontId);
+
+  if (highlightState == HighlightState::SELECT_START) {
+    // Highlight just the cursor word with inverted colors
+    if (highlightCursorIndex >= 0 && highlightCursorIndex < static_cast<int>(wordList.size())) {
+      const auto& w = wordList[highlightCursorIndex];
+      renderer.fillRect(w.x, w.y, w.width, lineHeight, true);
+      renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
+    }
+  } else if (highlightState == HighlightState::SELECT_END) {
+    // Determine which words to highlight on the current displayed page
+    int selStart = -1;
+    int selEnd = -1;
+
+    if (section->currentPage == highlightStartPage) {
+      // Start page: highlight from start word to end (or end word if same page)
+      selStart = highlightStartWordIndex;
+      if (section->currentPage == highlightEndPage) {
+        selEnd = highlightEndWordIndex;
+      } else {
+        selEnd = static_cast<int>(wordList.size()) - 1;
+      }
+    } else if (section->currentPage == highlightEndPage) {
+      // End page: highlight from beginning to end word
+      selStart = 0;
+      selEnd = highlightEndWordIndex;
+    } else if (section->currentPage > highlightStartPage &&
+               section->currentPage < highlightEndPage) {
+      // Middle page: highlight everything
+      selStart = 0;
+      selEnd = static_cast<int>(wordList.size()) - 1;
+    }
+
+    if (selStart >= 0 && selEnd >= 0) {
+      for (int i = selStart; i <= selEnd && i < static_cast<int>(wordList.size()); i++) {
+        const auto& w = wordList[i];
+        renderer.fillRect(w.x, w.y, w.width, lineHeight, true);
+        renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
+      }
+    }
+  }
+}
+
+std::string EpubReaderActivity::extractQuoteText() {
+  if (highlightStartPage < 0 || highlightEndPage < 0 || !section) return "";
+
+  std::string result;
+  int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
+  renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight,
+                                   &orientedMarginBottom, &orientedMarginLeft);
+  const int contentY = orientedMarginTop;
+  const int fontId = SETTINGS.getReaderFontId();
+
+  for (int pg = highlightStartPage; pg <= highlightEndPage; pg++) {
+    auto page = loadAndCachePage(pg);
+    if (!page) continue;
+
+    auto wordList = buildWordList(*page, orientedMarginLeft, contentY, fontId);
+    int startIdx = (pg == highlightStartPage) ? highlightStartWordIndex : 0;
+    int endIdx = (pg == highlightEndPage) ? highlightEndWordIndex : static_cast<int>(wordList.size()) - 1;
+
+    for (int i = startIdx; i <= endIdx && i < static_cast<int>(wordList.size()); i++) {
+      if (!result.empty()) {
+        // Check if the word starts with punctuation that should be attached
+        const char first = wordList[i].text.empty() ? '\0' : wordList[i].text[0];
+        if (first != ',' && first != '.' && first != ';' && first != ':' &&
+            first != '!' && first != '?' && first != ')' && first != '"') {
+          result += ' ';
+        }
+      }
+      result += wordList[i].text;
+    }
+  }
+
+  return result;
+}
+
+std::string EpubReaderActivity::getChapterTitle() const {
+  if (!epub) return "";
+  const int tocIndex = epub->getTocIndexForSpineIndex(currentSpineIndex);
+  if (tocIndex >= 0) {
+    const auto tocEntry = epub->getTocItem(tocIndex);
+    return tocEntry.title;
+  }
+  return "Chapter " + std::to_string(currentSpineIndex + 1);
+}
+
+void EpubReaderActivity::saveQuoteToFile(const std::string& quote) {
+  if (!epub || quote.empty()) return;
+
+  // Build quotes file path: same directory as book, with _QUOTES.txt suffix
+  std::string bookPath = epub->getPath();
+  // Find last dot to strip extension
+  auto dotPos = bookPath.rfind('.');
+  std::string basePath = (dotPos != std::string::npos) ? bookPath.substr(0, dotPos) : bookPath;
+  std::string quotesPath = basePath + "_QUOTES.txt";
+
+  // Open file in append mode
+  HalFile file = Storage.open(quotesPath.c_str(), O_WRITE | O_CREAT | O_APPEND);
+  if (!file) {
+    LOG_ERR("HLT", "Failed to open quotes file: %s", quotesPath.c_str());
+    return;
+  }
+
+  // Write chapter info and quote
+  std::string chapterTitle = getChapterTitle();
+  std::string entry = "[" + chapterTitle + "]\n" + quote + "\n---\n\n";
+  file.write(entry.c_str(), entry.size());
+  file.close();
+
+  LOG_DBG("HLT", "Quote saved to %s", quotesPath.c_str());
+}
+
+// ── End Highlight / Quote selection mode ─────────────────────────────────────
+
 void EpubReaderActivity::renderContents(const Page& page,
                                         const int orientedMarginTop,
                                         const int orientedMarginRight,
@@ -1641,6 +1945,11 @@ void EpubReaderActivity::renderContents(const Page& page,
   } else {
     page.render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
   }
+  // Render highlight overlay if in highlight/quote selection mode
+  if (highlightState != HighlightState::NONE) {
+    renderHighlights(page, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
+  }
+
   if (SETTINGS.debugBorders) {
     DrawUtils::drawDottedRect(renderer, orientedMarginLeft, orientedMarginTop,
                    renderer.getScreenWidth() - orientedMarginLeft -

@@ -36,6 +36,7 @@ class PageLine final : public PageElement {
   bool serialize(FsFile& file) override;
   PageElementTag getTag() const override { return TAG_PageLine; }
   static std::unique_ptr<PageLine> deserialize(FsFile& file);
+  const TextBlock& getTextBlock() const { return *block; }
 };
 
 // New PageImage class

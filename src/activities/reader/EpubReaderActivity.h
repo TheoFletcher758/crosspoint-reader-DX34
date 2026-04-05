@@ -3,11 +3,43 @@
 #include <Epub/Section.h>
 
 #include <array>
+#include <string>
 
 #include "EpubReaderMenuActivity.h"
 #include "activities/ActivityWithSubactivity.h"
 
 class EpubReaderActivity final : public ActivityWithSubactivity {
+  // --- Highlight/Quote selection mode ---
+  enum class HighlightState { NONE, SELECT_START, SELECT_END };
+
+  // Info about a single word on a page, flattened from the PageLine/TextBlock hierarchy
+  struct WordInfo {
+    int x;       // screen x position
+    int y;       // screen y position
+    int width;   // pixel width of the word
+    std::string text;
+    EpdFontFamily::Style style;
+    int16_t letterSpacing;
+  };
+
+  HighlightState highlightState = HighlightState::NONE;
+  int highlightCursorIndex = 0;       // current cursor position (flat word index on current page)
+  int highlightStartSpine = -1;       // spine index where selection started
+  int highlightStartPage = -1;        // page number where selection started
+  int highlightStartWordIndex = -1;   // flat word index of start on start page
+  int highlightEndPage = -1;          // page number of end cursor (may differ from start)
+  int highlightEndWordIndex = -1;     // flat word index of end on end page
+
+  std::vector<WordInfo> buildWordList(const Page& page, int xOffset, int yOffset, int fontId) const;
+  void enterHighlightMode();
+  void exitHighlightMode();
+  void highlightMoveCursor(int direction);
+  void highlightConfirmSelection();
+  void handleHighlightInput();
+  void renderHighlights(const Page& page, int fontId, int xOffset, int yOffset);
+  std::string extractQuoteText();
+  void saveQuoteToFile(const std::string& quote);
+  std::string getChapterTitle() const;
   struct StatusBarLayout {
     int topReservedHeight = 0;
     int bottomReservedHeight = 0;

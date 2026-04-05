@@ -31,6 +31,12 @@ class TextBlock final : public Block {
   // given a renderer works out where to break the words into lines
   void render(const GfxRenderer& renderer, int fontId, int x, int y) const;
   BlockType getType() override { return TEXT_BLOCK; }
+
+  // Public accessors for highlight/quote selection
+  const std::vector<std::string>& getWords() const { return words; }
+  const std::vector<uint16_t>& getWordXpos() const { return wordXpos; }
+  const std::vector<EpdFontFamily::Style>& getWordStyles() const { return wordStyles; }
+  int16_t getLetterSpacing() const { return blockStyle.letterSpacing; }
   bool serialize(FsFile& file) const;
   static std::unique_ptr<TextBlock> deserialize(FsFile& file);
 };
