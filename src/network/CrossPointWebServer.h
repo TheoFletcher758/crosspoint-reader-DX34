@@ -85,6 +85,7 @@ class CrossPointWebServer {
 
   // File scanning
   void scanFiles(const char* path, const std::function<void(FileInfo)>& callback) const;
+  void scanFilesRecursive(const char* path, const std::function<void(const String& fullPath, const FileInfo&)>& callback) const;
   String formatFileSize(size_t bytes) const;
   bool isEpubFile(const String& filename) const;
   bool isBmpFile(const String& filename) const;
@@ -103,6 +104,7 @@ class CrossPointWebServer {
   void handleRename() const;
   void handleMove() const;
   void handleDelete() const;
+  void handleSearch() const;
 
   // Settings handlers
   void handleSettingsPage() const;

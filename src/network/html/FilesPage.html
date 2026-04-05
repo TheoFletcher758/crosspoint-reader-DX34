@@ -265,6 +265,65 @@
       padding: 40px;
       font-style: italic;
     }
+    /* Search UI */
+    .search-container {
+      position: relative;
+      width: 100%;
+      margin-bottom: 15px;
+    }
+    .search-input {
+      width: 100%;
+      padding: 12px 40px 12px 16px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1em;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+    .search-input::placeholder {
+      color: #bdc3c7;
+    }
+    .search-clear {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      font-size: 1.3em;
+      cursor: pointer;
+      color: #95a5a6;
+      padding: 4px;
+      display: none;
+    }
+    .search-clear:hover {
+      color: #e74c3c;
+    }
+    .search-status {
+      color: #7f8c8d;
+      font-size: 0.85em;
+      margin: 6px 0 0 4px;
+    }
+    .search-results-card {
+      display: none;
+    }
+    .search-results-card.show {
+      display: block;
+    }
+    .search-match {
+      font-weight: bold;
+      color: #e67e22;
+    }
+    .search-path {
+      color: #95a5a6;
+      font-size: 0.8em;
+      display: block;
+      margin-top: 2px;
+    }
     .message {
       padding: 15px;
       border-radius: 4px;
@@ -678,7 +737,28 @@
   <button class="retry-all-btn" onclick="retryAllFailedUploads()">Retry All Failed Uploads</button>
 </div>
 
+<!-- Search Bar -->
 <div class="card">
+  <div class="search-container">
+    <input type="text" id="searchInput" class="search-input" placeholder="Search books and images across all folders..." autocomplete="off">
+    <button class="search-clear" id="searchClear" onclick="clearSearch()">&times;</button>
+  </div>
+  <div class="search-status" id="searchStatus"></div>
+</div>
+
+<!-- Search Results -->
+<div class="card search-results-card" id="searchResultsCard">
+  <div class="contents-header">
+    <h2 class="contents-title">Search Results</h2>
+    <span class="summary-inline" id="search-summary"></span>
+  </div>
+  <div style="margin-bottom:10px;">
+    <button class="action-btn" style="background-color:#2980b9" onclick="downloadSelectedSearch()">💾 Download Selected</button>
+  </div>
+  <div id="search-results-table"></div>
+</div>
+
+<div class="card" id="folderContentsCard">
   <div class="contents-header">
     <h2 class="contents-title">Contents</h2>
     <span class="summary-inline" id="folder-summary"></span>
@@ -1926,6 +2006,296 @@ function retryAllFailedUploads() {
 
     xhr.send(formData);
   }
+  // ===== SEARCH FUNCTIONALITY =====
+  let allFilesCache = null;  // Cached recursive file listing
+  let searchDebounceTimer = null;
+  let searchLoading = false;
+
+  // Fuzzy search algorithm (ported from device LibrarySearchSupport)
+  function toLowerAscii(s) { return s.toLowerCase(); }
+
+  function startsWithIgnoreCase(text, prefix) {
+    if (prefix.length > text.length) return false;
+    return text.substring(0, prefix.length).toLowerCase() === prefix.toLowerCase();
+  }
+
+  function isWordBoundary(text, index) {
+    if (index === 0) return true;
+    const ch = text.charCodeAt(index - 1);
+    // Not alphanumeric = word boundary
+    return !((ch >= 48 && ch <= 57) || (ch >= 65 && ch <= 90) || (ch >= 97 && ch <= 122));
+  }
+
+  function findWordBoundaryPrefix(text, query) {
+    if (!query || query.length > text.length) return -1;
+    for (let pos = 0; pos + query.length <= text.length; pos++) {
+      if (!isWordBoundary(text, pos)) continue;
+      if (startsWithIgnoreCase(text.substring(pos), query)) return pos;
+    }
+    return -1;
+  }
+
+  function computeSubsequenceScore(loweredText, loweredQuery) {
+    if (!loweredQuery) return { matched: true, start: 0, span: 0, gaps: 0 };
+    let best = null;
+    for (let startPos = 0; startPos < loweredText.length; startPos++) {
+      if (loweredText[startPos] !== loweredQuery[0]) continue;
+      let queryPos = 1;
+      let textPos = startPos + 1;
+      let lastMatch = startPos;
+      while (queryPos < loweredQuery.length && textPos < loweredText.length) {
+        if (loweredText[textPos] === loweredQuery[queryPos]) {
+          lastMatch = textPos;
+          queryPos++;
+        }
+        textPos++;
+      }
+      if (queryPos !== loweredQuery.length) continue;
+      const start = startPos;
+      const span = lastMatch - startPos;
+      const gaps = span - loweredQuery.length + 1;
+      if (!best || [start, span, gaps] < [best.start, best.span, best.gaps] ||
+          start < best.start || (start === best.start && span < best.span) ||
+          (start === best.start && span === best.span && gaps < best.gaps)) {
+        best = { matched: true, start, span, gaps };
+      }
+    }
+    return best || { matched: false, start: 0, span: 0, gaps: 0 };
+  }
+
+  function rankSearchResults(files, query) {
+    if (!query) return [];
+    const loweredQuery = toLowerAscii(query);
+    const matches = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const label = file.name;
+
+      // Category 0: prefix match
+      if (startsWithIgnoreCase(label, query)) {
+        matches.push({ file, category: 0, start: 0, span: 0, gaps: 0 });
+        continue;
+      }
+
+      // Category 1: word boundary prefix match
+      const boundaryPrefix = findWordBoundaryPrefix(label, query);
+      if (boundaryPrefix >= 0) {
+        matches.push({ file, category: 1, start: boundaryPrefix, span: query.length - 1, gaps: 0 });
+        continue;
+      }
+
+      // Category 2: fuzzy subsequence match
+      const subsequence = computeSubsequenceScore(toLowerAscii(label), loweredQuery);
+      if (!subsequence.matched) continue;
+      matches.push({ file, category: 2, start: subsequence.start, span: subsequence.span, gaps: subsequence.gaps });
+    }
+
+    // Sort: category asc, start asc, span asc, gaps asc
+    matches.sort((a, b) => {
+      if (a.category !== b.category) return a.category - b.category;
+      if (a.start !== b.start) return a.start - b.start;
+      if (a.span !== b.span) return a.span - b.span;
+      return a.gaps - b.gaps;
+    });
+
+    return matches;
+  }
+
+  // Highlight matched characters in filename
+  function highlightMatch(name, query) {
+    if (!query) return escapeHtml(name);
+    const lowerName = name.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+
+    // Try prefix match first
+    if (lowerName.startsWith(lowerQuery)) {
+      return '<span class="search-match">' + escapeHtml(name.substring(0, query.length)) + '</span>' + escapeHtml(name.substring(query.length));
+    }
+
+    // Try word boundary match
+    const bp = findWordBoundaryPrefix(name, query);
+    if (bp >= 0) {
+      return escapeHtml(name.substring(0, bp)) + '<span class="search-match">' + escapeHtml(name.substring(bp, bp + query.length)) + '</span>' + escapeHtml(name.substring(bp + query.length));
+    }
+
+    // Fuzzy: highlight each matched char
+    let result = '';
+    let qi = 0;
+    for (let i = 0; i < name.length; i++) {
+      if (qi < lowerQuery.length && lowerName[i] === lowerQuery[qi]) {
+        result += '<span class="search-match">' + escapeHtml(name[i]) + '</span>';
+        qi++;
+      } else {
+        result += escapeHtml(name[i]);
+      }
+    }
+    return result;
+  }
+
+  async function loadAllFiles() {
+    if (allFilesCache) return allFilesCache;
+    searchLoading = true;
+    document.getElementById('searchStatus').textContent = 'Loading file index...';
+    try {
+      const response = await fetch('/api/search');
+      if (!response.ok) throw new Error('Failed to load');
+      allFilesCache = await response.json();
+      document.getElementById('searchStatus').textContent = '';
+      return allFilesCache;
+    } catch (e) {
+      document.getElementById('searchStatus').textContent = 'Failed to load file index.';
+      return [];
+    } finally {
+      searchLoading = false;
+    }
+  }
+
+  function clearSearch() {
+    const input = document.getElementById('searchInput');
+    input.value = '';
+    document.getElementById('searchClear').style.display = 'none';
+    document.getElementById('searchResultsCard').classList.remove('show');
+    document.getElementById('folderContentsCard').style.display = '';
+    document.getElementById('searchStatus').textContent = '';
+  }
+
+  function renderSearchResults(matches, query) {
+    const resultsCard = document.getElementById('searchResultsCard');
+    const resultsTable = document.getElementById('search-results-table');
+    const summary = document.getElementById('search-summary');
+
+    if (matches.length === 0) {
+      resultsTable.innerHTML = '<div class="no-files">No matches found</div>';
+      summary.textContent = '0 results';
+      resultsCard.classList.add('show');
+      document.getElementById('folderContentsCard').style.display = 'none';
+      return;
+    }
+
+    // Cap at 100 results
+    const capped = matches.slice(0, 100);
+    const fileCount = capped.filter(m => !m.file.isDirectory).length;
+    const folderCount = capped.filter(m => m.file.isDirectory).length;
+    let summaryParts = [];
+    if (fileCount > 0) summaryParts.push(fileCount + ' file' + (fileCount > 1 ? 's' : ''));
+    if (folderCount > 0) summaryParts.push(folderCount + ' folder' + (folderCount > 1 ? 's' : ''));
+    if (matches.length > 100) summaryParts.push('showing first 100 of ' + matches.length);
+    summary.textContent = summaryParts.join(', ');
+
+    let html = '<table class="file-table">';
+    html += '<tr><th style="width:40px"><input type="checkbox" onchange="toggleSelectAllSearch(this)"></th><th>Name</th><th>Path</th><th>Type</th><th>Size</th></tr>';
+
+    capped.forEach(match => {
+      const f = match.file;
+      const rowClass = f.isDirectory ? 'folder-row' : (f.isEpub ? 'epub-file' : (f.isBmp ? 'bmp-file' : ''));
+      const icon = f.isDirectory ? '📁' : (f.isEpub ? '📗' : (f.isBmp ? '🖼️' : '📄'));
+      const badge = f.isDirectory ? '<span class="folder-badge">FOLDER</span>' :
+                    (f.isEpub ? '<span class="epub-badge">EPUB</span>' :
+                    (f.isBmp ? '<span class="bmp-badge">BMP</span>' : ''));
+      const typeLabel = f.isDirectory ? 'Folder' : f.name.split('.').pop().toUpperCase();
+      const sizeLabel = f.isDirectory ? '-' : formatFileSize(f.size);
+
+      // Parent directory for display
+      const parentDir = f.path.substring(0, f.path.lastIndexOf('/')) || '/';
+
+      html += '<tr class="' + rowClass + '">';
+      if (f.isDirectory) {
+        html += '<td></td>';
+      } else {
+        html += '<td><input type="checkbox" class="search-select-item" data-path="' + encodeURIComponent(f.path) + '" data-name="' + escapeHtml(f.name) + '"></td>';
+      }
+      html += '<td><span class="file-icon">' + icon + '</span>';
+      if (f.isDirectory) {
+        html += '<a href="/files?path=' + encodeURIComponent(f.path) + '" class="folder-link">' + highlightMatch(f.name, query) + '</a>';
+      } else if (f.isBmp) {
+        html += '<a href="#" onclick="openImagePreview(\'' + f.path.replaceAll("'", "\\'") + '\', \'' + f.name.replaceAll("'", "\\'") + '\', ' + f.size + ');return false;" class="file-link">' + highlightMatch(f.name, query) + '</a>';
+      } else {
+        html += '<a href="#" onclick="downloadFile(\'' + f.path.replaceAll("'", "\\'") + '\', \'' + f.name.replaceAll("'", "\\'") + '\');return false;" class="file-link">' + highlightMatch(f.name, query) + '</a>';
+      }
+      html += badge + '</td>';
+      html += '<td><a href="/files?path=' + encodeURIComponent(parentDir) + '" class="folder-link" style="font-size:0.85em;color:#95a5a6">' + escapeHtml(parentDir) + '</a></td>';
+      html += '<td>' + typeLabel + '</td>';
+      html += '<td>' + sizeLabel + '</td>';
+      html += '</tr>';
+    });
+
+    html += '</table>';
+    resultsTable.innerHTML = html;
+    resultsCard.classList.add('show');
+    document.getElementById('folderContentsCard').style.display = 'none';
+  }
+
+  function toggleSelectAllSearch(master) {
+    document.querySelectorAll('.search-select-item').forEach(cb => { cb.checked = master.checked; });
+  }
+
+  async function downloadSelectedSearch() {
+    const items = [];
+    document.querySelectorAll('.search-select-item:checked').forEach(cb => {
+      items.push({ name: cb.dataset.name, path: decodeURIComponent(cb.dataset.path) });
+    });
+    if (items.length === 0) {
+      alert('Please select at least one file to download.');
+      return;
+    }
+    if (items.length === 1) {
+      downloadFile(items[0].path, items[0].name);
+      return;
+    }
+    // Multiple files: fetch all then ZIP
+    const status = document.createElement('div');
+    status.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:12px;background:#2980b9;color:#fff;text-align:center;z-index:10000;font-size:1.1em;';
+    document.body.appendChild(status);
+    try {
+      const files = [];
+      for (let i = 0; i < items.length; i++) {
+        status.textContent = 'Fetching ' + (i + 1) + ' / ' + items.length + ': ' + items[i].name + '...';
+        const data = await fetchFileBlob(items[i].path);
+        files.push({ name: items[i].name, data: data });
+      }
+      status.textContent = 'Building ZIP...';
+      const zip = buildZip(files);
+      saveBlobAs(zip, 'search-results.zip', 'application/zip');
+    } catch (e) {
+      alert('Download failed: ' + e.message);
+    } finally {
+      document.body.removeChild(status);
+    }
+  }
+
+  // Search event listener
+  document.getElementById('searchInput').addEventListener('input', function() {
+    const query = this.value.trim();
+    const clearBtn = document.getElementById('searchClear');
+    clearBtn.style.display = query ? 'block' : 'none';
+
+    if (!query) {
+      clearSearch();
+      return;
+    }
+
+    // Debounce: wait 300ms after typing stops
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(async () => {
+      const files = await loadAllFiles();
+      if (!files.length) return;
+
+      // Filter to only books and images (not folders) for search, but include folders too
+      const results = rankSearchResults(files, query);
+      renderSearchResults(results, query);
+      document.getElementById('searchStatus').textContent = '';
+    }, 300);
+  });
+
+  // Allow Enter to trigger immediate search
+  document.getElementById('searchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      clearTimeout(searchDebounceTimer);
+      this.dispatchEvent(new Event('input'));
+    }
+  });
+
   hydrate();
 </script>
 </body>
