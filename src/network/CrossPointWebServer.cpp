@@ -40,6 +40,13 @@ size_t wsUploadSize = 0;
 size_t wsUploadReceived = 0;
 unsigned long wsUploadStartTime = 0;
 bool wsUploadInProgress = false;
+
+// WebSocket download state
+FsFile wsDownloadFile;
+size_t wsDownloadSize = 0;
+size_t wsDownloadSent = 0;
+bool wsDownloadInProgress = false;
+uint8_t wsDownloadClientNum = 0;
 String wsLastCompleteName;
 size_t wsLastCompleteSize = 0;
 unsigned long wsLastCompleteAt = 0;
@@ -205,10 +212,14 @@ void CrossPointWebServer::stop() {
 
   LOG_DBG("WEB", "[MEM] Free heap before stop: %d bytes", ESP.getFreeHeap());
 
-  // Close any in-progress WebSocket upload
+  // Close any in-progress WebSocket upload/download
   if (wsUploadInProgress && wsUploadFile) {
     wsUploadFile.close();
     wsUploadInProgress = false;
+  }
+  if (wsDownloadInProgress && wsDownloadFile) {
+    wsDownloadFile.close();
+    wsDownloadInProgress = false;
   }
 
   // Stop WebSocket server
@@ -268,6 +279,35 @@ void CrossPointWebServer::handleClient() {
   // Handle WebSocket events
   if (wsServer) {
     wsServer->loop();
+  }
+
+  // Pump WebSocket download: send up to 2 chunks per loop iteration
+  if (wsDownloadInProgress && wsServer && wsDownloadFile) {
+    uint8_t dlBuf[4096];
+    for (int i = 0; i < 2 && wsDownloadSent < wsDownloadSize; i++) {
+      esp_task_wdt_reset();
+      const size_t remaining = wsDownloadSize - wsDownloadSent;
+      const size_t toRead = remaining < sizeof(dlBuf) ? remaining : sizeof(dlBuf);
+      const int bytesRead = wsDownloadFile.read(dlBuf, toRead);
+      if (bytesRead <= 0) break;
+
+      if (!wsServer->sendBIN(wsDownloadClientNum, dlBuf, bytesRead)) {
+        LOG_ERR("WS", "Download send failed at %d/%d", wsDownloadSent, wsDownloadSize);
+        wsDownloadFile.close();
+        wsDownloadInProgress = false;
+        wsServer->sendTXT(wsDownloadClientNum, "ERROR:Send failed");
+        break;
+      }
+      wsDownloadSent += bytesRead;
+    }
+
+    // Check if download complete
+    if (wsDownloadInProgress && wsDownloadSent >= wsDownloadSize) {
+      wsDownloadFile.close();
+      wsDownloadInProgress = false;
+      wsServer->sendTXT(wsDownloadClientNum, "DLDONE");
+      LOG_DBG("WS", "Download complete: %d bytes sent", wsDownloadSent);
+    }
   }
 
   // Respond to discovery broadcasts
@@ -519,25 +559,27 @@ void CrossPointWebServer::handleDownload() const {
     filename = nameBuf;
   }
 
-  const size_t fileSize = file.size();
-  server->setContentLength(fileSize);
+  // Use chunked transfer encoding so the final empty chunk (0\r\n\r\n)
+  // signals end-of-body at the HTTP level. This avoids the ESP32 WebServer's
+  // broken TCP close behavior that causes Chrome .crdownload files.
+  server->setContentLength(CONTENT_LENGTH_UNKNOWN);
   server->sendHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
-  server->sendHeader("Connection", "close");
   server->send(200, contentType.c_str(), "");
 
-  // Stream file in chunks using sendContent for proper WebServer integration
+  // Stream file in 4KB chunks via sendContent()
   char buf[4096];
-  size_t totalSent = 0;
-  while (totalSent < fileSize) {
+  while (file.available()) {
     esp_task_wdt_reset();
-    const size_t remaining = fileSize - totalSent;
-    const size_t toRead = remaining < sizeof(buf) ? remaining : sizeof(buf);
-    const int bytesRead = file.read(reinterpret_cast<uint8_t*>(buf), toRead);
+    const int bytesRead = file.read(reinterpret_cast<uint8_t*>(buf), sizeof(buf));
     if (bytesRead <= 0) break;
     server->sendContent(buf, bytesRead);
-    totalSent += bytesRead;
+    yield();  // Let WiFi stack process
   }
   file.close();
+
+  // Empty chunk signals end of chunked response
+  server->sendContent("");
+  LOG_DBG("WEB", "Download complete: %s", filename.c_str());
 }
 
 void CrossPointWebServer::handlePreview() const {
@@ -567,24 +609,22 @@ void CrossPointWebServer::handlePreview() const {
     return;
   }
 
-  server->setContentLength(file.size());
-  const size_t fileSize = file.size();
-  server->setContentLength(fileSize);
-  server->sendHeader("Connection", "close");
+  // Use chunked transfer encoding for proper HTTP-level EOF signaling
+  server->setContentLength(CONTENT_LENGTH_UNKNOWN);
   server->send(200, "image/bmp", "");
 
   char buf[4096];
-  size_t totalSent = 0;
-  while (totalSent < fileSize) {
+  while (file.available()) {
     esp_task_wdt_reset();
-    const size_t remaining = fileSize - totalSent;
-    const size_t toRead = remaining < sizeof(buf) ? remaining : sizeof(buf);
-    const int bytesRead = file.read(reinterpret_cast<uint8_t*>(buf), toRead);
+    const int bytesRead = file.read(reinterpret_cast<uint8_t*>(buf), sizeof(buf));
     if (bytesRead <= 0) break;
     server->sendContent(buf, bytesRead);
-    totalSent += bytesRead;
+    yield();
   }
   file.close();
+
+  server->sendContent("");
+  LOG_DBG("WEB", "Preview served");
 }
 
 // Diagnostic counters for upload performance analysis
@@ -1331,6 +1371,12 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
         LOG_DBG("WS", "Deleted incomplete upload: %s", filePath.c_str());
       }
       wsUploadInProgress = false;
+      // Clean up any in-progress download
+      if (wsDownloadInProgress && wsDownloadClientNum == num) {
+        wsDownloadFile.close();
+        wsDownloadInProgress = false;
+        LOG_DBG("WS", "Cancelled download due to disconnect");
+      }
       break;
 
     case WStype_CONNECTED: {
@@ -1343,7 +1389,47 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
       String msg = String((char*)payload);
       LOG_DBG("WS", "Text from client %u: %s", num, msg.c_str());
 
-      if (msg.startsWith("START:")) {
+      if (msg.startsWith("DOWNLOAD:")) {
+        // Parse: DOWNLOAD:<path>
+        String dlPath = msg.substring(9);
+        if (!dlPath.startsWith("/")) dlPath = "/" + dlPath;
+
+        if (wsUploadInProgress) {
+          wsServer->sendTXT(num, "ERROR:Upload in progress");
+          return;
+        }
+        if (wsDownloadInProgress) {
+          wsServer->sendTXT(num, "ERROR:Download already in progress");
+          return;
+        }
+        if (!Storage.exists(dlPath.c_str())) {
+          wsServer->sendTXT(num, "ERROR:File not found");
+          return;
+        }
+
+        wsDownloadFile = Storage.open(dlPath.c_str());
+        if (!wsDownloadFile || wsDownloadFile.isDirectory()) {
+          if (wsDownloadFile) wsDownloadFile.close();
+          wsServer->sendTXT(num, "ERROR:Cannot open file");
+          return;
+        }
+
+        wsDownloadSize = wsDownloadFile.size();
+        wsDownloadSent = 0;
+        wsDownloadClientNum = num;
+        wsDownloadInProgress = true;
+
+        // Extract filename from path
+        char nameBuf[128] = {0};
+        String fname = "download";
+        if (wsDownloadFile.getName(nameBuf, sizeof(nameBuf))) {
+          fname = nameBuf;
+        }
+
+        String ready = "DLREADY:" + fname + ":" + String(wsDownloadSize);
+        wsServer->sendTXT(num, ready);
+        LOG_DBG("WS", "Starting download: %s (%d bytes)", fname.c_str(), wsDownloadSize);
+      } else if (msg.startsWith("START:")) {
         // Parse: START:<filename>:<size>:<path>
         int firstColon = msg.indexOf(':', 6);
         int secondColon = msg.indexOf(':', firstColon + 1);
