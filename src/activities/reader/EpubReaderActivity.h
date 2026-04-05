@@ -1,5 +1,6 @@
 #pragma once
 #include <Epub.h>
+#include <Epub/FootnoteEntry.h>
 #include <Epub/Section.h>
 
 #include <array>
@@ -107,6 +108,16 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   const std::function<void()> onGoHome;
   const std::function<void(const std::string&)> onOpenBook;
 
+  // Footnote support
+  std::vector<FootnoteEntry> currentPageFootnotes;
+  struct SavedPosition {
+    int spineIndex;
+    int pageNumber;
+  };
+  static constexpr int MAX_FOOTNOTE_DEPTH = 3;
+  SavedPosition savedPositions[MAX_FOOTNOTE_DEPTH] = {};
+  int footnoteDepth = 0;
+
   void renderContents(const Page& page, int orientedMarginTop, int orientedMarginRight, int orientedMarginBottom,
                       int orientedMarginLeft, const StatusBarLayout& statusBarLayout);
   void renderStatusBar(const StatusBarLayout& statusBarLayout, int orientedMarginRight, int orientedMarginBottom,
@@ -133,6 +144,10 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   void openReaderMenu();
   void toggleTextRenderMode();
   void addSessionPagesRead(uint32_t amount = 1);
+
+  // Footnote navigation
+  void navigateToHref(const char* href, bool savePosition = false);
+  void restoreSavedPosition();
 
  public:
   explicit EpubReaderActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::unique_ptr<Epub> epub,

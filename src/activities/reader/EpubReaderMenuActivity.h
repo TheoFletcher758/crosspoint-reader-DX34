@@ -14,6 +14,7 @@ class EpubReaderMenuActivity final : public ActivityWithSubactivity {
   // Menu actions available from the reader menu.
   enum class MenuAction {
     SELECT_CHAPTER,
+    FOOTNOTES,
     ROTATE_SCREEN,
     THEMES_MENU,
     REVERT_THEME,
@@ -27,16 +28,9 @@ class EpubReaderMenuActivity final : public ActivityWithSubactivity {
 
   explicit EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& title,
                                   const int currentPage, const int totalPages, const int bookProgressPercent,
-                                  const uint8_t currentOrientation, const std::function<void(uint8_t)>& onBack,
-                                  const std::function<void(MenuAction)>& onAction)
-      : ActivityWithSubactivity("EpubReaderMenu", renderer, mappedInput),
-        title(title),
-        pendingOrientation(currentOrientation),
-        currentPage(currentPage),
-        totalPages(totalPages),
-        bookProgressPercent(bookProgressPercent),
-        onBack(onBack),
-        onAction(onAction) {}
+                                  const uint8_t currentOrientation, const bool hasFootnotes,
+                                  const std::function<void(uint8_t)>& onBack,
+                                  const std::function<void(MenuAction)>& onAction);
 
   void onEnter() override;
   void onExit() override;
@@ -50,17 +44,10 @@ class EpubReaderMenuActivity final : public ActivityWithSubactivity {
     const char* literalLabel = nullptr;
   };
 
-  // Fixed menu layout (order matters for up/down navigation).
-  const std::vector<MenuItem> menuItems = {{MenuAction::SELECT_CHAPTER, StrId::STR_SELECT_CHAPTER},
-                                           {MenuAction::ROTATE_SCREEN, StrId::STR_ORIENTATION},
-                                           {MenuAction::THEMES_MENU, StrId::STR_READING_THEMES},
-                                           {MenuAction::REVERT_THEME, StrId::STR_REVERT_THEME},
-                                           {MenuAction::LAST_SLEEP_WALLPAPER, StrId::STR_LAST_SLEEP_WALLPAPER},
-                                           {MenuAction::GO_HOME, StrId::STR_GO_HOME_BUTTON},
-                                           {MenuAction::SYNC, StrId::STR_SYNC_PROGRESS},
-                                           {MenuAction::DELETE_CACHE, StrId::STR_DELETE_CACHE},
-                                           {MenuAction::DELETE_BOOK, StrId::STR_DELETE_BOOK},
-                                           {MenuAction::REMOVE_FROM_RECENT, StrId::STR_REMOVE_FROM_RECENTS}};
+  static std::vector<MenuItem> buildMenuItems(bool hasFootnotes);
+
+  // Menu layout (built dynamically based on whether page has footnotes)
+  const std::vector<MenuItem> menuItems;
 
   int selectedIndex = 0;
 

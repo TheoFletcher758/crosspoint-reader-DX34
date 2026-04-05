@@ -436,6 +436,9 @@ enum class StrId : uint16_t {
   STR_WSPACING_0,
   STR_WSPACING_P80,
   STR_WSPACING_P240,
+  STR_FOOTNOTES,
+  STR_NO_FOOTNOTES,
+  STR_LINK,
   // Sentinel - must be last
   _COUNT
 };

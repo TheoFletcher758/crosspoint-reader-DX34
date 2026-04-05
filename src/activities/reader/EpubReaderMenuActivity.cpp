@@ -7,6 +7,40 @@
 #include "components/UITheme.h"
 #include "fontIds.h"
 
+EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
+                                               const std::string& title, const int currentPage, const int totalPages,
+                                               const int bookProgressPercent, const uint8_t currentOrientation,
+                                               const bool hasFootnotes, const std::function<void(uint8_t)>& onBack,
+                                               const std::function<void(MenuAction)>& onAction)
+    : ActivityWithSubactivity("EpubReaderMenu", renderer, mappedInput),
+      menuItems(buildMenuItems(hasFootnotes)),
+      title(title),
+      pendingOrientation(currentOrientation),
+      currentPage(currentPage),
+      totalPages(totalPages),
+      bookProgressPercent(bookProgressPercent),
+      onBack(onBack),
+      onAction(onAction) {}
+
+std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuItems(bool hasFootnotes) {
+  std::vector<MenuItem> items;
+  items.reserve(9);
+  items.push_back({MenuAction::SELECT_CHAPTER, StrId::STR_SELECT_CHAPTER});
+  if (hasFootnotes) {
+    items.push_back({MenuAction::FOOTNOTES, StrId::STR_FOOTNOTES});
+  }
+  items.push_back({MenuAction::ROTATE_SCREEN, StrId::STR_ORIENTATION});
+  items.push_back({MenuAction::THEMES_MENU, StrId::STR_READING_THEMES});
+  items.push_back({MenuAction::REVERT_THEME, StrId::STR_REVERT_THEME});
+  items.push_back({MenuAction::LAST_SLEEP_WALLPAPER, StrId::STR_LAST_SLEEP_WALLPAPER});
+  items.push_back({MenuAction::GO_HOME, StrId::STR_GO_HOME_BUTTON});
+  items.push_back({MenuAction::SYNC, StrId::STR_SYNC_PROGRESS});
+  items.push_back({MenuAction::DELETE_CACHE, StrId::STR_DELETE_CACHE});
+  items.push_back({MenuAction::DELETE_BOOK, StrId::STR_DELETE_BOOK});
+  items.push_back({MenuAction::REMOVE_FROM_RECENT, StrId::STR_REMOVE_FROM_RECENTS});
+  return items;
+}
+
 void EpubReaderMenuActivity::onEnter() {
   ActivityWithSubactivity::onEnter();
   requestUpdate();
