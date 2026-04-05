@@ -526,15 +526,22 @@ void CrossPointWebServer::handleDownload() const {
   WiFiClient client = server->client();
 
   // Stream in chunks to avoid watchdog timeouts on large files
-  uint8_t buf[2048];
-  while (file.available() && client.connected()) {
+  uint8_t buf[4096];
+  size_t totalSent = 0;
+  const size_t fileSize = file.size();
+  while (totalSent < fileSize && client.connected()) {
     esp_task_wdt_reset();
-    const int bytesRead = file.read(buf, sizeof(buf));
+    const size_t remaining = fileSize - totalSent;
+    const size_t toRead = remaining < sizeof(buf) ? remaining : sizeof(buf);
+    const int bytesRead = file.read(buf, toRead);
     if (bytesRead <= 0) break;
-    client.write(buf, bytesRead);
+    const size_t written = client.write(buf, bytesRead);
+    if (written == 0) break;
+    totalSent += written;
   }
-
   file.close();
+  client.flush();
+  client.stop();
 }
 
 void CrossPointWebServer::handlePreview() const {
@@ -568,14 +575,22 @@ void CrossPointWebServer::handlePreview() const {
   server->send(200, "image/bmp", "");
 
   WiFiClient client = server->client();
-  uint8_t buf[2048];
-  while (file.available() && client.connected()) {
+  uint8_t buf[4096];
+  size_t totalSent = 0;
+  const size_t fileSize = file.size();
+  while (totalSent < fileSize && client.connected()) {
     esp_task_wdt_reset();
-    const int bytesRead = file.read(buf, sizeof(buf));
+    const size_t remaining = fileSize - totalSent;
+    const size_t toRead = remaining < sizeof(buf) ? remaining : sizeof(buf);
+    const int bytesRead = file.read(buf, toRead);
     if (bytesRead <= 0) break;
-    client.write(buf, bytesRead);
+    const size_t written = client.write(buf, bytesRead);
+    if (written == 0) break;
+    totalSent += written;
   }
   file.close();
+  client.flush();
+  client.stop();
 }
 
 // Diagnostic counters for upload performance analysis
