@@ -3,6 +3,7 @@
 #include <Logging.h>
 
 #include <cmath>
+#include <cstdlib>
 
 KOReaderPosition ProgressMapper::toKOReader(const std::shared_ptr<Epub>& epub, const CrossPointPosition& pos) {
   KOReaderPosition result;
@@ -102,11 +103,12 @@ int ProgressMapper::parseDocFragmentIndex(const std::string& xpath) {
     return -1;
   }
 
-  try {
-    const int docFragmentIndex = std::stoi(xpath.substr(numStart, numEnd - numStart));
-    // KOReader uses 1-based indices, we use 0-based
-    return docFragmentIndex - 1;
-  } catch (...) {
+  const std::string numStr = xpath.substr(numStart, numEnd - numStart);
+  char* endPtr = nullptr;
+  const long val = std::strtol(numStr.c_str(), &endPtr, 10);
+  if (endPtr == numStr.c_str() || *endPtr != '\0') {
     return -1;
   }
+  // KOReader uses 1-based indices, we use 0-based
+  return static_cast<int>(val) - 1;
 }
