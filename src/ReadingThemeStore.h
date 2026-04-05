@@ -62,6 +62,7 @@ class ReadingThemeStore {
   int lastEditedThemeIndex = -1;
   ReadingTheme revertTheme;
   bool hasRevertTheme = false;
+  bool loadedFromFile = false;  // true once loadFromFile() succeeds
   std::string revertThemeCachePath;
   std::string lastAppliedThemeName;
 

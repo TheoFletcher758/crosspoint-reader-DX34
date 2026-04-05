@@ -355,7 +355,15 @@ void setup() {
   }
 
   SETTINGS.loadFromFile();
-  READING_THEMES.loadFromFile();
+  // Retry theme load up to 3 times — a transient SD read failure here would
+  // leave the theme list empty, and any later save could overwrite the file.
+  for (int attempt = 0; attempt < 3; attempt++) {
+    if (READING_THEMES.loadFromFile()) {
+      break;
+    }
+    LOG_ERR("MAIN", "Theme load attempt %d failed, retrying...", attempt + 1);
+    delay(50);
+  }
   KOREADER_STORE.loadFromFile();
   ButtonNavigator::setMappedInputManager(mappedInputManager);
 

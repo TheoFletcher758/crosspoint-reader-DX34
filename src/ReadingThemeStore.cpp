@@ -63,6 +63,16 @@ const ReadingTheme* ReadingThemeStore::getTheme(const size_t index) const {
 }
 
 bool ReadingThemeStore::saveToFile() const {
+  // Guard: if we never successfully loaded themes from disk, refuse to save an
+  // empty list.  This prevents a transient SD-read failure at boot from
+  // silently overwriting the user's good reading_themes.json with empty data.
+  if (!loadedFromFile && themes.empty()) {
+    LOG_ERR("RTH",
+            "saveToFile blocked: load never succeeded and themes is empty — "
+            "refusing to overwrite file");
+    return false;
+  }
+
   Storage.mkdir("/.crosspoint");
   return JsonSettingsIO::saveReadingThemes(*this, READING_THEMES_FILE_JSON);
 }
@@ -70,9 +80,15 @@ bool ReadingThemeStore::saveToFile() const {
 bool ReadingThemeStore::loadFromFile() {
   const String json = JsonSettingsIO::safeReadFile(READING_THEMES_FILE_JSON);
   if (json.isEmpty()) {
+    LOG_ERR("RTH", "loadFromFile: no readable theme file found");
     return false;
   }
-  return JsonSettingsIO::loadReadingThemes(*this, json.c_str());
+  if (!JsonSettingsIO::loadReadingThemes(*this, json.c_str())) {
+    LOG_ERR("RTH", "loadFromFile: failed to parse theme JSON");
+    return false;
+  }
+  loadedFromFile = true;
+  return true;
 }
 
 ReadingTheme ReadingThemeStore::fromSettings(const std::string& name,
