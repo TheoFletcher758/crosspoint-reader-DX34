@@ -1487,12 +1487,23 @@ std::vector<EpubReaderActivity::WordInfo> EpubReaderActivity::buildWordList(cons
 void EpubReaderActivity::enterHighlightMode() {
   if (!section || section->pageCount == 0) return;
   highlightState = HighlightState::SELECT_START;
-  highlightCursorIndex = 0;
   highlightStartSpine = -1;
   highlightStartPage = -1;
   highlightStartWordIndex = -1;
   highlightEndPage = -1;
   highlightEndWordIndex = -1;
+
+  // Start cursor in the middle of the page for easier navigation
+  auto page = loadAndCachePage(section->currentPage);
+  if (page) {
+    int mt, mr, mb, ml;
+    renderer.getOrientedViewableTRBL(&mt, &mr, &mb, &ml);
+    auto wordList = buildWordList(*page, ml, mt, SETTINGS.getReaderFontId());
+    highlightCursorIndex = static_cast<int>(wordList.size()) / 2;
+  } else {
+    highlightCursorIndex = 0;
+  }
+
   requestUpdate();
 }
 
@@ -1538,6 +1549,11 @@ void EpubReaderActivity::highlightMoveCursor(const int direction) {
     const int contentY = orientedMarginTop;
     auto wordList = buildWordList(*page, orientedMarginLeft, contentY, SETTINGS.getReaderFontId());
     const int wordCount = static_cast<int>(wordList.size());
+
+    // Clamp end index to this page's word count (guards against stale index after page cross)
+    if (highlightEndWordIndex >= wordCount) {
+      highlightEndWordIndex = wordCount > 0 ? wordCount - 1 : 0;
+    }
 
     int newIndex = highlightEndWordIndex + direction;
 
@@ -1587,6 +1603,73 @@ void EpubReaderActivity::highlightMoveCursor(const int direction) {
   }
 }
 
+void EpubReaderActivity::highlightMoveCursorLine(const int direction) {
+  if (!section) return;
+
+  auto page = loadAndCachePage(section->currentPage);
+  if (!page) return;
+
+  int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
+  renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
+                                   &orientedMarginLeft);
+  auto wordList = buildWordList(*page, orientedMarginLeft, orientedMarginTop, SETTINGS.getReaderFontId());
+  if (wordList.empty()) return;
+
+  const bool isEnd = (highlightState == HighlightState::SELECT_END);
+  const int curIdx = isEnd ? highlightEndWordIndex : highlightCursorIndex;
+  if (curIdx < 0 || curIdx >= static_cast<int>(wordList.size())) return;
+
+  const int curY = wordList[curIdx].y;
+  const int curX = wordList[curIdx].x;
+
+  // Find the target line's y value
+  int targetY = -1;
+  if (direction < 0) {
+    // Previous line: largest y that is strictly less than current
+    for (const auto& w : wordList) {
+      if (w.y < curY && (targetY < 0 || w.y > targetY)) targetY = w.y;
+    }
+  } else {
+    // Next line: smallest y that is strictly greater than current
+    for (const auto& w : wordList) {
+      if (w.y > curY && (targetY < 0 || w.y < targetY)) targetY = w.y;
+    }
+  }
+
+  if (targetY < 0) {
+    // No line in that direction on this page — fall back to word-by-word (handles page crossing in SELECT_END)
+    highlightMoveCursor(direction);
+    return;
+  }
+
+  // Find the word on the target line closest in x position
+  int bestIdx = -1;
+  int bestDist = INT_MAX;
+  for (int i = 0; i < static_cast<int>(wordList.size()); i++) {
+    if (wordList[i].y == targetY) {
+      int dist = std::abs(wordList[i].x - curX);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+  }
+
+  if (bestIdx < 0) return;
+
+  // In SELECT_END, don't allow going before start on the same page
+  if (isEnd && section->currentPage == highlightStartPage && bestIdx < highlightStartWordIndex) {
+    bestIdx = highlightStartWordIndex;
+  }
+
+  if (isEnd) {
+    highlightEndWordIndex = bestIdx;
+  } else {
+    highlightCursorIndex = bestIdx;
+  }
+  requestUpdate();
+}
+
 void EpubReaderActivity::highlightConfirmSelection() {
   if (highlightState == HighlightState::SELECT_START) {
     // Lock start position, switch to selecting end
@@ -1615,23 +1698,36 @@ void EpubReaderActivity::handleHighlightInput() {
     return;
   }
 
-  // Confirm (release) advances state
+  // Confirm (release) advances state — but skip the release from the long-press
+  // that entered highlight mode (suppressNextConfirmRelease is still true).
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+    if (suppressNextConfirmRelease) {
+      suppressNextConfirmRelease = false;
+      return;
+    }
     highlightConfirmSelection();
     return;
   }
 
-  // Up/PageBack = move cursor backward (previous word)
-  if (mappedInput.wasPressed(MappedInputManager::Button::Up) ||
-      mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
+  // Up/Down (side buttons) = move cursor up/down by line
+  if (mappedInput.wasPressed(MappedInputManager::Button::Up)) {
+    highlightMoveCursorLine(-1);
+    return;
+  }
+  if (mappedInput.wasPressed(MappedInputManager::Button::Down)) {
+    highlightMoveCursorLine(+1);
+    return;
+  }
+
+  // Left/PageBack = move cursor backward (previous word)
+  if (mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
       mappedInput.wasPressed(MappedInputManager::Button::Left)) {
     highlightMoveCursor(-1);
     return;
   }
 
-  // Down/PageForward = move cursor forward (next word)
-  if (mappedInput.wasPressed(MappedInputManager::Button::Down) ||
-      mappedInput.wasPressed(MappedInputManager::Button::PageForward) ||
+  // Right/PageForward = move cursor forward (next word)
+  if (mappedInput.wasPressed(MappedInputManager::Button::PageForward) ||
       mappedInput.wasPressed(MappedInputManager::Button::Right)) {
     highlightMoveCursor(+1);
     return;
@@ -1776,9 +1872,16 @@ void EpubReaderActivity::renderContents(const Page& page, const int orientedMarg
   } else {
     page.render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
   }
-  // Render highlight overlay if in highlight/quote selection mode
+  // Render highlight overlay and border if in highlight/quote selection mode
   if (highlightState != HighlightState::NONE) {
     renderHighlights(page, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
+    // Draw 6px solid border around text area to indicate highlight mode
+    const int border = 6;
+    const int bx = orientedMarginLeft - border;
+    const int by = contentY - border;
+    const int bw = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight + 2 * border;
+    const int bh = viewportHeight + 2 * border;
+    renderer.drawRect(bx, by, bw, bh, border, true);
   }
 
   if (SETTINGS.debugBorders) {

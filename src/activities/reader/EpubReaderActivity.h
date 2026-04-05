@@ -34,6 +34,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   void enterHighlightMode();
   void exitHighlightMode();
   void highlightMoveCursor(int direction);
+  void highlightMoveCursorLine(int direction);
   void highlightConfirmSelection();
   void handleHighlightInput();
   void renderHighlights(const Page& page, int fontId, int xOffset, int yOffset);
