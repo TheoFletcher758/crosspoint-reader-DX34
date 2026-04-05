@@ -5,12 +5,17 @@
 #include <FsHelpers.h>
 #include <HalStorage.h>
 #include <Logging.h>
+#include <Txt.h>
 #include <WiFi.h>
+#include <Xtc.h>
 #include <esp_task_wdt.h>
 
 #include <algorithm>
+#include <functional>
 
 #include "CrossPointSettings.h"
+#include "CrossPointState.h"
+#include "RecentBooksStore.h"
 #include "SettingsList.h"
 #if __has_include("WebDAVHandler.h")
 #include "WebDAVHandler.h"
@@ -51,12 +56,88 @@ String wsLastCompleteName;
 size_t wsLastCompleteSize = 0;
 unsigned long wsLastCompleteAt = 0;
 
-// Helper function to clear epub cache after upload
-void clearEpubCacheIfNeeded(const String& filePath) {
-  // Only clear cache for .epub files
+// Compute the cache directory path for a book file (returns empty if not a book)
+std::string bookCachePath(const std::string& filePath) {
+  const size_t hash = std::hash<std::string>{}(filePath);
+  if (StringUtils::checkFileExtension(filePath, ".epub")) {
+    return "/.crosspoint/epub_" + std::to_string(hash);
+  }
+  if (StringUtils::checkFileExtension(filePath, ".xtc") ||
+      StringUtils::checkFileExtension(filePath, ".xtch")) {
+    return "/.crosspoint/xtc_" + std::to_string(hash);
+  }
+  if (StringUtils::checkFileExtension(filePath, ".txt") ||
+      StringUtils::checkFileExtension(filePath, ".md")) {
+    return "/.crosspoint/txt_" + std::to_string(hash);
+  }
+  return {};
+}
+
+// Clear book cache for a file (all book types, not just epub)
+void clearBookCacheIfNeeded(const String& filePath) {
   if (StringUtils::checkFileExtension(filePath, ".epub")) {
     Epub(filePath.c_str(), "/.crosspoint").clearCache();
     LOG_DBG("WEB", "Cleared epub cache for: %s", filePath.c_str());
+  } else {
+    const std::string cache = bookCachePath(filePath.c_str());
+    if (!cache.empty() && Storage.exists(cache.c_str())) {
+      Storage.removeDir(cache.c_str());
+      LOG_DBG("WEB", "Cleared book cache: %s", cache.c_str());
+    }
+  }
+}
+
+// Migrate book metadata when a file is renamed or moved.
+// Renames the cache directory, updates recent.json and state.json.
+void migrateBookData(const String& oldPath, const String& newPath) {
+  const std::string oldPathStr(oldPath.c_str());
+  const std::string newPathStr(newPath.c_str());
+
+  // 1. Rename the cache directory (progress.bin, reader_settings.json, cover, etc.)
+  const std::string oldCache = bookCachePath(oldPathStr);
+  const std::string newCache = bookCachePath(newPathStr);
+  if (!oldCache.empty() && !newCache.empty() && oldCache != newCache) {
+    if (Storage.exists(oldCache.c_str())) {
+      if (Storage.rename(oldCache.c_str(), newCache.c_str())) {
+        LOG_DBG("WEB", "Migrated cache: %s -> %s", oldCache.c_str(), newCache.c_str());
+      } else {
+        LOG_ERR("WEB", "Failed to migrate cache: %s -> %s", oldCache.c_str(), newCache.c_str());
+      }
+    }
+  }
+
+  // 2. Update recent books list
+  auto& recentStore = RecentBooksStore::getInstance();
+  const auto& books = recentStore.getBooks();
+  for (const auto& book : books) {
+    // Case-insensitive compare (paths are normalized lowercase in the store)
+    std::string bookKey = book.path;
+    std::transform(bookKey.begin(), bookKey.end(), bookKey.begin(),
+                   [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
+    std::string oldKey = oldPathStr;
+    std::transform(oldKey.begin(), oldKey.end(), oldKey.begin(),
+                   [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
+    if (bookKey == oldKey) {
+      // Re-derive metadata from the new path (title, author, cover at new cache location)
+      RecentBook newData = recentStore.getDataFromBook(newPathStr);
+      recentStore.removeBook(oldPathStr);
+      recentStore.addBook(newPathStr, newData.title, newData.author, newData.coverBmpPath);
+      LOG_DBG("WEB", "Updated recent book: %s -> %s", oldPathStr.c_str(), newPathStr.c_str());
+      break;
+    }
+  }
+
+  // 3. Update state.json openEpubPath if it references the old path
+  std::string statePath = APP_STATE.openEpubPath;
+  std::transform(statePath.begin(), statePath.end(), statePath.begin(),
+                 [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
+  std::string oldLower = oldPathStr;
+  std::transform(oldLower.begin(), oldLower.end(), oldLower.begin(),
+                 [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
+  if (statePath == oldLower) {
+    APP_STATE.openEpubPath = newPathStr;
+    APP_STATE.saveToFile();
+    LOG_DBG("WEB", "Updated openEpubPath: %s -> %s", oldPathStr.c_str(), newPathStr.c_str());
   }
 }
 
@@ -781,7 +862,7 @@ void CrossPointWebServer::handleUpload(UploadState& state) const {
         String filePath = state.path;
         if (!filePath.endsWith("/")) filePath += "/";
         filePath += state.fileName;
-        clearEpubCacheIfNeeded(filePath);
+        clearBookCacheIfNeeded(filePath);
       }
     }
   } else if (upload.status == UPLOAD_FILE_ABORTED) {
@@ -927,11 +1008,11 @@ void CrossPointWebServer::handleRename() const {
     return;
   }
 
-  clearEpubCacheIfNeeded(itemPath);
   const bool success = file.rename(newPath.c_str());
   file.close();
 
   if (success) {
+    migrateBookData(itemPath, newPath);
     LOG_DBG("WEB", "Renamed file: %s -> %s", itemPath.c_str(), newPath.c_str());
     server->send(200, "text/plain", "Renamed successfully");
   } else {
@@ -1020,11 +1101,11 @@ void CrossPointWebServer::handleMove() const {
     return;
   }
 
-  clearEpubCacheIfNeeded(itemPath);
   const bool success = file.rename(newPath.c_str());
   file.close();
 
   if (success) {
+    migrateBookData(itemPath, newPath);
     LOG_DBG("WEB", "Moved file: %s -> %s", itemPath.c_str(), newPath.c_str());
     server->send(200, "text/plain", "Moved successfully");
   } else {
@@ -1124,7 +1205,8 @@ void CrossPointWebServer::handleDelete() const {
       // It's a file (or couldn't open as dir) — remove file
       if (f) f.close();
       success = Storage.remove(itemPath.c_str());
-      clearEpubCacheIfNeeded(itemPath);
+      clearBookCacheIfNeeded(itemPath);
+      RECENT_BOOKS.removeBook(itemPath.c_str());
     }
 
     if (!success) {
@@ -1526,7 +1608,7 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
         String filePath = wsUploadPath;
         if (!filePath.endsWith("/")) filePath += "/";
         filePath += wsUploadFileName;
-        clearEpubCacheIfNeeded(filePath);
+        clearBookCacheIfNeeded(filePath);
 
         wsServer->sendTXT(num, "DONE");
         lastProgressSent = 0;

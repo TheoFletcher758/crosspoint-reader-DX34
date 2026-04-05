@@ -254,6 +254,11 @@
       font-size: 0.85em;
       margin: 8px 0;
     }
+    .modal-hint {
+      color: #27ae60;
+      font-size: 0.8em;
+      margin: 6px 0 10px;
+    }
     .no-files {
       text-align: center;
       color: #95a5a6;
@@ -748,6 +753,7 @@
       <p class="file-info">Renaming <strong id="renameItemName"></strong></p>
       <input type="text" id="renameNewName" class="folder-input" placeholder="New file name...">
       <input type="hidden" id="renameItemPath">
+      <p class="modal-hint">Reading progress and book settings are preserved when renaming.</p>
       <button class="rename-btn-confirm" onclick="confirmRename()">Rename</button>
       <button class="delete-btn-cancel" onclick="closeRenameModal()">Cancel</button>
     </div>
@@ -782,6 +788,7 @@
       <input type="text" id="moveDestPath" class="folder-input" list="moveFolderOptions" placeholder="/Destination/Folder">
       <datalist id="moveFolderOptions"></datalist>
       <input type="hidden" id="moveItemPath">
+      <p class="modal-hint">Reading progress and book settings are preserved when moving.</p>
       <button class="move-btn-confirm" onclick="confirmMove()">Move</button>
       <button class="delete-btn-cancel" onclick="closeMoveModal()">Cancel</button>
     </div>
