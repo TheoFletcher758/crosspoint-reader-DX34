@@ -14,6 +14,7 @@ struct FileInfo {
   String name;
   size_t size;
   bool isEpub;
+  bool isBmp;
   bool isDirectory;
 };
 
@@ -86,6 +87,7 @@ class CrossPointWebServer {
   void scanFiles(const char* path, const std::function<void(FileInfo)>& callback) const;
   String formatFileSize(size_t bytes) const;
   bool isEpubFile(const String& filename) const;
+  bool isBmpFile(const String& filename) const;
 
   // Request handlers
   void handleRoot() const;
@@ -94,6 +96,7 @@ class CrossPointWebServer {
   void handleFileList() const;
   void handleFileListData() const;
   void handleDownload() const;
+  void handlePreview() const;
   void handleUpload(UploadState& state) const;
   void handleUploadPost(UploadState& state) const;
   void handleCreateFolder() const;

@@ -139,6 +139,7 @@ void CrossPointWebServer::begin() {
   server->on("/api/status", HTTP_GET, [this] { handleStatus(); });
   server->on("/api/files", HTTP_GET, [this] { handleFileListData(); });
   server->on("/download", HTTP_GET, [this] { handleDownload(); });
+  server->on("/preview", HTTP_GET, [this] { handlePreview(); });
 
   // Upload endpoint with special handling for multipart form data
   server->on("/upload", HTTP_POST, [this] { handleUploadPost(upload); }, [this] { handleUpload(upload); });
@@ -379,9 +380,11 @@ void CrossPointWebServer::scanFiles(const char* path, const std::function<void(F
       if (info.isDirectory) {
         info.size = 0;
         info.isEpub = false;
+        info.isBmp = false;
       } else {
         info.size = file.size();
         info.isEpub = isEpubFile(info.name);
+        info.isBmp = isBmpFile(info.name);
       }
 
       callback(info);
@@ -399,6 +402,12 @@ bool CrossPointWebServer::isEpubFile(const String& filename) const {
   String lower = filename;
   lower.toLowerCase();
   return lower.endsWith(".epub");
+}
+
+bool CrossPointWebServer::isBmpFile(const String& filename) const {
+  String lower = filename;
+  lower.toLowerCase();
+  return lower.endsWith(".bmp");
 }
 
 void CrossPointWebServer::handleFileList() const {
@@ -434,6 +443,7 @@ void CrossPointWebServer::handleFileListData() const {
     doc["size"] = info.size;
     doc["isDirectory"] = info.isDirectory;
     doc["isEpub"] = info.isEpub;
+    doc["isBmp"] = info.isBmp;
 
     const size_t written = serializeJson(doc, output, outputSize);
     if (written >= outputSize) {
@@ -514,7 +524,57 @@ void CrossPointWebServer::handleDownload() const {
   server->send(200, contentType.c_str(), "");
 
   WiFiClient client = server->client();
-  client.write(file);
+
+  // Stream in chunks to avoid watchdog timeouts on large files
+  uint8_t buf[2048];
+  while (file.available() && client.connected()) {
+    esp_task_wdt_reset();
+    const int bytesRead = file.read(buf, sizeof(buf));
+    if (bytesRead <= 0) break;
+    client.write(buf, bytesRead);
+  }
+
+  file.close();
+}
+
+void CrossPointWebServer::handlePreview() const {
+  if (!server->hasArg("path")) {
+    server->send(400, "text/plain", "Missing path");
+    return;
+  }
+
+  String itemPath = server->arg("path");
+  if (itemPath.isEmpty() || itemPath == "/") {
+    server->send(400, "text/plain", "Invalid path");
+    return;
+  }
+  if (!itemPath.startsWith("/")) {
+    itemPath = "/" + itemPath;
+  }
+
+  if (!Storage.exists(itemPath.c_str())) {
+    server->send(404, "text/plain", "File not found");
+    return;
+  }
+
+  FsFile file = Storage.open(itemPath.c_str());
+  if (!file || file.isDirectory()) {
+    if (file) file.close();
+    server->send(400, "text/plain", "Not a file");
+    return;
+  }
+
+  server->setContentLength(file.size());
+  server->send(200, "image/bmp", "");
+
+  WiFiClient client = server->client();
+  uint8_t buf[2048];
+  while (file.available() && client.connected()) {
+    esp_task_wdt_reset();
+    const int bytesRead = file.read(buf, sizeof(buf));
+    if (bytesRead <= 0) break;
+    client.write(buf, bytesRead);
+  }
   file.close();
 }
 

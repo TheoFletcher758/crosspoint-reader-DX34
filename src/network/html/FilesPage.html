@@ -187,6 +187,21 @@
       font-size: 0.75em;
       margin-left: 8px;
     }
+    .bmp-file {
+      background-color: #e8eef6 !important;
+    }
+    .bmp-file:hover {
+      background-color: #d4e2f0 !important;
+    }
+    .bmp-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background-color: #2980b9;
+      color: white;
+      border-radius: 10px;
+      font-size: 0.75em;
+      margin-left: 8px;
+    }
     .folder-badge {
       display: inline-block;
       padding: 2px 8px;
@@ -585,6 +600,7 @@
         margin-right: 4px;
       }
       .epub-badge,
+      .bmp-badge,
       .folder-badge {
         padding: 2px 5px;
         font-size: 0.65em;
@@ -642,6 +658,7 @@
   <div class="action-buttons">
     <button class="action-btn upload-action-btn" onclick="openUploadModal()">📤 Upload</button>
     <button class="action-btn folder-action-btn" onclick="openFolderModal()">📁 New Folder</button>
+    <button class="action-btn" style="background-color:#2980b9" onclick="downloadSelected()">💾 Download Selected</button>
     <button class="action-btn" style="background-color:#e74c3c" onclick="openDeleteSelectedModal()">🗑️ Delete Selected</button>
   </div>
 </div>
@@ -736,6 +753,24 @@
 </div>
 
 <!-- Move Modal -->
+<div class="modal-overlay" id="imagePreviewModal">
+  <div class="modal" style="max-width:95vw;width:auto;">
+    <button class="modal-close" onclick="closeImagePreview()">&times;</button>
+    <h3 id="previewTitle">🖼️ Image Preview</h3>
+    <div style="text-align:center;margin:10px 0;">
+      <img id="previewImg" style="max-width:100%;max-height:60vh;border:1px solid #ddd;border-radius:4px;background:#eee;" alt="BMP Preview">
+      <div id="previewLoading" style="padding:30px;color:#888;">Loading image...</div>
+    </div>
+    <div id="previewInfo" style="text-align:center;color:#666;font-size:0.85em;margin-bottom:12px;"></div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
+      <button class="action-btn" style="background-color:#27ae60" onclick="previewAction('sleep')">😴 Move to Sleep</button>
+      <button class="action-btn" style="background-color:#f39c12" onclick="previewAction('pause')">⏸️ Move to Sleep Pause</button>
+      <button class="action-btn" style="background-color:#2980b9" onclick="previewAction('download')">💾 Download</button>
+      <button class="action-btn" style="background-color:#e74c3c" onclick="previewAction('delete')">🗑️ Delete</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="moveModal">
   <div class="modal">
     <button class="modal-close" onclick="closeMoveModal()">&times;</button>
@@ -859,11 +894,18 @@
           filePath += file.name;
 
           // Checkbox cell + file row
-          fileTableContent += `<tr class="${file.isEpub ? 'epub-file' : ''}">`;
+          const rowClass = file.isEpub ? 'epub-file' : (file.isBmp ? 'bmp-file' : '');
+          fileTableContent += `<tr class="${rowClass}">`;
           fileTableContent += `<td><input type="checkbox" class="select-item" data-path="${encodeURIComponent(filePath)}" data-name="${escapeHtml(file.name)}" data-type="file"></td>`;
-          fileTableContent += `<td><span class="file-icon">${file.isEpub ? '📗' : '📄'}</span>`;
-          fileTableContent += `<a rel="noopener noreferrer" target="_blank" href="/download?path=${encodeURIComponent(filePath)}" class="file-link">${escapeHtml(file.name)}</a>`;
-          if (file.isEpub) fileTableContent += '<span class="epub-badge">EPUB</span>';
+          if (file.isBmp) {
+            fileTableContent += `<td><span class="file-icon">🖼️</span>`;
+            fileTableContent += `<a href="#" onclick="openImagePreview('${filePath.replaceAll("'", "\\'")}', '${file.name.replaceAll("'", "\\'")}', ${file.size});return false;" class="file-link">${escapeHtml(file.name)}</a>`;
+            fileTableContent += '<span class="bmp-badge">BMP</span>';
+          } else {
+            fileTableContent += `<td><span class="file-icon">${file.isEpub ? '📗' : '📄'}</span>`;
+            fileTableContent += `<a rel="noopener noreferrer" target="_blank" href="/download?path=${encodeURIComponent(filePath)}" class="file-link">${escapeHtml(file.name)}</a>`;
+            if (file.isEpub) fileTableContent += '<span class="epub-badge">EPUB</span>';
+          }
           fileTableContent += '</td>';
           fileTableContent += `<td>${file.name.split('.').pop().toUpperCase()}</td>`;
           fileTableContent += `<td>${formatFileSize(file.size)}</td>`;
@@ -906,6 +948,70 @@
     document.getElementById('folderModal').classList.remove('open');
   }
 
+  // Image preview modal
+  let previewFilePath = '';
+  let previewFileName = '';
+
+  function openImagePreview(path, name, size) {
+    previewFilePath = path;
+    previewFileName = name;
+    document.getElementById('previewTitle').textContent = '🖼️ ' + name;
+    document.getElementById('previewInfo').textContent = formatFileSize(size);
+    const img = document.getElementById('previewImg');
+    const loading = document.getElementById('previewLoading');
+    img.style.display = 'none';
+    loading.style.display = 'block';
+    img.onload = function() {
+      loading.style.display = 'none';
+      img.style.display = 'inline-block';
+      document.getElementById('previewInfo').textContent =
+        img.naturalWidth + ' x ' + img.naturalHeight + ' — ' + formatFileSize(size);
+    };
+    img.onerror = function() {
+      loading.textContent = 'Failed to load image.';
+    };
+    img.src = '/preview?path=' + encodeURIComponent(path);
+    document.getElementById('imagePreviewModal').classList.add('open');
+  }
+
+  function closeImagePreview() {
+    document.getElementById('imagePreviewModal').classList.remove('open');
+    document.getElementById('previewImg').src = '';
+  }
+
+  function previewAction(action) {
+    if (action === 'download') {
+      const a = document.createElement('a');
+      a.href = '/download?path=' + encodeURIComponent(previewFilePath);
+      a.download = previewFileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return;
+    }
+    if (action === 'delete') {
+      if (!confirm('Delete ' + previewFileName + '?')) return;
+      fetch('/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'paths=' + encodeURIComponent(JSON.stringify([previewFilePath]))
+      }).then(res => {
+        if (res.ok) { closeImagePreview(); window.location.reload(); }
+        else res.text().then(t => alert('Delete failed: ' + t));
+      });
+      return;
+    }
+    // Move to /sleep or /sleep pause
+    const dest = action === 'sleep' ? '/sleep' : '/sleep pause';
+    const formData = new FormData();
+    formData.append('path', previewFilePath);
+    formData.append('dest', dest);
+    fetch('/move', { method: 'POST', body: formData }).then(res => {
+      if (res.ok) { closeImagePreview(); window.location.reload(); }
+      else res.text().then(t => alert('Move failed: ' + t));
+    });
+  }
+
   // Toggle select-all checkbox
   function toggleSelectAll(master) {
     const checked = master.checked;
@@ -924,6 +1030,25 @@
       });
     });
     return items;
+  }
+
+  // Download selected files sequentially (ESP32 handles one at a time)
+  async function downloadSelected() {
+    const items = getSelectedItems().filter(it => !it.isFolder);
+    if (items.length === 0) {
+      alert('Please select at least one file to download.');
+      return;
+    }
+    for (const item of items) {
+      const a = document.createElement('a');
+      a.href = '/download?path=' + encodeURIComponent(item.path);
+      a.download = item.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Small delay between downloads so the ESP32 can handle them sequentially
+      if (items.length > 1) await new Promise(r => setTimeout(r, 1500));
+    }
   }
 
   // Open delete modal for currently selected checkboxes
