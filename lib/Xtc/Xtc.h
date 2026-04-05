@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <BookFingerprint.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -28,8 +30,8 @@ class Xtc {
 
  public:
   explicit Xtc(std::string filepath, const std::string& cacheDir) : filepath(std::move(filepath)), loaded(false) {
-    // Create cache key based on filepath (same as Epub)
-    cachePath = cacheDir + "/xtc_" + std::to_string(std::hash<std::string>{}(this->filepath));
+    // Create cache key based on file content fingerprint (survives file moves)
+    cachePath = BookFingerprint::cacheDirName("xtc", this->filepath, cacheDir);
   }
   ~Xtc() = default;
 

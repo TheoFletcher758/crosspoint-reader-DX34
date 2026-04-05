@@ -1,6 +1,7 @@
 #include "CrossPointWebServer.h"
 
 #include <ArduinoJson.h>
+#include <BookFingerprint.h>
 #include <Epub.h>
 #include <FsHelpers.h>
 #include <HalStorage.h>
@@ -56,19 +57,19 @@ String wsLastCompleteName;
 size_t wsLastCompleteSize = 0;
 unsigned long wsLastCompleteAt = 0;
 
-// Compute the cache directory path for a book file (returns empty if not a book)
+// Compute the cache directory path for a book file (returns empty if not a book).
+// Uses content-based fingerprint so the path is stable across file moves.
 std::string bookCachePath(const std::string& filePath) {
-  const size_t hash = std::hash<std::string>{}(filePath);
   if (StringUtils::checkFileExtension(filePath, ".epub")) {
-    return "/.crosspoint/epub_" + std::to_string(hash);
+    return BookFingerprint::cacheDirName("epub", filePath, "/.crosspoint");
   }
   if (StringUtils::checkFileExtension(filePath, ".xtc") ||
       StringUtils::checkFileExtension(filePath, ".xtch")) {
-    return "/.crosspoint/xtc_" + std::to_string(hash);
+    return BookFingerprint::cacheDirName("xtc", filePath, "/.crosspoint");
   }
   if (StringUtils::checkFileExtension(filePath, ".txt") ||
       StringUtils::checkFileExtension(filePath, ".md")) {
-    return "/.crosspoint/txt_" + std::to_string(hash);
+    return BookFingerprint::cacheDirName("txt", filePath, "/.crosspoint");
   }
   return {};
 }
@@ -88,25 +89,13 @@ void clearBookCacheIfNeeded(const String& filePath) {
 }
 
 // Migrate book metadata when a file is renamed or moved.
-// Renames the cache directory, updates recent.json and state.json.
+// Cache directory is content-keyed so it doesn't change on move — only
+// recent.json and state.json paths need updating.
 void migrateBookData(const String& oldPath, const String& newPath) {
   const std::string oldPathStr(oldPath.c_str());
   const std::string newPathStr(newPath.c_str());
 
-  // 1. Rename the cache directory (progress.bin, reader_settings.json, cover, etc.)
-  const std::string oldCache = bookCachePath(oldPathStr);
-  const std::string newCache = bookCachePath(newPathStr);
-  if (!oldCache.empty() && !newCache.empty() && oldCache != newCache) {
-    if (Storage.exists(oldCache.c_str())) {
-      if (Storage.rename(oldCache.c_str(), newCache.c_str())) {
-        LOG_DBG("WEB", "Migrated cache: %s -> %s", oldCache.c_str(), newCache.c_str());
-      } else {
-        LOG_ERR("WEB", "Failed to migrate cache: %s -> %s", oldCache.c_str(), newCache.c_str());
-      }
-    }
-  }
-
-  // 2. Update recent books list
+  // Update recent books list
   auto& recentStore = RecentBooksStore::getInstance();
   const auto& books = recentStore.getBooks();
   for (const auto& book : books) {
