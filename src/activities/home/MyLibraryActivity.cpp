@@ -45,7 +45,7 @@ std::string formatLibraryProgressPrefix(const std::optional<int>& percent) {
   if (!percent.has_value() || percent.value() <= 1) {
     return "-";
   }
-  return std::to_string(percent.value()) + "%";
+  return "[" + std::to_string(percent.value()) + "%]";
 }
 
 bool equalsIgnoreCaseAscii(const std::string& value, const char* target) {
