@@ -121,8 +121,9 @@ public:
   enum FONT_FAMILY {
     CHAREINK = 0,
     BOOKERLY = 1,
-    FREESERIF = 2,          // legacy, normalize to CHAREINK
-    LEGACY_REMOVED_FAMILY_2 = 3, // legacy, normalize to CHAREINK
+    VOLLKORN = 2,
+    FREESERIF = 3,          // legacy, normalize to CHAREINK
+    LEGACY_REMOVED_FAMILY_2 = 4, // legacy, normalize to CHAREINK
     FONT_FAMILY_COUNT
   };
   enum FONT_SIZE {

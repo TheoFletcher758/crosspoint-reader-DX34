@@ -49,6 +49,19 @@ for size in ${GEORGIA_FONT_SIZES[@]}; do
   "$PYTHON_BIN" fontconvert.py "georgia_${size}_italic" $size "../builtinFonts/source/Georgia/georgiai.ttf" --2bit > "../builtinFonts/georgia_${size}_italic.h"
 done
 
+VOLLKORN_FONT_SIZES=(15 17)
+VOLLKORN_STYLES=("Regular:Vollkorn-Regular.ttf" "Bold:Vollkorn-Bold.ttf" "Italic:Vollkorn-Italic.ttf")
+for size in ${VOLLKORN_FONT_SIZES[@]}; do
+  for entry in "${VOLLKORN_STYLES[@]}"; do
+    style="${entry%%:*}"
+    filename="${entry#*:}"
+    lower_style=$(echo $style | tr '[:upper:]' '[:lower:]')
+    font_name="vollkorn_${size}_${lower_style}"
+    echo "Generating ${font_name}..."
+    "$PYTHON_BIN" fontconvert.py "${font_name}" $size "../builtinFonts/source/Vollkorn/${filename}" --2bit --compress > "../builtinFonts/${font_name}.h"
+  done
+done
+
 for size in 14 18; do
   echo "Generating unifont_${size}_regular..."
   "$PYTHON_BIN" fontconvert.py "unifont_${size}_regular" $size "../builtinFonts/source/UI/unifont-english.ttf" > "../builtinFonts/unifont_${size}_regular.h"

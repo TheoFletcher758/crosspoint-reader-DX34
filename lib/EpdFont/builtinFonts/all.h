@@ -23,6 +23,13 @@
 #include <builtinFonts/bookerly_15_bold.h>
 #include <builtinFonts/bookerly_15_italic.h>
 
+#include <builtinFonts/vollkorn_15_regular.h>
+#include <builtinFonts/vollkorn_15_bold.h>
+#include <builtinFonts/vollkorn_15_italic.h>
+#include <builtinFonts/vollkorn_17_regular.h>
+#include <builtinFonts/vollkorn_17_bold.h>
+#include <builtinFonts/vollkorn_17_italic.h>
+
 #include <builtinFonts/unifont_14_regular.h>
 #include <builtinFonts/unifont_18_regular.h>
 
