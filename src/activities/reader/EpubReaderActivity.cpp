@@ -1520,13 +1520,18 @@ void EpubReaderActivity::enterHighlightMode() {
   highlightEndPage = -1;
   highlightEndWordIndex = -1;
 
-  // Start cursor in the middle of the page for easier navigation
   auto page = loadAndCachePage(section->currentPage);
   if (page) {
     int mt, mr, mb, ml;
     renderer.getOrientedViewableTRBL(&mt, &mr, &mb, &ml);
     auto wordList = buildWordList(*page, ml, mt, SETTINGS.getReaderFontId());
-    highlightCursorIndex = static_cast<int>(wordList.size()) / 2;
+    if (SETTINGS.highlightMode == CrossPointSettings::HIGHLIGHT_PAGE) {
+      // Full-page method: cursor starts at first word
+      highlightCursorIndex = 0;
+    } else {
+      // Word method: cursor starts in the middle of the page
+      highlightCursorIndex = static_cast<int>(wordList.size()) / 2;
+    }
   } else {
     highlightCursorIndex = 0;
   }
@@ -1704,7 +1709,23 @@ void EpubReaderActivity::highlightConfirmSelection() {
     highlightStartPage = section->currentPage;
     highlightStartWordIndex = highlightCursorIndex;
     highlightEndPage = section->currentPage;
-    highlightEndWordIndex = highlightCursorIndex;
+
+    if (SETTINGS.highlightMode == CrossPointSettings::HIGHLIGHT_PAGE) {
+      // Full-page method: end cursor jumps to last word on page
+      auto page = loadAndCachePage(section->currentPage);
+      if (page) {
+        int mt, mr, mb, ml;
+        renderer.getOrientedViewableTRBL(&mt, &mr, &mb, &ml);
+        auto wordList = buildWordList(*page, ml, mt, SETTINGS.getReaderFontId());
+        highlightEndWordIndex = static_cast<int>(wordList.size()) - 1;
+        if (highlightEndWordIndex < 0) highlightEndWordIndex = 0;
+      } else {
+        highlightEndWordIndex = highlightCursorIndex;
+      }
+    } else {
+      highlightEndWordIndex = highlightCursorIndex;
+    }
+
     highlightState = HighlightState::SELECT_END;
     requestUpdate();
   } else if (highlightState == HighlightState::SELECT_END) {
@@ -1766,13 +1787,52 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
   if (wordList.empty()) return;
 
   const int lineHeight = renderer.getLineHeight(fontId);
+  const bool isPageMode = SETTINGS.highlightMode == CrossPointSettings::HIGHLIGHT_PAGE;
 
   if (highlightState == HighlightState::SELECT_START) {
-    // Highlight just the cursor word with inverted colors
-    if (highlightCursorIndex >= 0 && highlightCursorIndex < static_cast<int>(wordList.size())) {
-      const auto& w = wordList[highlightCursorIndex];
-      renderer.fillRect(w.x, w.y, w.width, lineHeight, true);
-      renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
+    if (isPageMode) {
+      // Full-page method: highlight from cursor word to last word on page (continuous lines)
+      const int selStart = highlightCursorIndex;
+      const int selEnd = static_cast<int>(wordList.size()) - 1;
+      if (selStart >= 0 && selStart <= selEnd) {
+        // Group words by line (Y coordinate) and fill continuous spans
+        int lineY = wordList[selStart].y;
+        int lineMinX = wordList[selStart].x;
+        int lineMaxX = wordList[selStart].x + wordList[selStart].width;
+        for (int i = selStart; i <= selEnd; i++) {
+          const auto& w = wordList[i];
+          if (w.y != lineY) {
+            // Flush previous line
+            renderer.fillRect(lineMinX, lineY, lineMaxX - lineMinX, lineHeight, true);
+            lineY = w.y;
+            lineMinX = w.x;
+            lineMaxX = w.x + w.width;
+          } else {
+            if (w.x < lineMinX) lineMinX = w.x;
+            if (w.x + w.width > lineMaxX) lineMaxX = w.x + w.width;
+          }
+        }
+        // Flush last line
+        renderer.fillRect(lineMinX, lineY, lineMaxX - lineMinX, lineHeight, true);
+        // Redraw all selected words' text on top of the filled background
+        for (int i = selStart; i <= selEnd; i++) {
+          const auto& w = wordList[i];
+          renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
+        }
+        // Cursor word: white background + black text + solid border
+        const auto& cw = wordList[selStart];
+        constexpr int cwBorder = 3;
+        renderer.fillRect(cw.x - cwBorder, cw.y - cwBorder, cw.width + 2 * cwBorder, lineHeight + 2 * cwBorder, false);
+        renderer.drawTextSpaced(fontId, cw.x, cw.y, cw.text.c_str(), cw.letterSpacing, true, cw.style);
+        renderer.drawRect(cw.x - cwBorder, cw.y - cwBorder, cw.width + 2 * cwBorder, lineHeight + 2 * cwBorder, cwBorder, true);
+      }
+    } else {
+      // Word method: highlight just the cursor word with inverted colors
+      if (highlightCursorIndex >= 0 && highlightCursorIndex < static_cast<int>(wordList.size())) {
+        const auto& w = wordList[highlightCursorIndex];
+        renderer.fillRect(w.x, w.y, w.width, lineHeight, true);
+        renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
+      }
     }
   } else if (highlightState == HighlightState::SELECT_END) {
     // Determine which words to highlight on the current displayed page
@@ -1780,7 +1840,6 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
     int selEnd = -1;
 
     if (section->currentPage == highlightStartPage) {
-      // Start page: highlight from start word to end (or end word if same page)
       selStart = highlightStartWordIndex;
       if (section->currentPage == highlightEndPage) {
         selEnd = highlightEndWordIndex;
@@ -1788,20 +1847,52 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
         selEnd = static_cast<int>(wordList.size()) - 1;
       }
     } else if (section->currentPage == highlightEndPage) {
-      // End page: highlight from beginning to end word
       selStart = 0;
       selEnd = highlightEndWordIndex;
     } else if (section->currentPage > highlightStartPage && section->currentPage < highlightEndPage) {
-      // Middle page: highlight everything
       selStart = 0;
       selEnd = static_cast<int>(wordList.size()) - 1;
     }
 
     if (selStart >= 0 && selEnd >= 0) {
-      for (int i = selStart; i <= selEnd && i < static_cast<int>(wordList.size()); i++) {
-        const auto& w = wordList[i];
-        renderer.fillRect(w.x, w.y, w.width, lineHeight, true);
-        renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
+      if (isPageMode) {
+        // Full-page method: continuous line fill
+        int lineY = wordList[selStart].y;
+        int lineMinX = wordList[selStart].x;
+        int lineMaxX = wordList[selStart].x + wordList[selStart].width;
+        for (int i = selStart; i <= selEnd && i < static_cast<int>(wordList.size()); i++) {
+          const auto& w = wordList[i];
+          if (w.y != lineY) {
+            renderer.fillRect(lineMinX, lineY, lineMaxX - lineMinX, lineHeight, true);
+            lineY = w.y;
+            lineMinX = w.x;
+            lineMaxX = w.x + w.width;
+          } else {
+            if (w.x < lineMinX) lineMinX = w.x;
+            if (w.x + w.width > lineMaxX) lineMaxX = w.x + w.width;
+          }
+        }
+        renderer.fillRect(lineMinX, lineY, lineMaxX - lineMinX, lineHeight, true);
+        for (int i = selStart; i <= selEnd && i < static_cast<int>(wordList.size()); i++) {
+          const auto& w = wordList[i];
+          renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
+        }
+        // End cursor word: white background + black text + solid border
+        if (section->currentPage == highlightEndPage &&
+            highlightEndWordIndex >= 0 && highlightEndWordIndex < static_cast<int>(wordList.size())) {
+          const auto& cw = wordList[highlightEndWordIndex];
+          constexpr int cwBorder = 3;
+          renderer.fillRect(cw.x - cwBorder, cw.y - cwBorder, cw.width + 2 * cwBorder, lineHeight + 2 * cwBorder, false);
+          renderer.drawTextSpaced(fontId, cw.x, cw.y, cw.text.c_str(), cw.letterSpacing, true, cw.style);
+          renderer.drawRect(cw.x - cwBorder, cw.y - cwBorder, cw.width + 2 * cwBorder, lineHeight + 2 * cwBorder, cwBorder, true);
+        }
+      } else {
+        // Word method: per-word fill
+        for (int i = selStart; i <= selEnd && i < static_cast<int>(wordList.size()); i++) {
+          const auto& w = wordList[i];
+          renderer.fillRect(w.x, w.y, w.width, lineHeight, true);
+          renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
+        }
       }
     }
   }

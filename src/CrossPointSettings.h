@@ -188,6 +188,12 @@ public:
     WORD_SPACING_MODE_COUNT
   };
 
+  enum HIGHLIGHT_MODE {
+    HIGHLIGHT_WORD = 0,
+    HIGHLIGHT_PAGE = 1,
+    HIGHLIGHT_MODE_COUNT
+  };
+
   // Auto-sleep timeout options (in minutes)
   enum SLEEP_TIMEOUT {
     SLEEP_1_MIN = 0,
@@ -321,6 +327,8 @@ public:
   uint8_t embeddedStyle = 1;
   // Draw dotted debug borders around reader and status bar viewports
   uint8_t debugBorders = 0;
+  // Highlight/quote selection method: HIGHLIGHT_WORD (pick start/end) or HIGHLIGHT_PAGE (full page narrow-down)
+  uint8_t highlightMode = HIGHLIGHT_WORD;
 
   ~CrossPointSettings() = default;
 

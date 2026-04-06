@@ -441,6 +441,9 @@ enum class StrId : uint16_t {
   STR_FOOTNOTES,
   STR_NO_FOOTNOTES,
   STR_LINK,
+  STR_HIGHLIGHT_MODE,
+  STR_HIGHLIGHT_WORD,
+  STR_HIGHLIGHT_FULL_PAGE,
   // Sentinel - must be last
   _COUNT
 };

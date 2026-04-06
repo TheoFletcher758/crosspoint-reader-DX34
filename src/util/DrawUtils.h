@@ -18,4 +18,11 @@ inline void drawDottedRect(const GfxRenderer& renderer, int x, int y, int w, int
   }
 }
 
+// Draw a thick dotted rectangle outline by nesting concentric dotted rects.
+inline void drawDottedRectThick(const GfxRenderer& renderer, int x, int y, int w, int h, int thickness) {
+  for (int t = 0; t < thickness; t++) {
+    drawDottedRect(renderer, x - t, y - t, w + 2 * t, h + 2 * t);
+  }
+}
+
 }  // namespace DrawUtils

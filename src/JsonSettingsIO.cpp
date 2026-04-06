@@ -474,6 +474,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["embeddedStyle"] =
       s.readerStyleMode == CrossPointSettings::READER_STYLE_HYBRID;
   doc["debugBorders"] = s.debugBorders;
+  doc["highlightMode"] = s.highlightMode;
 
   String json;
   serializeJson(doc, json);
@@ -791,6 +792,7 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
   s.embeddedStyle =
       s.readerStyleMode == S::READER_STYLE_HYBRID ? (uint8_t)1 : (uint8_t)0;
   s.debugBorders = doc["debugBorders"] | (uint8_t)0;
+  s.highlightMode = clamp(doc["highlightMode"] | (uint8_t)0, S::HIGHLIGHT_MODE_COUNT, 0);
 
   const char *url = doc["opdsServerUrl"] | "";
   strncpy(s.opdsServerUrl, url, sizeof(s.opdsServerUrl) - 1);
