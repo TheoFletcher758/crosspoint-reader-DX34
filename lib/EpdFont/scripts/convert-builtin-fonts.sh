@@ -39,29 +39,7 @@ for size in ${FREESERIF_FONT_SIZES[@]}; do
 done
 
 # Georgia: only regular, bold, italic (no bold-italic source)
-GEORGIA_FONT_SIZES=(15 18)
-for size in ${GEORGIA_FONT_SIZES[@]}; do
-  echo "Generating georgia_${size}_regular..."
-  "$PYTHON_BIN" fontconvert.py "georgia_${size}_regular" $size "../builtinFonts/source/Georgia/georgia.ttf" --2bit --compress > "../builtinFonts/georgia_${size}_regular.h"
-  echo "Generating georgia_${size}_bold..."
-  "$PYTHON_BIN" fontconvert.py "georgia_${size}_bold" $size "../builtinFonts/source/Georgia/georgiab.ttf" --2bit --compress > "../builtinFonts/georgia_${size}_bold.h"
-  echo "Generating georgia_${size}_italic..."
-  "$PYTHON_BIN" fontconvert.py "georgia_${size}_italic" $size "../builtinFonts/source/Georgia/georgiai.ttf" --2bit --compress > "../builtinFonts/georgia_${size}_italic.h"
-done
-
-IMFELL_FONT_SIZES=(15 18)
-IMFELL_STYLES=("regular:IMFellDWPica-Regular.ttf" "italic:IMFellDWPica-Italic.ttf")
-for size in ${IMFELL_FONT_SIZES[@]}; do
-  for entry in "${IMFELL_STYLES[@]}"; do
-    style="${entry%%:*}"
-    filename="${entry#*:}"
-    font_name="imfell_${size}_${style}"
-    echo "Generating ${font_name}..."
-    "$PYTHON_BIN" fontconvert.py "${font_name}" $size "../builtinFonts/source/IMFellDWPica/${filename}" --2bit --compress > "../builtinFonts/${font_name}.h"
-  done
-done
-
-VOLLKORN_FONT_SIZES=(15 18)
+VOLLKORN_FONT_SIZES=(15 17 18)
 VOLLKORN_STYLES=("Regular:Vollkorn-Regular.ttf" "Bold:Vollkorn-Bold.ttf" "Italic:Vollkorn-Italic.ttf")
 for size in ${VOLLKORN_FONT_SIZES[@]}; do
   for entry in "${VOLLKORN_STYLES[@]}"; do

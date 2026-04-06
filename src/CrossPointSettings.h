@@ -122,9 +122,9 @@ public:
     CHAREINK = 0,
     BOOKERLY = 1,
     VOLLKORN = 2,
-    GEORGIA = 3,
-    IMFELL = 4,
-    FREESERIF = 5,          // legacy, normalize to CHAREINK
+    LEGACY_GEORGIA = 3,     // removed, normalize to CHAREINK
+    LEGACY_IMFELL = 4,      // removed, normalize to CHAREINK
+    FREESERIF = 5,           // legacy, normalize to CHAREINK
     LEGACY_REMOVED_FAMILY_2 = 6, // legacy, normalize to CHAREINK
     FONT_FAMILY_COUNT
   };

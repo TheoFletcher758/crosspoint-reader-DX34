@@ -9,7 +9,6 @@
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
 #include "ReadingThemeStore.h"
-#include "SettingsList.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 
@@ -43,21 +42,14 @@ int readerFontIdFor(const uint8_t family, const uint8_t fontSize) {
   }
   if (CrossPointSettings::normalizeFontFamily(family) ==
       CrossPointSettings::VOLLKORN) {
-    return (normalizedFontSize == CrossPointSettings::SIZE_18)
-               ? VOLLKORN_18_FONT_ID
-               : VOLLKORN_15_FONT_ID;
-  }
-  if (CrossPointSettings::normalizeFontFamily(family) ==
-      CrossPointSettings::GEORGIA) {
-    return (normalizedFontSize == CrossPointSettings::SIZE_18)
-               ? GEORGIA_18_FONT_ID
-               : GEORGIA_15_FONT_ID;
-  }
-  if (CrossPointSettings::normalizeFontFamily(family) ==
-      CrossPointSettings::IMFELL) {
-    return (normalizedFontSize == CrossPointSettings::SIZE_18)
-               ? IMFELL_18_FONT_ID
-               : IMFELL_15_FONT_ID;
+    switch (normalizedFontSize) {
+    case CrossPointSettings::LARGE:
+      return VOLLKORN_17_FONT_ID;
+    case CrossPointSettings::SIZE_18:
+      return VOLLKORN_18_FONT_ID;
+    default:
+      return VOLLKORN_15_FONT_ID;
+    }
   }
   switch (normalizedFontSize) {
     case CrossPointSettings::SIZE_14:
@@ -212,63 +204,116 @@ std::string ReaderSettingsActivity::currentValueEditText() const {
 }
 
 void ReaderSettingsActivity::buildSettingsList() {
-  readerSettings.clear();
-  statusBarSettings.clear();
-  flatRows.clear();
+  // Free old memory fully before allocating new entries.
+  { std::vector<SettingInfo>().swap(readerSettings); }
+  { std::vector<SettingInfo>().swap(statusBarSettings); }
+  { std::vector<FlatSettingRow>().swap(flatRows); }
 
-  for (auto& setting : getSettingsList()) {
-    if (setting.category == StrId::STR_CAT_READER) {
-      if (setting.valuePtr == &CrossPointSettings::orientation ||
-          setting.valuePtr == &CrossPointSettings::debugBorders ||
-          setting.valuePtr == &CrossPointSettings::textAntiAliasing) {
-        continue;
-      }
-      if (isTxtContext() &&
-          setting.valuePtr == &CrossPointSettings::paragraphAlignment) {
-        setting.enumValues.resize(4);
-        if (SETTINGS.paragraphAlignment ==
-            CrossPointSettings::BOOK_STYLE) {
-          SETTINGS.paragraphAlignment = CrossPointSettings::JUSTIFIED;
-        }
-      }
-      if (isTxtContext() &&
-          setting.valuePtr == &CrossPointSettings::readerStyleMode) {
-        continue;
-      }
-      // Filter margin entries based on uniform/separate mode
-      if (SETTINGS.uniformMargins) {
-        // Uniform: skip separate margin entries (Horizontal, Top, Bottom)
-        if (setting.nameId == StrId::STR_SCREEN_MARGIN_HORIZONTAL ||
-            setting.nameId == StrId::STR_SCREEN_MARGIN_TOP ||
-            setting.nameId == StrId::STR_SCREEN_MARGIN_BOTTOM) {
-          continue;
-        }
-      } else {
-        // Separate: skip uniform margin entry
-        if (setting.nameId == StrId::STR_SCREEN_MARGIN) {
-          continue;
-        }
-      }
-      readerSettings.push_back(std::move(setting));
-    } else if (setting.category == StrId::STR_STATUS_BAR) {
-      statusBarSettings.push_back(std::move(setting));
+  // Pre-allocate to avoid repeated reallocations (critical on low-heap devices)
+  readerSettings.reserve(15);
+  statusBarSettings.reserve(17);
+
+  const bool txt = isTxtContext();
+
+  // --- Helper: conditionally push a reader setting, applying filters ---
+  auto pushReader = [&](SettingInfo&& s) {
+    // Skip entries never shown in the in-reader settings screen
+    if (s.valuePtr == &CrossPointSettings::orientation ||
+        s.valuePtr == &CrossPointSettings::debugBorders ||
+        s.valuePtr == &CrossPointSettings::textAntiAliasing) {
+      return;
     }
-  }
+    if (txt && s.valuePtr == &CrossPointSettings::readerStyleMode) {
+      return;
+    }
+    // Filter margin entries based on uniform/separate mode
+    if (SETTINGS.uniformMargins) {
+      if (s.nameId == StrId::STR_SCREEN_MARGIN_HORIZONTAL ||
+          s.nameId == StrId::STR_SCREEN_MARGIN_TOP ||
+          s.nameId == StrId::STR_SCREEN_MARGIN_BOTTOM) {
+        return;
+      }
+    } else {
+      if (s.nameId == StrId::STR_SCREEN_MARGIN) {
+        return;
+      }
+    }
+    // TXT: limit paragraph alignment options
+    if (txt && s.valuePtr == &CrossPointSettings::paragraphAlignment) {
+      s.enumValues.resize(4);
+      if (SETTINGS.paragraphAlignment == CrossPointSettings::BOOK_STYLE) {
+        SETTINGS.paragraphAlignment = CrossPointSettings::JUSTIFIED;
+      }
+    }
+    readerSettings.push_back(std::move(s));
+  };
 
-  if (!isTxtContext()) {
+  // --- Build reader settings directly (no intermediate vector) ---
+  pushReader(SettingInfo::Enum(StrId::STR_FONT_FAMILY, &CrossPointSettings::fontFamily,
+      {StrId::STR_CHAREINK, StrId::STR_BOOKERLY, StrId::STR_VOLLKORN}));
+  if (!CrossPointSettings::isSingleSizeFontFamily(SETTINGS.fontFamily)) {
+    pushReader(SettingInfo::Enum(StrId::STR_FONT_SIZE, &CrossPointSettings::fontSize,
+        {StrId::STR_SMALL, StrId::STR_MEDIUM, StrId::STR_LARGE}));
+  }
+  pushReader(SettingInfo::Value(StrId::STR_LINE_SPACING, &CrossPointSettings::lineSpacingPercent, {65, 150, 5}));
+  pushReader(SettingInfo::Toggle(StrId::STR_UNIFORM_MARGINS, &CrossPointSettings::uniformMargins));
+  pushReader(SettingInfo::Value(StrId::STR_SCREEN_MARGIN, &CrossPointSettings::screenMarginHorizontal, {0, 55, 5}));
+  pushReader(SettingInfo::Value(StrId::STR_SCREEN_MARGIN_HORIZONTAL, &CrossPointSettings::screenMarginHorizontal, {0, 55, 5}));
+  pushReader(SettingInfo::Value(StrId::STR_SCREEN_MARGIN_TOP, &CrossPointSettings::screenMarginTop, {0, 55, 5}));
+  pushReader(SettingInfo::Value(StrId::STR_SCREEN_MARGIN_BOTTOM, &CrossPointSettings::screenMarginBottom, {0, 55, 5}));
+  pushReader(SettingInfo::Enum(StrId::STR_PARA_ALIGNMENT, &CrossPointSettings::paragraphAlignment,
+      {StrId::STR_JUSTIFY, StrId::STR_ALIGN_LEFT, StrId::STR_CENTER, StrId::STR_ALIGN_RIGHT, StrId::STR_BOOK_S_STYLE}));
+  pushReader(SettingInfo::Enum(StrId::STR_FIRST_LINE_INDENT, &CrossPointSettings::firstLineIndentMode,
+      {StrId::STR_BOOK_STYLE_OPT, StrId::STR_NONE_OPT, StrId::STR_INDENT_SMALL, StrId::STR_INDENT_MEDIUM, StrId::STR_INDENT_LARGE}));
+  pushReader(SettingInfo::Enum(StrId::STR_READER_STYLE_MODE, &CrossPointSettings::readerStyleMode,
+      {StrId::STR_READER_STYLE_USER, StrId::STR_READER_STYLE_HYBRID}));
+  pushReader(SettingInfo::Enum(StrId::STR_HIGHLIGHT_MODE, &CrossPointSettings::highlightMode,
+      {StrId::STR_HIGHLIGHT_WORD, StrId::STR_HIGHLIGHT_FULL_PAGE}));
+  pushReader(SettingInfo::Enum(StrId::STR_ORIENTATION, &CrossPointSettings::orientation,
+      {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_INVERTED, StrId::STR_LANDSCAPE_CCW}));
+  pushReader(SettingInfo::Enum(StrId::STR_WORD_SPACING, &CrossPointSettings::wordSpacingPercent,
+      {StrId::STR_WSPACING_M30, StrId::STR_WSPACING_0, StrId::STR_WSPACING_P80, StrId::STR_WSPACING_P240}));
+  pushReader(SettingInfo::Enum(StrId::STR_EXTRA_SPACING, &CrossPointSettings::extraParagraphSpacingLevel,
+      {StrId::STR_NONE_OPT, StrId::STR_PARA_SPACING_17, StrId::STR_PARA_SPACING_25, StrId::STR_PARA_SPACING_33}));
+  pushReader(SettingInfo::Enum(StrId::STR_TEXT_RENDER_MODE, &CrossPointSettings::textRenderMode,
+      {StrId::STR_RENDER_CRISP, StrId::STR_RENDER_DARK}));
+  if (!txt) {
     readerSettings.push_back(SettingInfo::Toggle(
         StrId::STR_HYPHENATION, &CrossPointSettings::hyphenationEnabled));
   }
 
-  if (CrossPointSettings::isSingleSizeFontFamily(SETTINGS.fontFamily)) {
-    readerSettings.erase(
-        std::remove_if(readerSettings.begin(), readerSettings.end(),
-                       [](const SettingInfo& setting) {
-                         return setting.valuePtr == &CrossPointSettings::fontSize;
-                       }),
-        readerSettings.end());
-  }
+  // --- Build status bar settings directly ---
+  statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_BAR, &CrossPointSettings::statusBarEnabled));
+  statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_BATTERY, &CrossPointSettings::statusBarShowBattery));
+  statusBarSettings.push_back(SettingInfo::Enum(StrId::STR_STATUS_BATTERY_POSITION, &CrossPointSettings::statusBarBatteryPosition,
+      {StrId::STR_STATUS_POSITION_TOP, StrId::STR_STATUS_POSITION_BOTTOM}));
+  statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_PAGE_COUNTER, &CrossPointSettings::statusBarShowPageCounter));
+  statusBarSettings.push_back(SettingInfo::Enum(StrId::STR_STATUS_PAGE_COUNTER_MODE, &CrossPointSettings::statusBarPageCounterMode,
+      {StrId::STR_STATUS_PAGE_MODE_CURRENT_TOTAL, StrId::STR_STATUS_PAGE_MODE_LEFT_CHAPTER}));
+  statusBarSettings.push_back(SettingInfo::Enum(StrId::STR_STATUS_PAGE_COUNTER_POSITION, &CrossPointSettings::statusBarPageCounterPosition,
+      {StrId::STR_STATUS_POS_TOP_LEFT, StrId::STR_STATUS_POS_TOP_CENTER, StrId::STR_STATUS_POS_TOP_RIGHT,
+       StrId::STR_STATUS_POS_BOTTOM_LEFT, StrId::STR_STATUS_POS_BOTTOM_CENTER, StrId::STR_STATUS_POS_BOTTOM_RIGHT}));
+  statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_BOOK_PERCENT, &CrossPointSettings::statusBarShowBookPercentage));
+  statusBarSettings.push_back(SettingInfo::Enum(StrId::STR_STATUS_BOOK_PERCENT_POSITION, &CrossPointSettings::statusBarBookPercentagePosition,
+      {StrId::STR_STATUS_POS_TOP_LEFT, StrId::STR_STATUS_POS_TOP_CENTER, StrId::STR_STATUS_POS_TOP_RIGHT,
+       StrId::STR_STATUS_POS_BOTTOM_LEFT, StrId::STR_STATUS_POS_BOTTOM_CENTER, StrId::STR_STATUS_POS_BOTTOM_RIGHT}));
+  statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_CHAPTER_PERCENT, &CrossPointSettings::statusBarShowChapterPercentage));
+  statusBarSettings.push_back(SettingInfo::Enum(StrId::STR_STATUS_CHAPTER_PERCENT_POSITION, &CrossPointSettings::statusBarChapterPercentagePosition,
+      {StrId::STR_STATUS_POS_TOP_LEFT, StrId::STR_STATUS_POS_TOP_CENTER, StrId::STR_STATUS_POS_TOP_RIGHT,
+       StrId::STR_STATUS_POS_BOTTOM_LEFT, StrId::STR_STATUS_POS_BOTTOM_CENTER, StrId::STR_STATUS_POS_BOTTOM_RIGHT}));
+  statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_BOOK_BAR, &CrossPointSettings::statusBarShowBookBar));
+  statusBarSettings.push_back(SettingInfo::Enum(StrId::STR_STATUS_BOOK_BAR_POSITION, &CrossPointSettings::statusBarBookBarPosition,
+      {StrId::STR_STATUS_POSITION_TOP, StrId::STR_STATUS_POSITION_BOTTOM}));
+  statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_CHAPTER_BAR, &CrossPointSettings::statusBarShowChapterBar));
+  statusBarSettings.push_back(SettingInfo::Enum(StrId::STR_STATUS_CHAPTER_BAR_POSITION, &CrossPointSettings::statusBarChapterBarPosition,
+      {StrId::STR_STATUS_POSITION_TOP, StrId::STR_STATUS_POSITION_BOTTOM}));
+  statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_CHAPTER_TITLE, &CrossPointSettings::statusBarShowChapterTitle));
+  statusBarSettings.push_back(SettingInfo::Enum(StrId::STR_STATUS_CHAPTER_TITLE_POSITION, &CrossPointSettings::statusBarTitlePosition,
+      {StrId::STR_STATUS_POSITION_TOP, StrId::STR_STATUS_POSITION_BOTTOM}));
+  statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_NO_TITLE_TRUNCATION, &CrossPointSettings::statusBarNoTitleTruncation));
 
+  // --- Build flat row index ---
+  flatRows.reserve(2 + readerSettings.size() + statusBarSettings.size());
   for (int categoryIndex = 0; categoryIndex < 2; categoryIndex++) {
     flatRows.push_back(
         FlatSettingRow{.isHeader = true, .categoryIndex = categoryIndex});
