@@ -32,9 +32,32 @@ int readerFontIdFor(const uint8_t family, const uint8_t fontSize) {
 
   if (CrossPointSettings::normalizeFontFamily(family) ==
       CrossPointSettings::BOOKERLY) {
-    return (normalizedFontSize == CrossPointSettings::MEDIUM)
-               ? BOOKERLY_15_FONT_ID
-               : BOOKERLY_13_FONT_ID;
+    switch (normalizedFontSize) {
+    case CrossPointSettings::MEDIUM:
+      return BOOKERLY_15_FONT_ID;
+    case CrossPointSettings::SIZE_18:
+      return BOOKERLY_18_FONT_ID;
+    default:
+      return BOOKERLY_13_FONT_ID;
+    }
+  }
+  if (CrossPointSettings::normalizeFontFamily(family) ==
+      CrossPointSettings::VOLLKORN) {
+    return (normalizedFontSize == CrossPointSettings::SIZE_18)
+               ? VOLLKORN_18_FONT_ID
+               : VOLLKORN_15_FONT_ID;
+  }
+  if (CrossPointSettings::normalizeFontFamily(family) ==
+      CrossPointSettings::GEORGIA) {
+    return (normalizedFontSize == CrossPointSettings::SIZE_18)
+               ? GEORGIA_18_FONT_ID
+               : GEORGIA_15_FONT_ID;
+  }
+  if (CrossPointSettings::normalizeFontFamily(family) ==
+      CrossPointSettings::IMFELL) {
+    return (normalizedFontSize == CrossPointSettings::SIZE_18)
+               ? IMFELL_18_FONT_ID
+               : IMFELL_15_FONT_ID;
   }
   switch (normalizedFontSize) {
     case CrossPointSettings::SIZE_14:

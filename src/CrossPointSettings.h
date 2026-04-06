@@ -122,8 +122,10 @@ public:
     CHAREINK = 0,
     BOOKERLY = 1,
     VOLLKORN = 2,
-    FREESERIF = 3,          // legacy, normalize to CHAREINK
-    LEGACY_REMOVED_FAMILY_2 = 4, // legacy, normalize to CHAREINK
+    GEORGIA = 3,
+    IMFELL = 4,
+    FREESERIF = 5,          // legacy, normalize to CHAREINK
+    LEGACY_REMOVED_FAMILY_2 = 6, // legacy, normalize to CHAREINK
     FONT_FAMILY_COUNT
   };
   enum FONT_SIZE {
