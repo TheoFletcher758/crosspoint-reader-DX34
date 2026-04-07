@@ -6,4 +6,13 @@ class BootActivity final : public Activity {
   explicit BootActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
       : Activity("Boot", renderer, mappedInput) {}
   void onEnter() override;
+  void setProgress(int percent, const char* status = nullptr);
+
+ private:
+  void drawStaticBootScreen() const;
+  void drawDynamicBootScreen() const;
+  void renderEmbeddedBootScreen(HalDisplay::RefreshMode refreshMode,
+                                bool fullRedraw) const;
+
+  int progressPercent = 12;
 };
