@@ -1600,22 +1600,33 @@ std::vector<EpubReaderActivity::WordInfo> EpubReaderActivity::buildWordList(cons
   return result;
 }
 
-const std::vector<EpubReaderActivity::WordInfo>& EpubReaderActivity::getHighlightWordList() {
-  // Return cached word list if still valid for the current page
-  if (highlightWordCachePage == section->currentPage && !highlightWordCache.empty()) {
-    return highlightWordCache;
-  }
-  // Rebuild and cache
+void EpubReaderActivity::rebuildHighlightWordCache(const int xOffset, const int yOffset) {
+  highlightWordCache.clear();
   auto page = loadAndCachePage(section->currentPage);
   if (page) {
-    int mt, mr, mb, ml;
-    renderer.getOrientedViewableTRBL(&mt, &mr, &mb, &ml);
-    highlightWordCache = buildWordList(*page, ml, mt, SETTINGS.getReaderFontId());
-  } else {
-    highlightWordCache.clear();
+    const int fontId = SETTINGS.getReaderFontId();
+    for (const auto& el : page->elements) {
+      if (el->getTag() != TAG_PageLine) continue;
+      const auto& line = static_cast<const PageLine&>(*el);
+      const auto& tb = line.getTextBlock();
+      const auto& words = tb.getWords();
+      const auto& xpos = tb.getWordXpos();
+      const auto& styles = tb.getWordStyles();
+      const int16_t ls = tb.getLetterSpacing();
+      for (size_t i = 0; i < words.size(); i++) {
+        WordPos wp;
+        wp.x = static_cast<int16_t>(static_cast<int>(xpos[i]) + line.xPos + xOffset);
+        wp.y = static_cast<int16_t>(line.yPos + yOffset);
+        wp.width = static_cast<int16_t>(renderer.getTextWidthSpaced(fontId, words[i].c_str(), ls, styles[i]));
+        highlightWordCache.push_back(wp);
+      }
+    }
   }
   highlightWordCachePage = section->currentPage;
-  return highlightWordCache;
+}
+
+int EpubReaderActivity::highlightWordCount() const {
+  return static_cast<int>(highlightWordCache.size());
 }
 
 void EpubReaderActivity::enterHighlightMode() {
@@ -1653,10 +1664,9 @@ void EpubReaderActivity::exitHighlightMode() {
 
 void EpubReaderActivity::highlightMoveCursor(const int direction) {
   if (!section) return;
+  const int wordCount = highlightWordCount();
 
   if (highlightState == HighlightState::SELECT_START) {
-    const auto& wordList = getHighlightWordList();
-    const int wordCount = static_cast<int>(wordList.size());
     if (wordCount == 0) return;
 
     int newIndex = highlightCursorIndex + direction;
@@ -1665,9 +1675,6 @@ void EpubReaderActivity::highlightMoveCursor(const int direction) {
     highlightCursorIndex = newIndex;
     requestUpdate();
   } else if (highlightState == HighlightState::SELECT_END) {
-    const auto& wordList = getHighlightWordList();
-    const int wordCount = static_cast<int>(wordList.size());
-
     // Clamp end index to this page's word count (guards against stale index after page cross)
     if (highlightEndWordIndex >= wordCount) {
       highlightEndWordIndex = wordCount > 0 ? wordCount - 1 : 0;
@@ -1680,7 +1687,7 @@ void EpubReaderActivity::highlightMoveCursor(const int direction) {
       if (section->currentPage < section->pageCount - 1) {
         section->currentPage++;
         highlightEndPage = section->currentPage;
-        highlightWordCachePage = -1;  // invalidate cache for new page
+        highlightWordCachePage = -1;  // invalidate — will rebuild on next render
         highlightEndWordIndex = 0;
         requestUpdate();
         return;
@@ -1693,10 +1700,10 @@ void EpubReaderActivity::highlightMoveCursor(const int direction) {
       if (section->currentPage > highlightStartPage) {
         section->currentPage--;
         highlightEndPage = section->currentPage;
-        highlightWordCachePage = -1;  // invalidate cache for new page
-        const auto& prevWordList = getHighlightWordList();
-        highlightEndWordIndex = static_cast<int>(prevWordList.size()) - 1;
-        if (highlightEndWordIndex < 0) highlightEndWordIndex = 0;
+        highlightWordCachePage = -1;  // invalidate — will rebuild on next render
+        // We don't know the new page's word count yet (cache rebuilds on render),
+        // so set to max int and let render clamp it
+        highlightEndWordIndex = INT_MAX;
         requestUpdate();
         return;
       }
@@ -1720,7 +1727,8 @@ void EpubReaderActivity::highlightMoveCursor(const int direction) {
 void EpubReaderActivity::highlightMoveCursorLine(const int direction) {
   if (!section) return;
 
-  const auto& wordList = getHighlightWordList();
+  // Use cached word list (built with correct offsets during last render)
+  const auto& wordList = highlightWordCache;
   if (wordList.empty()) return;
 
   const bool isEnd = (highlightState == HighlightState::SELECT_END);
@@ -1781,9 +1789,8 @@ void EpubReaderActivity::highlightConfirmSelection() {
     highlightStartWordIndex = highlightCursorIndex;
     highlightEndPage = section->currentPage;
 
-    // End cursor jumps to last word on page (cache is already valid)
-    const auto& wordList = getHighlightWordList();
-    highlightEndWordIndex = static_cast<int>(wordList.size()) - 1;
+    // End cursor jumps to last word on page (cache was built during last render)
+    highlightEndWordIndex = highlightWordCount() - 1;
     if (highlightEndWordIndex < 0) highlightEndWordIndex = 0;
 
     highlightState = HighlightState::SELECT_END;
@@ -1847,27 +1854,26 @@ void EpubReaderActivity::handleHighlightInput() {
 
 void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, const int xOffset, const int yOffset) {
   if (!section) return;
-  const auto& wordList = getHighlightWordList();
+  // Rebuild cache if page changed (uses correct render offsets from renderContents)
+  if (highlightWordCachePage != section->currentPage) {
+    rebuildHighlightWordCache(xOffset, yOffset);
+  }
+  const auto& wordList = highlightWordCache;
   if (wordList.empty()) return;
 
   const int wordCount = static_cast<int>(wordList.size());
   const int textHeight = renderer.getTextHeight(fontId);
-  constexpr int cwPad = 3;  // cursor padding around word (matches text area border)
-  constexpr int underlineThickness = 3;
+  constexpr int thickness = 6;
 
   // Clamp cursor indices to current word list size (guards against stale index after rebuild)
   if (highlightCursorIndex >= wordCount) {
     highlightCursorIndex = wordCount - 1;
   }
 
-  // Helper: draw cursor box around a word (white bg + black text + 3px border)
-  const auto drawCursor = [&](const WordInfo& cw) {
-    renderer.fillRect(cw.x - cwPad, cw.y - cwPad,
-                      cw.width + 2 * cwPad, textHeight + 2 * cwPad, false);
-    renderer.drawTextSpaced(fontId, cw.x, cw.y, cw.text.c_str(),
-                            cw.letterSpacing, true, cw.style);
-    renderer.drawRect(cw.x - cwPad, cw.y - cwPad,
-                      cw.width + 2 * cwPad, textHeight + 2 * cwPad, cwPad, true);
+  // Helper: draw thick underline beneath a word
+  const auto drawCursor = [&](const WordPos& cw) {
+    const int underY = cw.y + textHeight + 1;
+    renderer.fillRect(cw.x, underY, cw.width, thickness, true);
   };
 
   if (highlightState == HighlightState::SELECT_START) {
@@ -1900,11 +1906,24 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
     if (selStart >= 0 && selEnd >= 0) {
       if (selStart >= wordCount) selStart = wordCount - 1;
       if (selEnd >= wordCount) selEnd = wordCount - 1;
-      for (int i = selStart; i <= selEnd; i++) {
+      // Draw continuous underline per line (no gaps between words)
+      int lineY = wordList[selStart].y;
+      int lineMinX = wordList[selStart].x;
+      int lineMaxX = wordList[selStart].x + wordList[selStart].width;
+      for (int i = selStart + 1; i <= selEnd; i++) {
         const auto& w = wordList[i];
-        const int underY = w.y + textHeight + 1;
-        renderer.fillRect(w.x, underY, w.width, underlineThickness, true);
+        if (w.y != lineY) {
+          // Flush previous line
+          renderer.fillRect(lineMinX, lineY + textHeight + 1, lineMaxX - lineMinX, thickness, true);
+          lineY = w.y;
+          lineMinX = w.x;
+          lineMaxX = w.x + w.width;
+        } else {
+          if (w.x + w.width > lineMaxX) lineMaxX = w.x + w.width;
+        }
       }
+      // Flush last line
+      renderer.fillRect(lineMinX, lineY + textHeight + 1, lineMaxX - lineMinX, thickness, true);
     }
   }
 }
@@ -2015,7 +2034,7 @@ void EpubReaderActivity::renderContents(const Page& page, const int orientedMarg
   if (highlightState != HighlightState::NONE) {
     renderHighlights(page, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
     // Draw solid border around text area to indicate highlight mode
-    const int border = 3;
+    const int border = 6;
     const int bx = orientedMarginLeft - border;
     const int by = contentY - border;
     const int bw = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight + 2 * border;

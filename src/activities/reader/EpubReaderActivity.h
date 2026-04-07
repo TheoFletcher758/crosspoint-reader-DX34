@@ -13,11 +13,18 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   // --- Highlight/Quote selection mode ---
   enum class HighlightState { NONE, SELECT_START, SELECT_END, SHOW_UNDERLINE };
 
-  // Info about a single word on a page, flattened from the PageLine/TextBlock hierarchy
+  // Lightweight word position info for cursor/underline rendering (no text storage)
+  struct WordPos {
+    int16_t x;      // screen x position
+    int16_t y;      // screen y position
+    int16_t width;  // pixel width of the word
+  };
+
+  // Full word info including text (only used for quote extraction, not cached)
   struct WordInfo {
-    int x;      // screen x position
-    int y;      // screen y position
-    int width;  // pixel width of the word
+    int x;
+    int y;
+    int width;
     std::string text;
     EpdFontFamily::Style style;
     int16_t letterSpacing;
@@ -31,11 +38,12 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   int highlightEndPage = -1;         // page number of end cursor (may differ from start)
   int highlightEndWordIndex = -1;    // flat word index of end on end page
   unsigned long highlightUnderlineStartMs = 0;  // millis() timestamp when underline display began
-  std::vector<WordInfo> highlightWordCache;     // cached word list for current page (avoids rebuild per frame)
+  std::vector<WordPos> highlightWordCache;      // cached word positions (6 bytes/word vs ~40 for WordInfo)
   int highlightWordCachePage = -1;              // page index the cache was built for
 
   std::vector<WordInfo> buildWordList(const Page& page, int xOffset, int yOffset, int fontId) const;
-  const std::vector<WordInfo>& getHighlightWordList();  // returns cached word list, rebuilds only on page change
+  void rebuildHighlightWordCache(int xOffset, int yOffset);  // rebuild cache with correct render offsets
+  int highlightWordCount() const;  // word count from cache (0 if empty)
   void enterHighlightMode();
   void exitHighlightMode();
   void highlightMoveCursor(int direction);
