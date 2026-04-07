@@ -1786,15 +1786,21 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
   auto wordList = buildWordList(page, xOffset, yOffset, fontId);
   if (wordList.empty()) return;
 
+  const int wordCount = static_cast<int>(wordList.size());
   const int lineHeight = renderer.getLineHeight(fontId);
   const bool isPageMode = SETTINGS.highlightMode == CrossPointSettings::HIGHLIGHT_PAGE;
+
+  // Clamp cursor indices to current word list size (guards against stale index after rebuild)
+  if (highlightCursorIndex >= wordCount) {
+    highlightCursorIndex = wordCount - 1;
+  }
 
   if (highlightState == HighlightState::SELECT_START) {
     if (isPageMode) {
       // Full-page method: highlight from cursor word to last word on page (continuous lines)
       const int selStart = highlightCursorIndex;
-      const int selEnd = static_cast<int>(wordList.size()) - 1;
-      if (selStart >= 0 && selStart <= selEnd) {
+      const int selEnd = wordCount - 1;
+      if (selStart >= 0 && selStart < wordCount && selStart <= selEnd) {
         // Group words by line (Y coordinate) and fill continuous spans
         int lineY = wordList[selStart].y;
         int lineMinX = wordList[selStart].x;
@@ -1853,6 +1859,10 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
       selStart = 0;
       selEnd = static_cast<int>(wordList.size()) - 1;
     }
+
+    // Clamp to word list bounds
+    if (selStart >= wordCount) selStart = wordCount - 1;
+    if (selEnd >= wordCount) selEnd = wordCount - 1;
 
     if (selStart >= 0 && selEnd >= 0) {
       if (isPageMode) {

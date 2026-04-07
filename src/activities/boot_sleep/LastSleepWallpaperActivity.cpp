@@ -83,11 +83,30 @@ void LastSleepWallpaperActivity::handleConfirm() {
     return;
   }
 
+  // Index 0: Favorite/Unfavorite
   if (selectedOptionIndex == 0) {
+    std::string updatedPath;
+    const bool makeFavorite = !FavoriteBmp::isFavoritePath(lastPath);
+    const auto result =
+        FavoriteBmp::setFavorite(lastPath, makeFavorite, &updatedPath);
+    if (result == FavoriteBmp::SetFavoriteResult::LimitReached) {
+      showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
+      return;
+    }
+    if (result == FavoriteBmp::SetFavoriteResult::RenameConflict) {
+      showMessagePopup("Favorite name already exists");
+      return;
+    }
+    if (result != FavoriteBmp::SetFavoriteResult::Success) {
+      showMessagePopup("Favorite failed");
+      return;
+    }
+
     closeActivity();
     return;
   }
 
+  // Index 1: Move to Sleep Pause
   if (selectedOptionIndex == 1) {
     if (lastPath.rfind("/sleep pause/", 0) == 0) {
       showMessagePopup("Already in sleep pause");
@@ -140,34 +159,19 @@ void LastSleepWallpaperActivity::handleConfirm() {
     return;
   }
 
+  // Index 2: Delete
   if (selectedOptionIndex == 2) {
-    std::string updatedPath;
-    const bool makeFavorite = !FavoriteBmp::isFavoritePath(lastPath);
-    const auto result =
-        FavoriteBmp::setFavorite(lastPath, makeFavorite, &updatedPath);
-    if (result == FavoriteBmp::SetFavoriteResult::LimitReached) {
-      showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
+    if (!Storage.remove(lastPath.c_str())) {
+      showMessagePopup("Delete failed");
       return;
     }
-    if (result == FavoriteBmp::SetFavoriteResult::RenameConflict) {
-      showMessagePopup("Favorite name already exists");
-      return;
-    }
-    if (result != FavoriteBmp::SetFavoriteResult::Success) {
-      showMessagePopup("Favorite failed");
-      return;
-    }
-
+    FavoriteBmp::removePathReferences(lastPath);
+    APP_STATE.saveToFile();
     closeActivity();
     return;
   }
 
-  if (!Storage.remove(lastPath.c_str())) {
-    showMessagePopup("Delete failed");
-    return;
-  }
-  FavoriteBmp::removePathReferences(lastPath);
-  APP_STATE.saveToFile();
+  // Index 3: Cancel
   closeActivity();
 }
 
@@ -178,7 +182,11 @@ void LastSleepWallpaperActivity::loop() {
   }
 
   if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
-    closeActivity();
+    if (onBack) {
+      onBack();
+    } else {
+      closeActivity();
+    }
     return;
   }
 
@@ -217,8 +225,8 @@ void LastSleepWallpaperActivity::render(Activity::RenderLock&&) {
       FavoriteBmp::isFavoritePath(APP_STATE.lastSleepWallpaperPath)
           ? "Unfavorite"
           : "Favorite";
-  const char* const options[] = {tr(STR_CANCEL), tr(STR_MOVE_TO_SLEEP_PAUSE),
-                                 favoriteLabel.c_str(), "Delete"};
+  const char* const options[] = {favoriteLabel.c_str(), tr(STR_MOVE_TO_SLEEP_PAUSE),
+                                 "Delete", tr(STR_CANCEL)};
   const int rowH = 28;
   const int popupW = pageWidth - 48;
   const int popupH = 44 + kOptionCount * rowH;

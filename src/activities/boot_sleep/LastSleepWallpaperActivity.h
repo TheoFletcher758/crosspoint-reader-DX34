@@ -10,9 +10,10 @@ class LastSleepWallpaperActivity final : public Activity {
  public:
   explicit LastSleepWallpaperActivity(
       GfxRenderer& renderer, MappedInputManager& mappedInput,
-      const std::function<void()>& onClose)
+      const std::function<void()>& onClose,
+      const std::function<void()>& onBack = nullptr)
       : Activity("LastSleepWallpaper", renderer, mappedInput),
-        onClose(onClose) {}
+        onClose(onClose), onBack(onBack) {}
 
   void onEnter() override;
   void loop() override;
@@ -21,6 +22,7 @@ class LastSleepWallpaperActivity final : public Activity {
  private:
   ButtonNavigator buttonNavigator;
   const std::function<void()> onClose;
+  const std::function<void()> onBack;
   bool messagePopupOpen = false;
   std::string messagePopupText;
   int selectedOptionIndex = 0;

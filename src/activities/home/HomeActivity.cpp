@@ -157,7 +157,7 @@ void HomeActivity::onEnter() {
   // Check if OPDS browser URL is configured
   hasOpdsUrl = strlen(SETTINGS.opdsServerUrl) > 0;
 
-  selectorIndex = 0;
+  selectorIndex = 1;  // Default focus on first recent book
 
   auto metrics = UITheme::getInstance().getMetrics();
   loadRecentBooks(metrics.homeRecentBooksCount);
@@ -315,8 +315,7 @@ void HomeActivity::render(Activity::RenderLock &&) {
   if (pagesSelected) {
     renderer.fillRect(pagesTileX, pagesTileY, pagesTileWidth, pagesTileHeight);
   } else {
-    DrawUtils::drawDottedRect(renderer, pagesTileX, pagesTileY, pagesTileWidth,
-                       pagesTileHeight);
+    renderer.drawRect(pagesTileX, pagesTileY, pagesTileWidth, pagesTileHeight, true);
   }
   renderer.drawText(sessionStatFont, pagesTileX + 8,
                     pagesTileY + 3, sessionPagesText.c_str(), !pagesSelected);

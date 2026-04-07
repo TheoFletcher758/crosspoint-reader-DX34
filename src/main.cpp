@@ -454,8 +454,12 @@ void setup() {
     bootActivity->setProgress(100, "Opening home");
     // trimSleepFolderToLimit() already called at line 365, no need to repeat
     if (showWallpaperTriage) {
+      // Back/cancel on triage opens last book if available, otherwise home
+      const auto& recentList = RECENT_BOOKS.getBooks();
+      const std::string lastBookPath = recentList.empty() ? "" : recentList.front().path;
       exitActivity();
-      enterNewActivity(new LastSleepWallpaperActivity(renderer, mappedInputManager, [=]() { onGoHome(); }));
+      enterNewActivity(new LastSleepWallpaperActivity(renderer, mappedInputManager, [=]() { onGoHome(); },
+          lastBookPath.empty() ? std::function<void()>(nullptr) : [=]() { onGoToReader(lastBookPath); }));
     } else {
       onGoHome();
     }
@@ -464,7 +468,8 @@ void setup() {
     if (showWallpaperTriage) {
       exitActivity();
       enterNewActivity(
-          new LastSleepWallpaperActivity(renderer, mappedInputManager, [=]() { onGoToReader(readerPath); }));
+          new LastSleepWallpaperActivity(renderer, mappedInputManager, [=]() { onGoToReader(readerPath); },
+              [=]() { onGoToReader(readerPath); }));
     } else {
       onGoToReader(readerPath);
     }
