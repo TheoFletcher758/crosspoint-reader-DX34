@@ -161,8 +161,8 @@ void HomeActivity::onEnter() {
 
   auto metrics = UITheme::getInstance().getMetrics();
   loadRecentBooks(metrics.homeRecentBooksCount);
-  // Full refresh on first render to clear ghosting from previous activity
-  renderer.requestFullRefresh();
+  // Half refresh on first render to clear ghosting from previous activity
+  renderer.requestHalfRefresh();
   // Trigger first update
   requestUpdate();
 }
