@@ -961,7 +961,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       const bool makeFavorite = !FavoriteBmp::isFavoritePath(lastPath);
       const auto result = FavoriteBmp::setFavorite(lastPath, makeFavorite, &updatedPath);
       if (result == FavoriteBmp::SetFavoriteResult::LimitReached) {
-        StatusPopup::showBlocking(renderer, FavoriteBmp::limitReachedPopupMessage().c_str());
+        StatusPopup::showBlocking(renderer, FavoriteBmp::limitReachedPopupMessage());
       } else if (result == FavoriteBmp::SetFavoriteResult::RenameConflict) {
         StatusPopup::showBlocking(renderer, "Favorite name already exists");
       } else if (result != FavoriteBmp::SetFavoriteResult::Success) {
