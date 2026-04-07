@@ -1261,12 +1261,13 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
                                   SETTINGS.readerStyleMode, sectionTextRenderMode, SETTINGS.readerBoldSwap != 0)) {
       LOG_DBG("ERS", "Cache not found, building...");
       builtSection = true;
+      TransitionFeedback::showWithProgress(renderer, tr(STR_LOADING));
 
       if (!section->createSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
                                       SETTINGS.extraParagraphSpacingLevel, SETTINGS.paragraphAlignment, viewportWidth,
                                       viewportHeight, false, SETTINGS.wordSpacingPercent, SETTINGS.firstLineIndentMode,
                                       SETTINGS.readerStyleMode, sectionTextRenderMode, SETTINGS.readerBoldSwap != 0,
-                                      std::function<void(int)>())) {
+                                      [this](int percent) { TransitionFeedback::updateProgress(renderer, percent); })) {
         LOG_ERR("ERS", "Failed to persist page data to SD");
         clearPageCache();
         section.reset();

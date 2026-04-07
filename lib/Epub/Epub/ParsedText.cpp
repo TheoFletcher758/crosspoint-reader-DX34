@@ -364,9 +364,15 @@ void ParsedText::applyParagraphIndent(const GfxRenderer &renderer,
     return;
   }
 
+  // Measure em-width from the em-space glyph; fall back to line height
+  // (≈ font size) when the font lacks U+2003 (e.g. Vollkorn).
+  int emWidth = renderer.getTextAdvanceX(fontId, "\xe2\x80\x83");
+  if (emWidth <= 0) {
+    emWidth = renderer.getLineHeight(fontId);
+  }
+
   const float forcedIndentMultiplier = indentMultiplierForMode(firstLineIndentMode);
   if (forcedIndentMultiplier > 0.0f) {
-    const int emWidth = renderer.getTextAdvanceX(fontId, "\xe2\x80\x83");
     blockStyle.textIndent = static_cast<int16_t>(
         std::lround(static_cast<float>(emWidth) * forcedIndentMultiplier));
     blockStyle.textIndentDefined = true;
@@ -375,11 +381,14 @@ void ParsedText::applyParagraphIndent(const GfxRenderer &renderer,
 
   if (blockStyle.textIndentDefined && usePublisherStyles) {
     // CSS text-indent is explicitly set (even if 0) - don't use fallback
-    // EmSpace The actual indent positioning is handled in extractLine()
+    // The actual indent positioning is handled in extractLine()
   } else if (blockStyle.alignment == CssTextAlign::Justify ||
              blockStyle.alignment == CssTextAlign::Left) {
-    // No CSS text-indent defined - use EmSpace fallback for visual indent
-    words.front().insert(0, "\xe2\x80\x83");
+    // No CSS text-indent defined - use textIndent fallback for visual indent
+    // (previously prepended em-space char, but that breaks for fonts missing
+    // the U+2003 glyph)
+    blockStyle.textIndent = static_cast<int16_t>(emWidth);
+    blockStyle.textIndentDefined = true;
   }
 }
 
