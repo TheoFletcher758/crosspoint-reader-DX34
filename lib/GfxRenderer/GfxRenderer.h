@@ -162,6 +162,8 @@ public:
       EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   int getFontAscenderSize(int fontId) const;
   int getLineHeight(int fontId) const;
+  bool hasGlyph(int fontId, uint32_t cp,
+                EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
   std::string
   truncatedText(int fontId, const char *text, int maxWidth,
                 EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;

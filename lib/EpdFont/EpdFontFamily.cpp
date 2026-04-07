@@ -56,6 +56,10 @@ const EpdGlyph* EpdFontFamily::getGlyph(const uint32_t cp, const Style style) co
   return getFont(style)->getGlyph(cp);
 };
 
+bool EpdFontFamily::hasGlyph(const uint32_t cp, const Style style) const {
+  return getFont(style)->hasGlyph(cp);
+}
+
 uint8_t EpdFontFamily::getSyntheticBoldPasses(const Style style) const {
   const Style remappedStyle = remapStyleForReaderBoldSwap(style);
   const uint8_t boldExtra = ((remappedStyle & BOLD) != 0) ? syntheticBoldExtraPasses : 0;

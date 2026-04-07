@@ -22,6 +22,7 @@ class EpdFontFamily {
   bool hasPrintableChars(const char* string, Style style = REGULAR) const;
   const EpdFontData* getData(Style style = REGULAR) const;
   const EpdGlyph* getGlyph(uint32_t cp, Style style = REGULAR) const;
+  bool hasGlyph(uint32_t cp, Style style = REGULAR) const;
   uint8_t getSyntheticBoldPasses(Style style) const;
   bool shouldSynthesizeItalic(Style style) const;
 

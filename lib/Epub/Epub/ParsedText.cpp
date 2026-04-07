@@ -366,7 +366,13 @@ void ParsedText::applyParagraphIndent(const GfxRenderer &renderer,
 
   // Measure em-width from the em-space glyph; fall back to line height
   // (≈ font size) when the font lacks U+2003 (e.g. Vollkorn).
-  int emWidth = renderer.getTextAdvanceX(fontId, "\xe2\x80\x83");
+  // Note: getTextAdvanceX falls back to the replacement glyph (U+FFFD) when
+  // the requested glyph is missing, returning a wrong positive value.
+  // We must check hasGlyph first to detect missing em-space.
+  int emWidth = 0;
+  if (renderer.hasGlyph(fontId, 0x2003)) {
+    emWidth = renderer.getTextAdvanceX(fontId, "\xe2\x80\x83");
+  }
   if (emWidth <= 0) {
     emWidth = renderer.getLineHeight(fontId);
   }
