@@ -357,22 +357,31 @@ void CrossPointWebServer::handleClient() {
 
   // Pump WebSocket download: send up to 2 chunks per loop iteration
   if (wsDownloadInProgress && wsServer && wsDownloadFile) {
-    uint8_t dlBuf[4096];
-    for (int i = 0; i < 2 && wsDownloadSent < wsDownloadSize; i++) {
-      esp_task_wdt_reset();
-      const size_t remaining = wsDownloadSize - wsDownloadSent;
-      const size_t toRead = remaining < sizeof(dlBuf) ? remaining : sizeof(dlBuf);
-      const int bytesRead = wsDownloadFile.read(dlBuf, toRead);
-      if (bytesRead <= 0) break;
+    constexpr size_t WS_DL_BUF_SIZE = 4096;
+    auto* dlBuf = static_cast<uint8_t*>(malloc(WS_DL_BUF_SIZE));
+    if (!dlBuf) {
+      LOG_ERR("WS", "Download OOM: cannot allocate buffer");
+      wsDownloadFile.close();
+      wsDownloadInProgress = false;
+      wsServer->sendTXT(wsDownloadClientNum, "ERROR:Out of memory");
+    } else {
+      for (int i = 0; i < 2 && wsDownloadSent < wsDownloadSize; i++) {
+        esp_task_wdt_reset();
+        const size_t remaining = wsDownloadSize - wsDownloadSent;
+        const size_t toRead = remaining < WS_DL_BUF_SIZE ? remaining : WS_DL_BUF_SIZE;
+        const int bytesRead = wsDownloadFile.read(dlBuf, toRead);
+        if (bytesRead <= 0) break;
 
-      if (!wsServer->sendBIN(wsDownloadClientNum, dlBuf, bytesRead)) {
-        LOG_ERR("WS", "Download send failed at %d/%d", wsDownloadSent, wsDownloadSize);
-        wsDownloadFile.close();
-        wsDownloadInProgress = false;
-        wsServer->sendTXT(wsDownloadClientNum, "ERROR:Send failed");
-        break;
+        if (!wsServer->sendBIN(wsDownloadClientNum, dlBuf, bytesRead)) {
+          LOG_ERR("WS", "Download send failed at %d/%d", wsDownloadSent, wsDownloadSize);
+          wsDownloadFile.close();
+          wsDownloadInProgress = false;
+          wsServer->sendTXT(wsDownloadClientNum, "ERROR:Send failed");
+          break;
+        }
+        wsDownloadSent += bytesRead;
       }
-      wsDownloadSent += bytesRead;
+      free(dlBuf);
     }
 
     // Check if download complete
@@ -746,16 +755,27 @@ void CrossPointWebServer::handleDownload() const {
   server->sendHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
   server->send(200, contentType.c_str(), "");
 
-  // Stream file in 4KB chunks via sendContent()
-  char buf[4096];
+  // Heap-allocate the download buffer to avoid stack overflow.
+  // The main Arduino task has only 8KB of stack; a 4KB stack buffer
+  // combined with WebServer + SD + TCP internals overflows it.
+  constexpr size_t DL_BUF_SIZE = 4096;
+  auto* buf = static_cast<uint8_t*>(malloc(DL_BUF_SIZE));
+  if (!buf) {
+    LOG_ERR("WEB", "Download OOM: cannot allocate %d byte buffer", DL_BUF_SIZE);
+    file.close();
+    server->sendContent("");
+    return;
+  }
+
   while (file.available()) {
     esp_task_wdt_reset();
-    const int bytesRead = file.read(reinterpret_cast<uint8_t*>(buf), sizeof(buf));
+    const int bytesRead = file.read(buf, DL_BUF_SIZE);
     if (bytesRead <= 0) break;
-    server->sendContent(buf, bytesRead);
+    server->sendContent(reinterpret_cast<const char*>(buf), bytesRead);
     yield();  // Let WiFi stack process
   }
   file.close();
+  free(buf);
 
   // Empty chunk signals end of chunked response
   server->sendContent("");
@@ -793,15 +813,24 @@ void CrossPointWebServer::handlePreview() const {
   server->setContentLength(CONTENT_LENGTH_UNKNOWN);
   server->send(200, "image/bmp", "");
 
-  char buf[4096];
+  constexpr size_t PV_BUF_SIZE = 4096;
+  auto* buf = static_cast<uint8_t*>(malloc(PV_BUF_SIZE));
+  if (!buf) {
+    LOG_ERR("WEB", "Preview OOM: cannot allocate buffer");
+    file.close();
+    server->sendContent("");
+    return;
+  }
+
   while (file.available()) {
     esp_task_wdt_reset();
-    const int bytesRead = file.read(reinterpret_cast<uint8_t*>(buf), sizeof(buf));
+    const int bytesRead = file.read(buf, PV_BUF_SIZE);
     if (bytesRead <= 0) break;
-    server->sendContent(buf, bytesRead);
+    server->sendContent(reinterpret_cast<const char*>(buf), bytesRead);
     yield();
   }
   file.close();
+  free(buf);
 
   server->sendContent("");
   LOG_DBG("WEB", "Preview served");
