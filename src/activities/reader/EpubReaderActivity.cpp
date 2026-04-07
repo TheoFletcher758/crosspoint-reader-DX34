@@ -39,7 +39,6 @@ constexpr unsigned long skipChapterMs = 700;
 constexpr unsigned long goHomeMs = 1000;
 constexpr unsigned long confirmDoubleTapMs = 350;
 constexpr unsigned long progressSaveDebounceMs = 800;
-constexpr int progressBarMarginTop = 1;
 constexpr int statusTextTopPadding = 4;
 constexpr int statusTextLineGap = 1;
 constexpr int statusTextToBarsGap = 0;
@@ -52,8 +51,6 @@ int clampPercent(int percent) {
   }
   return percent;
 }
-
-void finishLoadingBar(GfxRenderer& renderer) { TransitionFeedback::dismiss(renderer); }
 
 // Use shared DrawUtils::drawDottedRect instead of local copy
 
@@ -1195,7 +1192,7 @@ void EpubReaderActivity::reloadCurrentSectionForDisplaySettings() {
     if (!epub->ensureCssCache(progressCallback)) {
       LOG_ERR("ERS", "Failed to prepare CSS cache for hybrid reader style");
     } else if (showCssProgress) {
-      finishLoadingBar(renderer);
+      TransitionFeedback::dismiss(renderer);
     }
   }
   {
@@ -1340,13 +1337,13 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
                                   SETTINGS.readerStyleMode, sectionTextRenderMode, SETTINGS.readerBoldSwap != 0)) {
       LOG_DBG("ERS", "Cache not found, building...");
       builtSection = true;
-      TransitionFeedback::showWithProgress(renderer, tr(STR_LOADING));
+      TransitionFeedback::show(renderer, tr(STR_LOADING));
 
       if (!section->createSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
                                       SETTINGS.extraParagraphSpacingLevel, SETTINGS.paragraphAlignment, viewportWidth,
                                       viewportHeight, false, SETTINGS.wordSpacingPercent, SETTINGS.firstLineIndentMode,
                                       SETTINGS.readerStyleMode, sectionTextRenderMode, SETTINGS.readerBoldSwap != 0,
-                                      [this](int percent) { TransitionFeedback::updateProgress(renderer, percent); })) {
+                                      nullptr)) {
         LOG_ERR("ERS", "Failed to persist page data to SD");
         clearPageCache();
         section.reset();
@@ -1393,7 +1390,7 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
       pendingAnchor.clear();
     }
 
-    finishLoadingBar(renderer);
+    TransitionFeedback::dismiss(renderer);
   }
 
   renderer.clearScreen();
