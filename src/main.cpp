@@ -23,7 +23,6 @@
 #include "ReadingThemeStore.h"
 #include "RecentBooksStore.h"
 #include "activities/boot_sleep/BootActivity.h"
-#include "activities/boot_sleep/LastSleepWallpaperActivity.h"
 #include "activities/boot_sleep/SleepActivity.h"
 #include "activities/browser/OpdsBookBrowserActivity.h"
 #include "activities/home/HomeActivity.h"
@@ -445,34 +444,12 @@ void setup() {
     APP_STATE.saveToFile();
   }
 
-  // Show last sleep wallpaper triage popup before proceeding, if enabled.
-  const bool showWallpaperTriage = SETTINGS.showLastSleepWallpaperOnBoot &&
-                                   !APP_STATE.lastSleepWallpaperPath.empty() &&
-                                   Storage.exists(APP_STATE.lastSleepWallpaperPath.c_str());
-
   if (goHome) {
     bootActivity->setProgress(100, "Opening home");
-    // trimSleepFolderToLimit() already called at line 365, no need to repeat
-    if (showWallpaperTriage) {
-      // Back/cancel on triage opens last book if available, otherwise home
-      const auto& recentList = RECENT_BOOKS.getBooks();
-      const std::string lastBookPath = recentList.empty() ? "" : recentList.front().path;
-      exitActivity();
-      enterNewActivity(new LastSleepWallpaperActivity(renderer, mappedInputManager, [=]() { onGoHome(); },
-          lastBookPath.empty() ? std::function<void()>(nullptr) : [=]() { onGoToReader(lastBookPath); }));
-    } else {
-      onGoHome();
-    }
+    onGoHome();
   } else {
     bootActivity->setProgress(100, "Opening last book");
-    if (showWallpaperTriage) {
-      exitActivity();
-      enterNewActivity(
-          new LastSleepWallpaperActivity(renderer, mappedInputManager, [=]() { onGoToReader(readerPath); },
-              [=]() { onGoToReader(readerPath); }));
-    } else {
-      onGoToReader(readerPath);
-    }
+    onGoToReader(readerPath);
   }
 
   // Ensure we're not still holding the power button before leaving setup

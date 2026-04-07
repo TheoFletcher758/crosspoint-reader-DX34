@@ -411,7 +411,6 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["sleepScreenCoverMode"] = s.sleepScreenCoverMode;
   doc["sleepScreenCoverFilter"] = s.sleepScreenCoverFilter;
   doc["showSleepImageFilename"] = s.showSleepImageFilename;
-  doc["showLastSleepWallpaperOnBoot"] = s.showLastSleepWallpaperOnBoot;
   doc["statusBar"] = s.statusBar;
   doc["statusBarEnabled"] = s.statusBarEnabled;
   doc["statusBarShowBattery"] = s.statusBarShowBattery;
@@ -505,7 +504,6 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
       clamp(doc["sleepScreenCoverFilter"] | (uint8_t)S::NO_FILTER,
             S::SLEEP_SCREEN_COVER_FILTER_COUNT, S::NO_FILTER);
   s.showSleepImageFilename = doc["showSleepImageFilename"] | (uint8_t)0;
-  s.showLastSleepWallpaperOnBoot = doc["showLastSleepWallpaperOnBoot"] | (uint8_t)0;
   s.statusBar = clamp(doc["statusBar"] | (uint8_t)S::FULL,
                       S::STATUS_BAR_MODE_COUNT, S::FULL);
   const bool hasGranularStatusBar = !doc["statusBarEnabled"].isNull() &&

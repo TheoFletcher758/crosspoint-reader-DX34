@@ -13,17 +13,20 @@ class EpubReaderMenuActivity final : public ActivityWithSubactivity {
  public:
   // Menu actions available from the reader menu.
   enum class MenuAction {
+    NONE,
     SELECT_CHAPTER,
     FOOTNOTES,
     ROTATE_SCREEN,
     THEMES_MENU,
     REVERT_THEME,
-    LAST_SLEEP_WALLPAPER,
     GO_HOME,
     SYNC,
     DELETE_CACHE,
     DELETE_BOOK,
-    REMOVE_FROM_RECENT
+    REMOVE_FROM_RECENT,
+    TRIAGE_FAVORITE,
+    TRIAGE_MOVE_PAUSE,
+    TRIAGE_DELETE,
   };
 
   explicit EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& title,
@@ -42,6 +45,7 @@ class EpubReaderMenuActivity final : public ActivityWithSubactivity {
     MenuAction action;
     StrId labelId;
     const char* literalLabel = nullptr;
+    bool isSeparator = false;
   };
 
   static std::vector<MenuItem> buildMenuItems(bool hasFootnotes);

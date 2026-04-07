@@ -25,8 +25,8 @@
 #include "ReadingThemeStore.h"
 #include "ReadingThemesActivity.h"
 #include "RecentBooksStore.h"
-#include "activities/boot_sleep/LastSleepWallpaperActivity.h"
 #include "activities/util/ConfirmDialogActivity.h"
+#include "util/FavoriteBmp.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/DrawUtils.h"
@@ -957,14 +957,91 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       reloadCurrentSectionForDisplaySettings();
       break;
     }
-    case EpubReaderMenuActivity::MenuAction::LAST_SLEEP_WALLPAPER: {
+    case EpubReaderMenuActivity::MenuAction::TRIAGE_FAVORITE: {
+      const std::string lastPath = APP_STATE.lastSleepWallpaperPath;
+      if (lastPath.empty()) break;
+      std::string updatedPath;
+      const bool makeFavorite = !FavoriteBmp::isFavoritePath(lastPath);
+      const auto result = FavoriteBmp::setFavorite(lastPath, makeFavorite, &updatedPath);
+      if (result == FavoriteBmp::SetFavoriteResult::LimitReached) {
+        StatusPopup::showBlocking(renderer, FavoriteBmp::limitReachedPopupMessage().c_str());
+      } else if (result == FavoriteBmp::SetFavoriteResult::RenameConflict) {
+        StatusPopup::showBlocking(renderer, "Favorite name already exists");
+      } else if (result != FavoriteBmp::SetFavoriteResult::Success) {
+        StatusPopup::showBlocking(renderer, "Favorite failed");
+      } else {
+        StatusPopup::showBlocking(renderer, makeFavorite ? "Favorited" : "Unfavorited");
+      }
+      delay(500);
       exitActivity();
-      enterNewActivity(new LastSleepWallpaperActivity(renderer, mappedInput, [this]() {
+      pendingMenuOpen = false;
+      skipNextButtonCheck = true;
+      requestUpdate();
+      break;
+    }
+    case EpubReaderMenuActivity::MenuAction::TRIAGE_MOVE_PAUSE: {
+      const std::string lastPath = APP_STATE.lastSleepWallpaperPath;
+      if (lastPath.empty()) break;
+      if (lastPath.rfind("/sleep pause/", 0) == 0) {
+        StatusPopup::showBlocking(renderer, "Already in sleep pause");
+        delay(500);
         exitActivity();
         pendingMenuOpen = false;
         skipNextButtonCheck = true;
         requestUpdate();
-      }));
+        break;
+      }
+      const std::string destDir = "/sleep pause";
+      Storage.mkdir(destDir.c_str());
+      const auto slashPos = lastPath.find_last_of('/');
+      const std::string filename =
+          (slashPos == std::string::npos) ? lastPath : lastPath.substr(slashPos + 1);
+      const std::string dstPath = destDir + "/" + filename;
+      FsFile src, dst;
+      bool ok = false;
+      if (Storage.openFileForRead("TRG", lastPath.c_str(), src) &&
+          Storage.openFileForWrite("TRG", dstPath.c_str(), dst)) {
+        uint8_t buf[512];
+        ok = true;
+        while (src.available()) {
+          const int n = src.read(buf, sizeof(buf));
+          if (n <= 0 || dst.write(buf, n) != n) { ok = false; break; }
+        }
+        src.close();
+        dst.close();
+        if (ok) {
+          Storage.remove(lastPath.c_str());
+          FavoriteBmp::replacePathReferences(lastPath, dstPath);
+          APP_STATE.saveToFile();
+        } else {
+          Storage.remove(dstPath.c_str());
+        }
+      } else {
+        if (src) src.close();
+        if (dst) dst.close();
+      }
+      StatusPopup::showBlocking(renderer, ok ? "Moved to sleep pause" : "Move failed");
+      delay(500);
+      exitActivity();
+      pendingMenuOpen = false;
+      skipNextButtonCheck = true;
+      requestUpdate();
+      break;
+    }
+    case EpubReaderMenuActivity::MenuAction::TRIAGE_DELETE: {
+      const std::string lastPath = APP_STATE.lastSleepWallpaperPath;
+      if (lastPath.empty()) break;
+      const bool removed = Storage.remove(lastPath.c_str());
+      if (removed) {
+        FavoriteBmp::removePathReferences(lastPath);
+        APP_STATE.saveToFile();
+      }
+      StatusPopup::showBlocking(renderer, removed ? "Wallpaper deleted" : "Delete failed");
+      delay(500);
+      exitActivity();
+      pendingMenuOpen = false;
+      skipNextButtonCheck = true;
+      requestUpdate();
       break;
     }
     case EpubReaderMenuActivity::MenuAction::DELETE_CACHE: {
@@ -1071,6 +1148,8 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       pendingGoHome = true;
       break;
     }
+    default:
+      break;
   }
 }
 

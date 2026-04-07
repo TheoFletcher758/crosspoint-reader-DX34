@@ -15,7 +15,6 @@
 #include "MappedInputManager.h"
 #include "OtaUpdateActivity.h"
 #include "SettingsList.h"
-#include "activities/boot_sleep/LastSleepWallpaperActivity.h"
 #include "activities/boot_sleep/SleepActivity.h"
 #include "activities/network/WifiSelectionActivity.h"
 #include "components/UITheme.h"
@@ -247,7 +246,6 @@ void SettingsActivity::buildSettingsList() {
   }
 
   displaySettings.push_back(SettingInfo::Action(StrId::STR_RANDOMIZE_SLEEP_IMAGES, SettingAction::RandomizeSleepImages));
-  displaySettings.push_back(SettingInfo::Action(StrId::STR_LAST_SLEEP_WALLPAPER, SettingAction::LastSleepWallpaper));
 
   // Append device-only ACTION items
   controlsSettings.insert(controlsSettings.begin(),
@@ -535,10 +533,6 @@ void SettingsActivity::toggleCurrentSetting() {
         randomizePopupSuccess = SleepActivity::randomizeSleepImagePlaylist();
         randomizePopupOpen = true;
         requestUpdate();
-        break;
-      case SettingAction::LastSleepWallpaper:
-        enterSubActivity(new LastSleepWallpaperActivity(renderer, mappedInput,
-                                                        onComplete));
         break;
       case SettingAction::RefreshHomeStats: {
         homeStatsPopupOpen = true;

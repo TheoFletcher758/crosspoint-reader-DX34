@@ -1,11 +1,14 @@
 #include "EpubReaderMenuActivity.h"
 
 #include <GfxRenderer.h>
+#include <HalStorage.h>
 #include <I18n.h>
 
+#include "CrossPointState.h"
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/FavoriteBmp.h"
 
 EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                const std::string& title, const int currentPage, const int totalPages,
@@ -24,7 +27,7 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
 
 std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuItems(bool hasFootnotes) {
   std::vector<MenuItem> items;
-  items.reserve(9);
+  items.reserve(14);
   items.push_back({MenuAction::SELECT_CHAPTER, StrId::STR_SELECT_CHAPTER});
   if (hasFootnotes) {
     items.push_back({MenuAction::FOOTNOTES, StrId::STR_FOOTNOTES});
@@ -32,12 +35,23 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
   items.push_back({MenuAction::ROTATE_SCREEN, StrId::STR_ORIENTATION});
   items.push_back({MenuAction::THEMES_MENU, StrId::STR_READING_THEMES});
   items.push_back({MenuAction::REVERT_THEME, StrId::STR_REVERT_THEME});
-  items.push_back({MenuAction::LAST_SLEEP_WALLPAPER, StrId::STR_LAST_SLEEP_WALLPAPER});
   items.push_back({MenuAction::GO_HOME, StrId::STR_GO_HOME_BUTTON});
   items.push_back({MenuAction::SYNC, StrId::STR_SYNC_PROGRESS});
   items.push_back({MenuAction::DELETE_CACHE, StrId::STR_DELETE_CACHE});
   items.push_back({MenuAction::DELETE_BOOK, StrId::STR_DELETE_BOOK});
   items.push_back({MenuAction::REMOVE_FROM_RECENT, StrId::STR_REMOVE_FROM_RECENTS});
+
+  // Wallpaper triage section (only if a last sleep wallpaper exists)
+  const std::string& wallpaperPath = APP_STATE.lastSleepWallpaperPath;
+  if (!wallpaperPath.empty() && Storage.exists(wallpaperPath.c_str())) {
+    items.push_back({MenuAction::NONE, StrId::STR_WALLPAPER_TRIAGE, nullptr, true});
+    const bool isFav = FavoriteBmp::isFavoritePath(wallpaperPath);
+    items.push_back({MenuAction::TRIAGE_FAVORITE,
+                     isFav ? StrId::STR_UNFAVORITE : StrId::STR_FAVORITE});
+    items.push_back({MenuAction::TRIAGE_MOVE_PAUSE, StrId::STR_MOVE_TO_SLEEP_PAUSE});
+    items.push_back({MenuAction::TRIAGE_DELETE, StrId::STR_TRIAGE_DELETE});
+  }
+
   return items;
 }
 
@@ -54,16 +68,23 @@ void EpubReaderMenuActivity::loop() {
     return;
   }
 
-  // Handle navigation
-  buttonNavigator.onNext([this] {
-    selectedIndex = ButtonNavigator::nextIndex(selectedIndex, static_cast<int>(menuItems.size()));
+  // Handle navigation (skip separator rows)
+  const auto advanceIndex = [this](int direction) {
+    const int count = static_cast<int>(menuItems.size());
+    int next = selectedIndex;
+    for (int i = 0; i < count; i++) {
+      next = (direction > 0) ? ButtonNavigator::nextIndex(next, count)
+                             : ButtonNavigator::previousIndex(next, count);
+      if (!menuItems[next].isSeparator) {
+        selectedIndex = next;
+        break;
+      }
+    }
     requestUpdate();
-  });
+  };
 
-  buttonNavigator.onPrevious([this] {
-    selectedIndex = ButtonNavigator::previousIndex(selectedIndex, static_cast<int>(menuItems.size()));
-    requestUpdate();
-  });
+  buttonNavigator.onNext([this, &advanceIndex] { advanceIndex(+1); });
+  buttonNavigator.onPrevious([this, &advanceIndex] { advanceIndex(-1); });
 
   // Use local variables for items we need to check after potential deletion
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
@@ -131,19 +152,30 @@ void EpubReaderMenuActivity::render(Activity::RenderLock&&) {
 
   for (size_t i = 0; i < menuItems.size(); ++i) {
     const int displayY = startY + (i * lineHeight);
-    const bool isSelected = (static_cast<int>(i) == selectedIndex);
+    const auto& item = menuItems[i];
 
+    if (item.isSeparator) {
+      // Draw as an inverted header bar (same style as ReaderSettingsActivity)
+      renderer.fillRect(contentX, displayY, contentWidth, lineHeight, true);
+      const char* label = I18N.get(item.labelId);
+      const int textW = renderer.getTextWidth(UI_10_FONT_ID, label, EpdFontFamily::REGULAR);
+      renderer.drawText(UI_10_FONT_ID, contentX + (contentWidth - textW) / 2,
+                        displayY, label, false, EpdFontFamily::REGULAR);
+      continue;
+    }
+
+    const bool isSelected = (static_cast<int>(i) == selectedIndex);
     if (isSelected) {
       // Highlight only the content area so we don't paint over hint gutters.
       renderer.fillRect(contentX, displayY, contentWidth - 1, lineHeight, true);
     }
 
-    const char* label = menuItems[i].literalLabel != nullptr
-                            ? menuItems[i].literalLabel
-                            : I18N.get(menuItems[i].labelId);
+    const char* label = item.literalLabel != nullptr
+                            ? item.literalLabel
+                            : I18N.get(item.labelId);
     renderer.drawText(UI_10_FONT_ID, contentX + 20, displayY, label, !isSelected);
 
-    if (menuItems[i].action == MenuAction::ROTATE_SCREEN) {
+    if (item.action == MenuAction::ROTATE_SCREEN) {
       // Render current orientation value on the right edge of the content area.
       const char* value = I18N.get(orientationLabels[pendingOrientation]);
       const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
