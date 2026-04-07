@@ -527,6 +527,18 @@ void EpubReaderActivity::loop() {
 
   // Highlight mode intercepts all input while active
   if (highlightState != HighlightState::NONE) {
+    // SHOW_UNDERLINE: wait 3 seconds then save quote and exit
+    if (highlightState == HighlightState::SHOW_UNDERLINE) {
+      if (millis() - highlightUnderlineStartMs >= 3000) {
+        std::string quote = extractQuoteText();
+        if (!quote.empty()) {
+          saveQuoteToFile(quote);
+          StatusPopup::showBlocking(renderer, "Quote saved!");
+        }
+        exitHighlightMode();
+      }
+      return;
+    }
     handleHighlightInput();
     return;
   }
@@ -1596,23 +1608,10 @@ void EpubReaderActivity::enterHighlightMode() {
   highlightStartWordIndex = -1;
   highlightEndPage = -1;
   highlightEndWordIndex = -1;
+  highlightUnderlineStartMs = 0;
 
-  auto page = loadAndCachePage(section->currentPage);
-  if (page) {
-    int mt, mr, mb, ml;
-    renderer.getOrientedViewableTRBL(&mt, &mr, &mb, &ml);
-    auto wordList = buildWordList(*page, ml, mt, SETTINGS.getReaderFontId());
-    if (SETTINGS.highlightMode == CrossPointSettings::HIGHLIGHT_PAGE) {
-      // Full-page method: cursor starts at first word
-      highlightCursorIndex = 0;
-    } else {
-      // Word method: cursor starts in the middle of the page
-      highlightCursorIndex = static_cast<int>(wordList.size()) / 2;
-    }
-  } else {
-    highlightCursorIndex = 0;
-  }
-
+  // Always start cursor at first word
+  highlightCursorIndex = 0;
   requestUpdate();
 }
 
@@ -1624,6 +1623,7 @@ void EpubReaderActivity::exitHighlightMode() {
   highlightStartWordIndex = -1;
   highlightEndPage = -1;
   highlightEndWordIndex = -1;
+  highlightUnderlineStartMs = 0;
   requestUpdate();
 }
 
@@ -1787,18 +1787,14 @@ void EpubReaderActivity::highlightConfirmSelection() {
     highlightStartWordIndex = highlightCursorIndex;
     highlightEndPage = section->currentPage;
 
-    if (SETTINGS.highlightMode == CrossPointSettings::HIGHLIGHT_PAGE) {
-      // Full-page method: end cursor jumps to last word on page
-      auto page = loadAndCachePage(section->currentPage);
-      if (page) {
-        int mt, mr, mb, ml;
-        renderer.getOrientedViewableTRBL(&mt, &mr, &mb, &ml);
-        auto wordList = buildWordList(*page, ml, mt, SETTINGS.getReaderFontId());
-        highlightEndWordIndex = static_cast<int>(wordList.size()) - 1;
-        if (highlightEndWordIndex < 0) highlightEndWordIndex = 0;
-      } else {
-        highlightEndWordIndex = highlightCursorIndex;
-      }
+    // End cursor jumps to last word on page
+    auto page = loadAndCachePage(section->currentPage);
+    if (page) {
+      int mt, mr, mb, ml;
+      renderer.getOrientedViewableTRBL(&mt, &mr, &mb, &ml);
+      auto wordList = buildWordList(*page, ml, mt, SETTINGS.getReaderFontId());
+      highlightEndWordIndex = static_cast<int>(wordList.size()) - 1;
+      if (highlightEndWordIndex < 0) highlightEndWordIndex = 0;
     } else {
       highlightEndWordIndex = highlightCursorIndex;
     }
@@ -1806,13 +1802,11 @@ void EpubReaderActivity::highlightConfirmSelection() {
     highlightState = HighlightState::SELECT_END;
     requestUpdate();
   } else if (highlightState == HighlightState::SELECT_END) {
-    // Extract quote and save
-    std::string quote = extractQuoteText();
-    if (!quote.empty()) {
-      saveQuoteToFile(quote);
-      StatusPopup::showBlocking(renderer, "Quote saved!");
-    }
-    exitHighlightMode();
+    // Navigate to start page to show the underline from the beginning of selection
+    section->currentPage = highlightStartPage;
+    highlightState = HighlightState::SHOW_UNDERLINE;
+    highlightUnderlineStartMs = millis();
+    requestUpdate();
   }
 }
 
@@ -1871,18 +1865,13 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
 
   const int wordCount = static_cast<int>(wordList.size());
   const int textHeight = renderer.getTextHeight(fontId);
-  const bool isPageMode = SETTINGS.highlightMode == CrossPointSettings::HIGHLIGHT_PAGE;
   constexpr int cwPad = 1;  // cursor padding around word
+  constexpr int underlineThickness = 3;
 
   // Clamp cursor indices to current word list size (guards against stale index after rebuild)
   if (highlightCursorIndex >= wordCount) {
     highlightCursorIndex = wordCount - 1;
   }
-
-  // Helper: fill a highlight span for a line of words
-  const auto fillLineSpan = [&](int minX, int y, int maxX) {
-    renderer.fillRect(minX, y, maxX - minX, textHeight, true);
-  };
 
   // Helper: draw cursor box around a word (white bg + black text + thin border)
   const auto drawCursor = [&](const WordInfo& cw) {
@@ -1894,85 +1883,43 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
                       cw.width + 2 * cwPad, textHeight + 2 * cwPad, true);
   };
 
-  // Helper: fill page-mode highlights for a range and redraw text
-  const auto fillPageModeRange = [&](int start, int end) {
-    int lineY = wordList[start].y;
-    int lineMinX = wordList[start].x;
-    int lineMaxX = wordList[start].x + wordList[start].width;
-    for (int i = start; i <= end; i++) {
-      const auto& w = wordList[i];
-      if (w.y != lineY) {
-        fillLineSpan(lineMinX, lineY, lineMaxX);
-        lineY = w.y;
-        lineMinX = w.x;
-        lineMaxX = w.x + w.width;
-      } else {
-        if (w.x < lineMinX) lineMinX = w.x;
-        if (w.x + w.width > lineMaxX) lineMaxX = w.x + w.width;
-      }
-    }
-    fillLineSpan(lineMinX, lineY, lineMaxX);
-    for (int i = start; i <= end; i++) {
-      const auto& w = wordList[i];
-      renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(),
-                              w.letterSpacing, false, w.style);
-    }
-  };
-
   if (highlightState == HighlightState::SELECT_START) {
-    if (isPageMode) {
-      const int selStart = highlightCursorIndex;
-      const int selEnd = wordCount - 1;
-      if (selStart >= 0 && selStart < wordCount && selStart <= selEnd) {
-        fillPageModeRange(selStart, selEnd);
-        drawCursor(wordList[selStart]);
-      }
-    } else {
-      if (highlightCursorIndex >= 0 && highlightCursorIndex < wordCount) {
-        const auto& w = wordList[highlightCursorIndex];
-        renderer.fillRect(w.x, w.y, w.width, textHeight, true);
-        renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(),
-                                w.letterSpacing, false, w.style);
-      }
+    // Just draw a cursor box around the current word — no range highlighting
+    if (highlightCursorIndex >= 0 && highlightCursorIndex < wordCount) {
+      drawCursor(wordList[highlightCursorIndex]);
     }
   } else if (highlightState == HighlightState::SELECT_END) {
+    // Just draw a cursor box around the end word — no range highlighting
+    const int endIdx = highlightEndWordIndex;
+    if (section->currentPage == highlightEndPage && endIdx >= 0 && endIdx < wordCount) {
+      drawCursor(wordList[endIdx]);
+    }
+  } else if (highlightState == HighlightState::SHOW_UNDERLINE) {
+    // Draw 3px underline under selected words on the current page
     int selStart = -1;
     int selEnd = -1;
 
-    if (section->currentPage == highlightStartPage) {
+    if (section->currentPage == highlightStartPage && section->currentPage == highlightEndPage) {
       selStart = highlightStartWordIndex;
-      selEnd = (section->currentPage == highlightEndPage)
-                   ? highlightEndWordIndex
-                   : wordCount - 1;
+      selEnd = highlightEndWordIndex;
+    } else if (section->currentPage == highlightStartPage) {
+      selStart = highlightStartWordIndex;
+      selEnd = wordCount - 1;
     } else if (section->currentPage == highlightEndPage) {
       selStart = 0;
       selEnd = highlightEndWordIndex;
-    } else if (section->currentPage > highlightStartPage &&
-               section->currentPage < highlightEndPage) {
+    } else if (section->currentPage > highlightStartPage && section->currentPage < highlightEndPage) {
       selStart = 0;
       selEnd = wordCount - 1;
     }
 
-    if (selStart < 0) selStart = 0;
-    if (selStart >= wordCount) selStart = wordCount - 1;
-    if (selEnd < 0) selEnd = 0;
-    if (selEnd >= wordCount) selEnd = wordCount - 1;
-
     if (selStart >= 0 && selEnd >= 0) {
-      if (isPageMode) {
-        fillPageModeRange(selStart, selEnd);
-        if (section->currentPage == highlightEndPage &&
-            highlightEndWordIndex >= 0 &&
-            highlightEndWordIndex < wordCount) {
-          drawCursor(wordList[highlightEndWordIndex]);
-        }
-      } else {
-        for (int i = selStart; i <= selEnd && i < wordCount; i++) {
-          const auto& w = wordList[i];
-          renderer.fillRect(w.x, w.y, w.width, textHeight, true);
-          renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(),
-                                  w.letterSpacing, false, w.style);
-        }
+      if (selStart >= wordCount) selStart = wordCount - 1;
+      if (selEnd >= wordCount) selEnd = wordCount - 1;
+      for (int i = selStart; i <= selEnd; i++) {
+        const auto& w = wordList[i];
+        const int underY = w.y + textHeight + 1;
+        renderer.fillRect(w.x, underY, w.width, underlineThickness, true);
       }
     }
   }

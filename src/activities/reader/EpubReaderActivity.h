@@ -11,7 +11,7 @@
 
 class EpubReaderActivity final : public ActivityWithSubactivity {
   // --- Highlight/Quote selection mode ---
-  enum class HighlightState { NONE, SELECT_START, SELECT_END };
+  enum class HighlightState { NONE, SELECT_START, SELECT_END, SHOW_UNDERLINE };
 
   // Info about a single word on a page, flattened from the PageLine/TextBlock hierarchy
   struct WordInfo {
@@ -30,6 +30,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   int highlightStartWordIndex = -1;  // flat word index of start on start page
   int highlightEndPage = -1;         // page number of end cursor (may differ from start)
   int highlightEndWordIndex = -1;    // flat word index of end on end page
+  unsigned long highlightUnderlineStartMs = 0;  // millis() timestamp when underline display began
 
   std::vector<WordInfo> buildWordList(const Page& page, int xOffset, int yOffset, int fontId) const;
   void enterHighlightMode();
