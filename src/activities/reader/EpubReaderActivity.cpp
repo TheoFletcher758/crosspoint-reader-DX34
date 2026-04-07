@@ -1870,80 +1870,89 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
   if (wordList.empty()) return;
 
   const int wordCount = static_cast<int>(wordList.size());
-  const int lineHeight = renderer.getLineHeight(fontId);
+  const int textHeight = renderer.getTextHeight(fontId);
   const bool isPageMode = SETTINGS.highlightMode == CrossPointSettings::HIGHLIGHT_PAGE;
+  constexpr int cwPad = 1;  // cursor padding around word
 
   // Clamp cursor indices to current word list size (guards against stale index after rebuild)
   if (highlightCursorIndex >= wordCount) {
     highlightCursorIndex = wordCount - 1;
   }
 
+  // Helper: fill a highlight span for a line of words
+  const auto fillLineSpan = [&](int minX, int y, int maxX) {
+    renderer.fillRect(minX, y, maxX - minX, textHeight, true);
+  };
+
+  // Helper: draw cursor box around a word (white bg + black text + thin border)
+  const auto drawCursor = [&](const WordInfo& cw) {
+    renderer.fillRect(cw.x - cwPad, cw.y - cwPad,
+                      cw.width + 2 * cwPad, textHeight + 2 * cwPad, false);
+    renderer.drawTextSpaced(fontId, cw.x, cw.y, cw.text.c_str(),
+                            cw.letterSpacing, true, cw.style);
+    renderer.drawRect(cw.x - cwPad, cw.y - cwPad,
+                      cw.width + 2 * cwPad, textHeight + 2 * cwPad, true);
+  };
+
+  // Helper: fill page-mode highlights for a range and redraw text
+  const auto fillPageModeRange = [&](int start, int end) {
+    int lineY = wordList[start].y;
+    int lineMinX = wordList[start].x;
+    int lineMaxX = wordList[start].x + wordList[start].width;
+    for (int i = start; i <= end; i++) {
+      const auto& w = wordList[i];
+      if (w.y != lineY) {
+        fillLineSpan(lineMinX, lineY, lineMaxX);
+        lineY = w.y;
+        lineMinX = w.x;
+        lineMaxX = w.x + w.width;
+      } else {
+        if (w.x < lineMinX) lineMinX = w.x;
+        if (w.x + w.width > lineMaxX) lineMaxX = w.x + w.width;
+      }
+    }
+    fillLineSpan(lineMinX, lineY, lineMaxX);
+    for (int i = start; i <= end; i++) {
+      const auto& w = wordList[i];
+      renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(),
+                              w.letterSpacing, false, w.style);
+    }
+  };
+
   if (highlightState == HighlightState::SELECT_START) {
     if (isPageMode) {
-      // Full-page method: highlight from cursor word to last word on page (continuous lines)
       const int selStart = highlightCursorIndex;
       const int selEnd = wordCount - 1;
       if (selStart >= 0 && selStart < wordCount && selStart <= selEnd) {
-        // Group words by line (Y coordinate) and fill continuous spans
-        int lineY = wordList[selStart].y;
-        int lineMinX = wordList[selStart].x;
-        int lineMaxX = wordList[selStart].x + wordList[selStart].width;
-        for (int i = selStart; i <= selEnd; i++) {
-          const auto& w = wordList[i];
-          if (w.y != lineY) {
-            // Flush previous line
-            renderer.fillRect(lineMinX, lineY, lineMaxX - lineMinX, lineHeight, true);
-            lineY = w.y;
-            lineMinX = w.x;
-            lineMaxX = w.x + w.width;
-          } else {
-            if (w.x < lineMinX) lineMinX = w.x;
-            if (w.x + w.width > lineMaxX) lineMaxX = w.x + w.width;
-          }
-        }
-        // Flush last line
-        renderer.fillRect(lineMinX, lineY, lineMaxX - lineMinX, lineHeight, true);
-        // Redraw all selected words' text on top of the filled background
-        for (int i = selStart; i <= selEnd; i++) {
-          const auto& w = wordList[i];
-          renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
-        }
-        // Cursor word: white background + black text + solid border
-        const auto& cw = wordList[selStart];
-        constexpr int cwBorder = 3;
-        renderer.fillRect(cw.x - cwBorder, cw.y - cwBorder, cw.width + 2 * cwBorder, lineHeight + 2 * cwBorder, false);
-        renderer.drawTextSpaced(fontId, cw.x, cw.y, cw.text.c_str(), cw.letterSpacing, true, cw.style);
-        renderer.drawRect(cw.x - cwBorder, cw.y - cwBorder, cw.width + 2 * cwBorder, lineHeight + 2 * cwBorder, cwBorder, true);
+        fillPageModeRange(selStart, selEnd);
+        drawCursor(wordList[selStart]);
       }
     } else {
-      // Word method: highlight just the cursor word with inverted colors
-      if (highlightCursorIndex >= 0 && highlightCursorIndex < static_cast<int>(wordList.size())) {
+      if (highlightCursorIndex >= 0 && highlightCursorIndex < wordCount) {
         const auto& w = wordList[highlightCursorIndex];
-        renderer.fillRect(w.x, w.y, w.width, lineHeight, true);
-        renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
+        renderer.fillRect(w.x, w.y, w.width, textHeight, true);
+        renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(),
+                                w.letterSpacing, false, w.style);
       }
     }
   } else if (highlightState == HighlightState::SELECT_END) {
-    // Determine which words to highlight on the current displayed page
     int selStart = -1;
     int selEnd = -1;
 
     if (section->currentPage == highlightStartPage) {
       selStart = highlightStartWordIndex;
-      if (section->currentPage == highlightEndPage) {
-        selEnd = highlightEndWordIndex;
-      } else {
-        selEnd = static_cast<int>(wordList.size()) - 1;
-      }
+      selEnd = (section->currentPage == highlightEndPage)
+                   ? highlightEndWordIndex
+                   : wordCount - 1;
     } else if (section->currentPage == highlightEndPage) {
       selStart = 0;
       selEnd = highlightEndWordIndex;
-    } else if (section->currentPage > highlightStartPage && section->currentPage < highlightEndPage) {
+    } else if (section->currentPage > highlightStartPage &&
+               section->currentPage < highlightEndPage) {
       selStart = 0;
-      selEnd = static_cast<int>(wordList.size()) - 1;
+      selEnd = wordCount - 1;
     }
 
-    // Clamp to word list bounds
     if (selStart < 0) selStart = 0;
     if (selStart >= wordCount) selStart = wordCount - 1;
     if (selEnd < 0) selEnd = 0;
@@ -1951,42 +1960,18 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
 
     if (selStart >= 0 && selEnd >= 0) {
       if (isPageMode) {
-        // Full-page method: continuous line fill
-        int lineY = wordList[selStart].y;
-        int lineMinX = wordList[selStart].x;
-        int lineMaxX = wordList[selStart].x + wordList[selStart].width;
-        for (int i = selStart; i <= selEnd && i < static_cast<int>(wordList.size()); i++) {
-          const auto& w = wordList[i];
-          if (w.y != lineY) {
-            renderer.fillRect(lineMinX, lineY, lineMaxX - lineMinX, lineHeight, true);
-            lineY = w.y;
-            lineMinX = w.x;
-            lineMaxX = w.x + w.width;
-          } else {
-            if (w.x < lineMinX) lineMinX = w.x;
-            if (w.x + w.width > lineMaxX) lineMaxX = w.x + w.width;
-          }
-        }
-        renderer.fillRect(lineMinX, lineY, lineMaxX - lineMinX, lineHeight, true);
-        for (int i = selStart; i <= selEnd && i < static_cast<int>(wordList.size()); i++) {
-          const auto& w = wordList[i];
-          renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
-        }
-        // End cursor word: white background + black text + solid border
+        fillPageModeRange(selStart, selEnd);
         if (section->currentPage == highlightEndPage &&
-            highlightEndWordIndex >= 0 && highlightEndWordIndex < static_cast<int>(wordList.size())) {
-          const auto& cw = wordList[highlightEndWordIndex];
-          constexpr int cwBorder = 3;
-          renderer.fillRect(cw.x - cwBorder, cw.y - cwBorder, cw.width + 2 * cwBorder, lineHeight + 2 * cwBorder, false);
-          renderer.drawTextSpaced(fontId, cw.x, cw.y, cw.text.c_str(), cw.letterSpacing, true, cw.style);
-          renderer.drawRect(cw.x - cwBorder, cw.y - cwBorder, cw.width + 2 * cwBorder, lineHeight + 2 * cwBorder, cwBorder, true);
+            highlightEndWordIndex >= 0 &&
+            highlightEndWordIndex < wordCount) {
+          drawCursor(wordList[highlightEndWordIndex]);
         }
       } else {
-        // Word method: per-word fill
-        for (int i = selStart; i <= selEnd && i < static_cast<int>(wordList.size()); i++) {
+        for (int i = selStart; i <= selEnd && i < wordCount; i++) {
           const auto& w = wordList[i];
-          renderer.fillRect(w.x, w.y, w.width, lineHeight, true);
-          renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(), w.letterSpacing, false, w.style);
+          renderer.fillRect(w.x, w.y, w.width, textHeight, true);
+          renderer.drawTextSpaced(fontId, w.x, w.y, w.text.c_str(),
+                                  w.letterSpacing, false, w.style);
         }
       }
     }
@@ -2098,8 +2083,8 @@ void EpubReaderActivity::renderContents(const Page& page, const int orientedMarg
   // Render highlight overlay and border if in highlight/quote selection mode
   if (highlightState != HighlightState::NONE) {
     renderHighlights(page, SETTINGS.getReaderFontId(), orientedMarginLeft, contentY);
-    // Draw 6px solid border around text area to indicate highlight mode
-    const int border = 6;
+    // Draw solid border around text area to indicate highlight mode
+    const int border = 3;
     const int bx = orientedMarginLeft - border;
     const int by = contentY - border;
     const int bw = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight + 2 * border;
