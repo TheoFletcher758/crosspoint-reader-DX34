@@ -46,6 +46,7 @@ size_t wsUploadSize = 0;
 size_t wsUploadReceived = 0;
 unsigned long wsUploadStartTime = 0;
 bool wsUploadInProgress = false;
+size_t wsUploadLastProgressSent = 0;
 
 // WebSocket download state
 FsFile wsDownloadFile;
@@ -862,18 +863,15 @@ void CrossPointWebServer::handleUpload(UploadState& state) const {
     // Note: We use query parameter instead of form data because multipart form
     // fields aren't available until after file upload completes
     if (server->hasArg("path")) {
-      state.path = server->arg("path");
-      // Ensure path starts with /
-      if (!state.path.startsWith("/")) {
-        state.path = "/" + state.path;
-      }
-      // Remove trailing slash unless it's root
-      if (state.path.length() > 1 && state.path.endsWith("/")) {
-        state.path = state.path.substring(0, state.path.length() - 1);
-      }
+      state.path = normalizeWebPath(server->arg("path"));
     } else {
       state.path = "/";
     }
+
+    // Sanitize filename: strip path separators to prevent traversal
+    state.fileName.replace("/", "");
+    state.fileName.replace("\\", "");
+    state.fileName.replace("..", "");
 
     LOG_DBG("WEB", "[UPLOAD] START: %s to path: %s", state.fileName.c_str(), state.path.c_str());
     LOG_DBG("WEB", "[UPLOAD] Free heap: %d bytes", ESP.getFreeHeap());
@@ -1617,15 +1615,15 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
         if (firstColon > 0 && secondColon > 0) {
           wsUploadFileName = msg.substring(6, firstColon);
           wsUploadSize = msg.substring(firstColon + 1, secondColon).toInt();
-          wsUploadPath = msg.substring(secondColon + 1);
+          wsUploadPath = normalizeWebPath(msg.substring(secondColon + 1));
           wsUploadReceived = 0;
+          wsUploadLastProgressSent = 0;
           wsUploadStartTime = millis();
 
-          // Ensure path is valid
-          if (!wsUploadPath.startsWith("/")) wsUploadPath = "/" + wsUploadPath;
-          if (wsUploadPath.length() > 1 && wsUploadPath.endsWith("/")) {
-            wsUploadPath = wsUploadPath.substring(0, wsUploadPath.length() - 1);
-          }
+          // Sanitize filename: strip path separators to prevent traversal
+          wsUploadFileName.replace("/", "");
+          wsUploadFileName.replace("\\", "");
+          wsUploadFileName.replace("..", "");
 
           // Build file path
           String filePath = wsUploadPath;
@@ -1680,11 +1678,10 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
       wsUploadReceived += written;
 
       // Send progress update (every 64KB or at end)
-      static size_t lastProgressSent = 0;
-      if (wsUploadReceived - lastProgressSent >= 65536 || wsUploadReceived >= wsUploadSize) {
+      if (wsUploadReceived - wsUploadLastProgressSent >= 65536 || wsUploadReceived >= wsUploadSize) {
         String progress = "PROGRESS:" + String(wsUploadReceived) + ":" + String(wsUploadSize);
         wsServer->sendTXT(num, progress);
-        lastProgressSent = wsUploadReceived;
+        wsUploadLastProgressSent = wsUploadReceived;
       }
 
       // Check if upload complete
@@ -1709,7 +1706,7 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
         clearBookCacheIfNeeded(filePath);
 
         wsServer->sendTXT(num, "DONE");
-        lastProgressSent = 0;
+        wsUploadLastProgressSent = 0;
       }
       break;
     }

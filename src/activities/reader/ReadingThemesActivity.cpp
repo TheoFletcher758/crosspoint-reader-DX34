@@ -141,6 +141,7 @@ void ReadingThemesActivity::executeThemeAction() {
         return;
       }
       settingsDirty = true;
+      TransitionFeedback::dismiss(renderer);
       onClose(true);
       return;
     }

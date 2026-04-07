@@ -5,16 +5,23 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 
+#include "components/UITheme.h"
 #include "fontIds.h"
 
 namespace TransitionFeedback {
 namespace {
 bool sActive = false;
-}
+bool sHasProgress = false;
+Rect sPopupRect{};
+int sLastPercent = -1;
+unsigned long sLastUpdateMs = 0;
+}  // namespace
 
 void show(GfxRenderer& renderer, const char* message) {
   sActive = false;
+  sHasProgress = false;
   if (!message || message[0] == '\0') {
     return;
   }
@@ -50,11 +57,74 @@ void show(GfxRenderer& renderer, const char* message) {
   sActive = true;
 }
 
+void showWithProgress(GfxRenderer& renderer, const char* message) {
+  sActive = false;
+  sHasProgress = false;
+  sLastPercent = -1;
+  sLastUpdateMs = 0;
+  if (!message || message[0] == '\0') {
+    return;
+  }
+
+  std::string upper(message);
+  std::transform(upper.begin(), upper.end(), upper.begin(),
+                 [](unsigned char c) { return std::toupper(c); });
+
+  // Draw popup via theme to get consistent styling and the Rect back
+  sPopupRect = GUI.drawPopup(renderer, upper.c_str());
+  sHasProgress = true;
+  sActive = true;
+}
+
+void updateProgress(GfxRenderer& renderer, int percent) {
+  if (!sHasProgress || !sActive) {
+    return;
+  }
+  if (percent < 0) percent = 0;
+  if (percent > 100) percent = 100;
+
+  // Skip if same percentage
+  if (percent == sLastPercent) {
+    return;
+  }
+
+  // Throttle e-ink refreshes: max ~2.5 updates/sec, but always allow 100%
+  unsigned long now = millis();
+  if (percent < 100 && sLastPercent >= 0 && (now - sLastUpdateMs) < 400) {
+    return;
+  }
+
+  sLastPercent = percent;
+  sLastUpdateMs = now;
+
+  // Format percentage string
+  char buf[8];
+  snprintf(buf, sizeof(buf), "%d%%", percent);
+
+  // Draw percentage text centered below the popup message
+  const int textWidth = renderer.getTextWidth(UI_12_FONT_ID, buf, EpdFontFamily::REGULAR);
+  const int textHeight = renderer.getLineHeight(UI_12_FONT_ID);
+  const int textX = sPopupRect.x + (sPopupRect.width - textWidth) / 2;
+  const int textY = sPopupRect.y + sPopupRect.height + 6;
+
+  // Clear the percentage area (slightly wider than needed for "100%")
+  const int clearWidth = renderer.getTextWidth(UI_12_FONT_ID, "100%", EpdFontFamily::REGULAR) + 10;
+  const int clearX = sPopupRect.x + (sPopupRect.width - clearWidth) / 2;
+  renderer.fillRect(clearX, textY - 2, clearWidth, textHeight + 4, false);
+
+  // Draw the percentage
+  renderer.drawText(UI_12_FONT_ID, textX, textY, buf, true, EpdFontFamily::REGULAR);
+
+  renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+}
+
 void dismiss(GfxRenderer& renderer) {
   if (!sActive) {
     return;
   }
   sActive = false;
+  sHasProgress = false;
+  sLastPercent = -1;
   renderer.clearScreen();
   renderer.displayBuffer(HalDisplay::HALF_REFRESH);
 }

@@ -38,7 +38,10 @@ std::unique_ptr<Epub> ReaderActivity::loadEpub(const std::string& path) {
     return nullptr;
   }
 
+  TransitionFeedback::updateProgress(renderer, 20);
   auto epub = std::unique_ptr<Epub>(new Epub(path, "/.crosspoint"));
+  TransitionFeedback::updateProgress(renderer, 40);
+
   uint8_t readerStyleMode = SETTINGS.readerStyleMode;
   ReadingTheme savedBookSettings;
   if (ReadingThemeStore::loadBookSettings(epub->getCachePath(),
@@ -46,8 +49,10 @@ std::unique_ptr<Epub> ReaderActivity::loadEpub(const std::string& path) {
     readerStyleMode = savedBookSettings.readerStyleMode;
   }
 
+  TransitionFeedback::updateProgress(renderer, 55);
   if (epub->load(true, readerStyleMode ==
                            CrossPointSettings::READER_STYLE_USER)) {
+    TransitionFeedback::updateProgress(renderer, 90);
     return epub;
   }
 
@@ -61,8 +66,11 @@ std::unique_ptr<Xtc> ReaderActivity::loadXtc(const std::string& path) {
     return nullptr;
   }
 
+  TransitionFeedback::updateProgress(renderer, 30);
   auto xtc = std::unique_ptr<Xtc>(new Xtc(path, "/.crosspoint"));
+  TransitionFeedback::updateProgress(renderer, 60);
   if (xtc->load()) {
+    TransitionFeedback::updateProgress(renderer, 90);
     return xtc;
   }
 
@@ -76,8 +84,11 @@ std::unique_ptr<Txt> ReaderActivity::loadTxt(const std::string& path) {
     return nullptr;
   }
 
+  TransitionFeedback::updateProgress(renderer, 30);
   auto txt = std::unique_ptr<Txt>(new Txt(path, "/.crosspoint"));
+  TransitionFeedback::updateProgress(renderer, 60);
   if (txt->load()) {
+    TransitionFeedback::updateProgress(renderer, 90);
     return txt;
   }
 
@@ -126,13 +137,16 @@ void ReaderActivity::openBookPath(const std::string& bookPath) {
   }
 
   if (!TransitionFeedback::isActive()) {
-    TransitionFeedback::show(renderer, tr(STR_LOADING));
+    TransitionFeedback::showWithProgress(renderer, tr(STR_LOADING));
   }
 
   currentBookPath = bookPath;
+  TransitionFeedback::updateProgress(renderer, 10);
+
   if (isXtcFile(bookPath)) {
     auto xtc = loadXtc(bookPath);
     if (xtc) {
+      TransitionFeedback::updateProgress(renderer, 100);
       onGoToXtcReader(std::move(xtc));
     } else {
       exitActivity();
@@ -144,6 +158,7 @@ void ReaderActivity::openBookPath(const std::string& bookPath) {
   if (isTxtFile(bookPath)) {
     auto txt = loadTxt(bookPath);
     if (txt) {
+      TransitionFeedback::updateProgress(renderer, 100);
       onGoToTxtReader(std::move(txt));
     } else {
       exitActivity();
@@ -154,6 +169,7 @@ void ReaderActivity::openBookPath(const std::string& bookPath) {
 
   auto epub = loadEpub(bookPath);
   if (epub) {
+    TransitionFeedback::updateProgress(renderer, 100);
     onGoToEpubReader(std::move(epub));
   } else {
     exitActivity();

@@ -1740,6 +1740,11 @@ void EpubReaderActivity::highlightConfirmSelection() {
 }
 
 void EpubReaderActivity::handleHighlightInput() {
+  if (!section) {
+    exitHighlightMode();
+    return;
+  }
+
   // Back cancels highlight mode
   if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
     exitHighlightMode();
@@ -1783,6 +1788,7 @@ void EpubReaderActivity::handleHighlightInput() {
 }
 
 void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, const int xOffset, const int yOffset) {
+  if (!section) return;
   auto wordList = buildWordList(page, xOffset, yOffset, fontId);
   if (wordList.empty()) return;
 
@@ -1861,7 +1867,9 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
     }
 
     // Clamp to word list bounds
+    if (selStart < 0) selStart = 0;
     if (selStart >= wordCount) selStart = wordCount - 1;
+    if (selEnd < 0) selEnd = 0;
     if (selEnd >= wordCount) selEnd = wordCount - 1;
 
     if (selStart >= 0 && selEnd >= 0) {
@@ -1910,7 +1918,9 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
 
 std::string EpubReaderActivity::extractQuoteText() {
   if (highlightStartPage < 0 || highlightEndPage < 0 || !section) return "";
+  if (highlightStartWordIndex < 0 || highlightEndWordIndex < 0) return "";
 
+  constexpr size_t kMaxQuoteLength = 8192;
   std::string result;
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
@@ -1923,10 +1933,16 @@ std::string EpubReaderActivity::extractQuoteText() {
     if (!page) continue;
 
     auto wordList = buildWordList(*page, orientedMarginLeft, contentY, fontId);
+    if (wordList.empty()) continue;
+
     int startIdx = (pg == highlightStartPage) ? highlightStartWordIndex : 0;
     int endIdx = (pg == highlightEndPage) ? highlightEndWordIndex : static_cast<int>(wordList.size()) - 1;
 
-    for (int i = startIdx; i <= endIdx && i < static_cast<int>(wordList.size()); i++) {
+    // Clamp to word list bounds
+    if (startIdx < 0) startIdx = 0;
+    if (endIdx >= static_cast<int>(wordList.size())) endIdx = static_cast<int>(wordList.size()) - 1;
+
+    for (int i = startIdx; i <= endIdx; i++) {
       if (!result.empty()) {
         // Check if the word starts with punctuation that should be attached
         const char first = wordList[i].text.empty() ? '\0' : wordList[i].text[0];
@@ -1936,7 +1952,9 @@ std::string EpubReaderActivity::extractQuoteText() {
         }
       }
       result += wordList[i].text;
+      if (result.size() >= kMaxQuoteLength) break;
     }
+    if (result.size() >= kMaxQuoteLength) break;
   }
 
   return result;
