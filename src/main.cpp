@@ -410,10 +410,8 @@ void setup() {
   setupDisplayAndFonts();
 
   exitActivity();
-  auto* bootActivity = new BootActivity(renderer, mappedInputManager);
-  enterNewActivity(bootActivity);
+  enterNewActivity(new BootActivity(renderer, mappedInputManager));
 
-  bootActivity->setProgress(32, "Restoring state");
   APP_STATE.loadFromFile();
 
   LOG_INF("MAIN", "Booting complete, checking initial activity");
@@ -429,11 +427,9 @@ void setup() {
 
   // Defer sleep cache trimming until home screen is actually needed.
   if (goHome) {
-    bootActivity->setProgress(60, "Refreshing sleep cache");
     SleepActivity::trimSleepFolderToLimit();
     homeDataLoaded = true;
   }
-  bootActivity->setProgress(80, goHome ? "Preparing home" : "Resuming book");
 
   // Capture reader path before we potentially clear it.
   std::string readerPath;
@@ -445,10 +441,8 @@ void setup() {
   }
 
   if (goHome) {
-    bootActivity->setProgress(100, "Opening home");
     onGoHome();
   } else {
-    bootActivity->setProgress(100, "Opening last book");
     onGoToReader(readerPath);
   }
 
