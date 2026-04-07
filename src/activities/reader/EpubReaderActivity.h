@@ -31,8 +31,11 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   int highlightEndPage = -1;         // page number of end cursor (may differ from start)
   int highlightEndWordIndex = -1;    // flat word index of end on end page
   unsigned long highlightUnderlineStartMs = 0;  // millis() timestamp when underline display began
+  std::vector<WordInfo> highlightWordCache;     // cached word list for current page (avoids rebuild per frame)
+  int highlightWordCachePage = -1;              // page index the cache was built for
 
   std::vector<WordInfo> buildWordList(const Page& page, int xOffset, int yOffset, int fontId) const;
+  const std::vector<WordInfo>& getHighlightWordList();  // returns cached word list, rebuilds only on page change
   void enterHighlightMode();
   void exitHighlightMode();
   void highlightMoveCursor(int direction);

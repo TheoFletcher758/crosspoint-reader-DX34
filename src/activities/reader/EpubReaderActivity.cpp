@@ -1600,6 +1600,24 @@ std::vector<EpubReaderActivity::WordInfo> EpubReaderActivity::buildWordList(cons
   return result;
 }
 
+const std::vector<EpubReaderActivity::WordInfo>& EpubReaderActivity::getHighlightWordList() {
+  // Return cached word list if still valid for the current page
+  if (highlightWordCachePage == section->currentPage && !highlightWordCache.empty()) {
+    return highlightWordCache;
+  }
+  // Rebuild and cache
+  auto page = loadAndCachePage(section->currentPage);
+  if (page) {
+    int mt, mr, mb, ml;
+    renderer.getOrientedViewableTRBL(&mt, &mr, &mb, &ml);
+    highlightWordCache = buildWordList(*page, ml, mt, SETTINGS.getReaderFontId());
+  } else {
+    highlightWordCache.clear();
+  }
+  highlightWordCachePage = section->currentPage;
+  return highlightWordCache;
+}
+
 void EpubReaderActivity::enterHighlightMode() {
   if (!section || section->pageCount == 0) return;
   highlightState = HighlightState::SELECT_START;
@@ -1609,6 +1627,8 @@ void EpubReaderActivity::enterHighlightMode() {
   highlightEndPage = -1;
   highlightEndWordIndex = -1;
   highlightUnderlineStartMs = 0;
+  highlightWordCachePage = -1;
+  highlightWordCache.clear();
 
   // Always start cursor at first word
   highlightCursorIndex = 0;
@@ -1624,6 +1644,10 @@ void EpubReaderActivity::exitHighlightMode() {
   highlightEndPage = -1;
   highlightEndWordIndex = -1;
   highlightUnderlineStartMs = 0;
+  // Free cached word list memory
+  highlightWordCache.clear();
+  highlightWordCache.shrink_to_fit();
+  highlightWordCachePage = -1;
   requestUpdate();
 }
 
@@ -1631,15 +1655,7 @@ void EpubReaderActivity::highlightMoveCursor(const int direction) {
   if (!section) return;
 
   if (highlightState == HighlightState::SELECT_START) {
-    // Load current page to get word count
-    auto page = loadAndCachePage(section->currentPage);
-    if (!page) return;
-
-    int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
-    renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
-                                     &orientedMarginLeft);
-    const int contentY = orientedMarginTop;
-    auto wordList = buildWordList(*page, orientedMarginLeft, contentY, SETTINGS.getReaderFontId());
+    const auto& wordList = getHighlightWordList();
     const int wordCount = static_cast<int>(wordList.size());
     if (wordCount == 0) return;
 
@@ -1649,14 +1665,7 @@ void EpubReaderActivity::highlightMoveCursor(const int direction) {
     highlightCursorIndex = newIndex;
     requestUpdate();
   } else if (highlightState == HighlightState::SELECT_END) {
-    auto page = loadAndCachePage(section->currentPage);
-    if (!page) return;
-
-    int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
-    renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
-                                     &orientedMarginLeft);
-    const int contentY = orientedMarginTop;
-    auto wordList = buildWordList(*page, orientedMarginLeft, contentY, SETTINGS.getReaderFontId());
+    const auto& wordList = getHighlightWordList();
     const int wordCount = static_cast<int>(wordList.size());
 
     // Clamp end index to this page's word count (guards against stale index after page cross)
@@ -1671,11 +1680,11 @@ void EpubReaderActivity::highlightMoveCursor(const int direction) {
       if (section->currentPage < section->pageCount - 1) {
         section->currentPage++;
         highlightEndPage = section->currentPage;
+        highlightWordCachePage = -1;  // invalidate cache for new page
         highlightEndWordIndex = 0;
         requestUpdate();
         return;
       }
-      // At last page, clamp
       newIndex = wordCount > 0 ? wordCount - 1 : 0;
     }
 
@@ -1684,17 +1693,13 @@ void EpubReaderActivity::highlightMoveCursor(const int direction) {
       if (section->currentPage > highlightStartPage) {
         section->currentPage--;
         highlightEndPage = section->currentPage;
-        // Load previous page to get its word count
-        auto prevPage = loadAndCachePage(section->currentPage);
-        if (prevPage) {
-          auto prevWordList = buildWordList(*prevPage, orientedMarginLeft, contentY, SETTINGS.getReaderFontId());
-          highlightEndWordIndex = static_cast<int>(prevWordList.size()) - 1;
-          if (highlightEndWordIndex < 0) highlightEndWordIndex = 0;
-        }
+        highlightWordCachePage = -1;  // invalidate cache for new page
+        const auto& prevWordList = getHighlightWordList();
+        highlightEndWordIndex = static_cast<int>(prevWordList.size()) - 1;
+        if (highlightEndWordIndex < 0) highlightEndWordIndex = 0;
         requestUpdate();
         return;
       }
-      // Can't go before start position
       if (section->currentPage == highlightStartPage) {
         newIndex = highlightStartWordIndex;
       } else {
@@ -1715,13 +1720,7 @@ void EpubReaderActivity::highlightMoveCursor(const int direction) {
 void EpubReaderActivity::highlightMoveCursorLine(const int direction) {
   if (!section) return;
 
-  auto page = loadAndCachePage(section->currentPage);
-  if (!page) return;
-
-  int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
-  renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
-                                   &orientedMarginLeft);
-  auto wordList = buildWordList(*page, orientedMarginLeft, orientedMarginTop, SETTINGS.getReaderFontId());
+  const auto& wordList = getHighlightWordList();
   if (wordList.empty()) return;
 
   const bool isEnd = (highlightState == HighlightState::SELECT_END);
@@ -1734,19 +1733,16 @@ void EpubReaderActivity::highlightMoveCursorLine(const int direction) {
   // Find the target line's y value
   int targetY = -1;
   if (direction < 0) {
-    // Previous line: largest y that is strictly less than current
     for (const auto& w : wordList) {
       if (w.y < curY && (targetY < 0 || w.y > targetY)) targetY = w.y;
     }
   } else {
-    // Next line: smallest y that is strictly greater than current
     for (const auto& w : wordList) {
       if (w.y > curY && (targetY < 0 || w.y < targetY)) targetY = w.y;
     }
   }
 
   if (targetY < 0) {
-    // No line in that direction on this page — fall back to word-by-word (handles page crossing in SELECT_END)
     highlightMoveCursor(direction);
     return;
   }
@@ -1766,7 +1762,6 @@ void EpubReaderActivity::highlightMoveCursorLine(const int direction) {
 
   if (bestIdx < 0) return;
 
-  // In SELECT_END, don't allow going before start on the same page
   if (isEnd && section->currentPage == highlightStartPage && bestIdx < highlightStartWordIndex) {
     bestIdx = highlightStartWordIndex;
   }
@@ -1781,29 +1776,21 @@ void EpubReaderActivity::highlightMoveCursorLine(const int direction) {
 
 void EpubReaderActivity::highlightConfirmSelection() {
   if (highlightState == HighlightState::SELECT_START) {
-    // Lock start position, switch to selecting end
     highlightStartSpine = currentSpineIndex;
     highlightStartPage = section->currentPage;
     highlightStartWordIndex = highlightCursorIndex;
     highlightEndPage = section->currentPage;
 
-    // End cursor jumps to last word on page
-    auto page = loadAndCachePage(section->currentPage);
-    if (page) {
-      int mt, mr, mb, ml;
-      renderer.getOrientedViewableTRBL(&mt, &mr, &mb, &ml);
-      auto wordList = buildWordList(*page, ml, mt, SETTINGS.getReaderFontId());
-      highlightEndWordIndex = static_cast<int>(wordList.size()) - 1;
-      if (highlightEndWordIndex < 0) highlightEndWordIndex = 0;
-    } else {
-      highlightEndWordIndex = highlightCursorIndex;
-    }
+    // End cursor jumps to last word on page (cache is already valid)
+    const auto& wordList = getHighlightWordList();
+    highlightEndWordIndex = static_cast<int>(wordList.size()) - 1;
+    if (highlightEndWordIndex < 0) highlightEndWordIndex = 0;
 
     highlightState = HighlightState::SELECT_END;
     requestUpdate();
   } else if (highlightState == HighlightState::SELECT_END) {
-    // Navigate to start page to show the underline from the beginning of selection
     section->currentPage = highlightStartPage;
+    highlightWordCachePage = -1;  // invalidate cache for start page
     highlightState = HighlightState::SHOW_UNDERLINE;
     highlightUnderlineStartMs = millis();
     requestUpdate();
@@ -1860,12 +1847,12 @@ void EpubReaderActivity::handleHighlightInput() {
 
 void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, const int xOffset, const int yOffset) {
   if (!section) return;
-  auto wordList = buildWordList(page, xOffset, yOffset, fontId);
+  const auto& wordList = getHighlightWordList();
   if (wordList.empty()) return;
 
   const int wordCount = static_cast<int>(wordList.size());
   const int textHeight = renderer.getTextHeight(fontId);
-  constexpr int cwPad = 1;  // cursor padding around word
+  constexpr int cwPad = 3;  // cursor padding around word (matches text area border)
   constexpr int underlineThickness = 3;
 
   // Clamp cursor indices to current word list size (guards against stale index after rebuild)
@@ -1873,29 +1860,26 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
     highlightCursorIndex = wordCount - 1;
   }
 
-  // Helper: draw cursor box around a word (white bg + black text + thin border)
+  // Helper: draw cursor box around a word (white bg + black text + 3px border)
   const auto drawCursor = [&](const WordInfo& cw) {
     renderer.fillRect(cw.x - cwPad, cw.y - cwPad,
                       cw.width + 2 * cwPad, textHeight + 2 * cwPad, false);
     renderer.drawTextSpaced(fontId, cw.x, cw.y, cw.text.c_str(),
                             cw.letterSpacing, true, cw.style);
     renderer.drawRect(cw.x - cwPad, cw.y - cwPad,
-                      cw.width + 2 * cwPad, textHeight + 2 * cwPad, true);
+                      cw.width + 2 * cwPad, textHeight + 2 * cwPad, cwPad, true);
   };
 
   if (highlightState == HighlightState::SELECT_START) {
-    // Just draw a cursor box around the current word — no range highlighting
     if (highlightCursorIndex >= 0 && highlightCursorIndex < wordCount) {
       drawCursor(wordList[highlightCursorIndex]);
     }
   } else if (highlightState == HighlightState::SELECT_END) {
-    // Just draw a cursor box around the end word — no range highlighting
     const int endIdx = highlightEndWordIndex;
     if (section->currentPage == highlightEndPage && endIdx >= 0 && endIdx < wordCount) {
       drawCursor(wordList[endIdx]);
     }
   } else if (highlightState == HighlightState::SHOW_UNDERLINE) {
-    // Draw 3px underline under selected words on the current page
     int selStart = -1;
     int selEnd = -1;
 
