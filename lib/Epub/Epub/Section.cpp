@@ -5,6 +5,7 @@
 #include <HalStorage.h>
 #include <Logging.h>
 #include <Serialization.h>
+#include <esp_task_wdt.h>
 
 #include "Page.h"
 #include "parsers/ChapterHtmlSlimParser.h"
@@ -279,6 +280,7 @@ bool Section::createSectionFile(const int fontId, const float lineCompression,
   bool success = false;
   uint32_t fileSize = 0;
   for (int attempt = 0; attempt < 3 && !success; attempt++) {
+    esp_task_wdt_reset();
     if (attempt > 0) {
       LOG_DBG("SCT", "Retrying stream (attempt %d)...", attempt + 1);
       delay(50);  // Brief delay before retry

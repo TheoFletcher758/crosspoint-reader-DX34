@@ -9,6 +9,7 @@
 #include <Serialization.h>
 #include <Utf8.h>
 #include <algorithm>
+#include <esp_task_wdt.h>
 #include <vector>
 
 #include "CrossPointSettings.h"
@@ -796,8 +797,9 @@ void TxtReaderActivity::buildPageIndex() {
       pageOffsets.push_back(offset);
     }
 
-    // Yield to other tasks periodically
+    // Yield to other tasks periodically and reset watchdog
     if (pageOffsets.size() % 20 == 0) {
+      esp_task_wdt_reset();
       vTaskDelay(1);
     }
   }
@@ -816,11 +818,17 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset,
     return false;
   }
 
-  // Read a chunk from file
+  // Read a chunk from file — scale down if heap is tight
   size_t chunkSize = std::min(CHUNK_SIZE, fileSize - offset);
+  const size_t freeHeap = esp_get_free_heap_size();
+  if (freeHeap < chunkSize * 3) {
+    // Heap is tight — use a smaller chunk to leave room for word-wrap strings
+    chunkSize = std::min(chunkSize, std::max(static_cast<size_t>(1024), freeHeap / 4));
+    LOG_DBG("TRS", "Reduced chunk to %zu bytes (free heap: %zu)", chunkSize, freeHeap);
+  }
   auto *buffer = static_cast<uint8_t *>(malloc(chunkSize + 1));
   if (!buffer) {
-    LOG_ERR("TRS", "Failed to allocate %zu bytes", chunkSize);
+    LOG_ERR("TRS", "Failed to allocate %zu bytes (free heap: %zu)", chunkSize, freeHeap);
     return false;
   }
 
@@ -885,21 +893,34 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset,
         break;
       }
 
-      // Find break point
+      // Find break point — try spaces first (fast), then character-by-character fallback
       size_t breakPos = line.length();
-      while (breakPos > 0 &&
-             measureFlowLineWidth(line.substr(0, breakPos)) >
-                 availableWidth) {
-        // Try to break at space
-        size_t spacePos = line.rfind(' ', breakPos - 1);
-        if (spacePos != std::string::npos && spacePos > 0) {
-          breakPos = spacePos;
+      {
+        // First pass: scan forward through spaces, stop once we exceed width
+        size_t lastGoodSpace = 0;
+        size_t spaceSearch = 0;
+        while ((spaceSearch = line.find(' ', spaceSearch)) != std::string::npos) {
+          if (spaceSearch > 0) {
+            if (measureFlowLineWidth(line.substr(0, spaceSearch)) <= availableWidth) {
+              lastGoodSpace = spaceSearch;
+            } else {
+              break;  // this space overflows, all later ones will too
+            }
+          }
+          spaceSearch++;
+        }
+        if (lastGoodSpace > 0) {
+          breakPos = lastGoodSpace;
         } else {
-          // Break at character boundary for UTF-8
-          breakPos--;
-          // Make sure we don't break in the middle of a UTF-8 sequence
-          while (breakPos > 0 && (line[breakPos] & 0xC0) == 0x80) {
+          // No space fits — fall back to character-by-character search
+          while (breakPos > 0 &&
+                 measureFlowLineWidth(line.substr(0, breakPos)) >
+                     availableWidth) {
             breakPos--;
+            // Make sure we don't break in the middle of a UTF-8 sequence
+            while (breakPos > 0 && (line[breakPos] & 0xC0) == 0x80) {
+              breakPos--;
+            }
           }
         }
       }
@@ -986,7 +1007,13 @@ void TxtReaderActivity::render(Activity::RenderLock &&) {
   size_t offset = pageOffsets[currentPage];
   size_t nextOffset;
   currentPageLines.clear();
-  loadPageAtOffset(offset, currentPageLines, nextOffset);
+  if (!loadPageAtOffset(offset, currentPageLines, nextOffset) || currentPageLines.empty()) {
+    renderer.clearScreen();
+    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_EMPTY_FILE), true,
+                              EpdFontFamily::REGULAR);
+    renderer.displayBuffer();
+    return;
+  }
 
   renderer.clearScreen();
   renderPage();

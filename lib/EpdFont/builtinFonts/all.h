@@ -22,10 +22,16 @@
 #include <builtinFonts/bookerly_15_regular.h>
 #include <builtinFonts/bookerly_15_bold.h>
 #include <builtinFonts/bookerly_15_italic.h>
+#include <builtinFonts/bookerly_17_regular.h>
+#include <builtinFonts/bookerly_17_bold.h>
+#include <builtinFonts/bookerly_17_italic.h>
 #include <builtinFonts/bookerly_18_regular.h>
 #include <builtinFonts/bookerly_18_bold.h>
 #include <builtinFonts/bookerly_18_italic.h>
 
+#include <builtinFonts/vollkorn_13_regular.h>
+#include <builtinFonts/vollkorn_13_bold.h>
+#include <builtinFonts/vollkorn_13_italic.h>
 #include <builtinFonts/vollkorn_15_regular.h>
 #include <builtinFonts/vollkorn_15_bold.h>
 #include <builtinFonts/vollkorn_15_italic.h>

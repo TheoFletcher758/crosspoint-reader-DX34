@@ -551,27 +551,40 @@ uint8_t CrossPointSettings::normalizeFontSizeForFamily(const uint8_t family,
                                                        const uint8_t fontSize) {
   const uint8_t normalized = normalizeFontFamily(family);
   if (normalized == BOOKERLY) {
-    // Bookerly has 13pt, 15pt, 18pt
+    // Bookerly has 13pt, 15pt, 17pt, 18pt
     switch (fontSize) {
     case MEDIUM:
-      return MEDIUM;
+    case SIZE_16:
+      return MEDIUM;    // 15pt (SIZE_16 nearest down)
+    case LARGE:
+      return LARGE;     // 17pt
     case SIZE_18:
     case X_LARGE:
       return SIZE_18;
+    case SIZE_13:
+    case SIZE_12:
+    case SIZE_14:
     default:
       return SIZE_13;
     }
   }
   if (normalized == VOLLKORN) {
-    // Vollkorn has 15pt, 17pt and 18pt
+    // Vollkorn has 13pt, 15pt, 17pt, 18pt
     switch (fontSize) {
+    case SIZE_13:
+    case SIZE_12:
+    case SIZE_14:
+      return SIZE_13;
+    case MEDIUM:
+    case SIZE_16:
+      return MEDIUM;    // 15pt (SIZE_16 nearest down)
+    case LARGE:
+      return LARGE;     // 17pt
     case SIZE_18:
     case X_LARGE:
       return SIZE_18;
-    case LARGE:
-      return LARGE;
     default:
-      return MEDIUM;
+      return MEDIUM;    // 15pt fallback
     }
   }
   // ChareInk: 14, 15, 16, 17, 18
@@ -624,10 +637,10 @@ uint8_t CrossPointSettings::fontSizeToPointSize(const uint8_t family,
 uint8_t CrossPointSettings::fontSizeOptionCount(const uint8_t family) {
   const uint8_t normalized = normalizeFontFamily(family);
   if (normalized == BOOKERLY) {
-    return 3; // 13pt, 15pt, 18pt
+    return 4; // 13pt, 15pt, 17pt, 18pt
   }
   if (normalized == VOLLKORN) {
-    return 3; // 15pt, 17pt, 18pt
+    return 4; // 13pt, 15pt, 17pt, 18pt
   }
   return 5; // ChareInk: 14, 15, 16, 17, 18
 }
@@ -640,20 +653,24 @@ uint8_t CrossPointSettings::fontSizeToDisplayIndex(const uint8_t family,
     switch (normalized) {
     case MEDIUM:
       return 1;
-    case SIZE_18:
+    case LARGE:
       return 2;
+    case SIZE_18:
+      return 3;
     default:
       return 0; // SIZE_13
     }
   }
   if (normalizedFamily == VOLLKORN) {
     switch (normalized) {
-    case LARGE:
+    case MEDIUM:
       return 1;
-    case SIZE_18:
+    case LARGE:
       return 2;
+    case SIZE_18:
+      return 3;
     default:
-      return 0; // MEDIUM (15pt)
+      return 0; // SIZE_13
     }
   }
   switch (normalized) {
@@ -677,8 +694,10 @@ uint8_t CrossPointSettings::displayIndexToFontSize(const uint8_t family,
   if (normalizedFamily == BOOKERLY) {
     switch (displayIndex) {
     case 1:
-      return MEDIUM;
+      return MEDIUM;   // 15pt
     case 2:
+      return LARGE;    // 17pt
+    case 3:
       return SIZE_18;
     default:
       return SIZE_13;
@@ -687,11 +706,13 @@ uint8_t CrossPointSettings::displayIndexToFontSize(const uint8_t family,
   if (normalizedFamily == VOLLKORN) {
     switch (displayIndex) {
     case 1:
-      return LARGE; // 17pt
+      return MEDIUM;   // 15pt
     case 2:
+      return LARGE;    // 17pt
+    case 3:
       return SIZE_18;
     default:
-      return MEDIUM; // 15pt
+      return SIZE_13;
     }
   }
   switch (displayIndex) {
@@ -732,6 +753,8 @@ int CrossPointSettings::getReaderFontId() const {
     switch (normalizedFontSize) {
     case MEDIUM:
       return BOOKERLY_15_FONT_ID;
+    case LARGE:
+      return BOOKERLY_17_FONT_ID;
     case SIZE_18:
       return BOOKERLY_18_FONT_ID;
     default:
@@ -740,6 +763,10 @@ int CrossPointSettings::getReaderFontId() const {
   }
   if (normalizedFamily == VOLLKORN) {
     switch (normalizedFontSize) {
+    case SIZE_13:
+      return VOLLKORN_13_FONT_ID;
+    case MEDIUM:
+      return VOLLKORN_15_FONT_ID;
     case LARGE:
       return VOLLKORN_17_FONT_ID;
     case SIZE_18:

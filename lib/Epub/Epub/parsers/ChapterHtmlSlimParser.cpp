@@ -4,6 +4,7 @@
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <Logging.h>
+#include <esp_task_wdt.h>
 #include <expat.h>
 
 #include "../../Epub.h"
@@ -809,6 +810,7 @@ bool ChapterHtmlSlimParser::parseAndBuildPages() {
   XML_SetCharacterDataHandler(parser, characterData);
 
   do {
+    esp_task_wdt_reset();
     void* const buf = XML_GetBuffer(parser, 1024);
     if (!buf) {
       LOG_ERR("EHP", "Couldn't allocate memory for buffer");
