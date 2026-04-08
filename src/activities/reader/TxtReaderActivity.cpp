@@ -295,8 +295,10 @@ TxtReaderActivity::StatusBarLayout TxtReaderActivity::buildStatusBarLayout(
   }
 
   if (SETTINGS.statusBarShowChapterTitle) {
+    constexpr int titlePadding = 4;
+    const int titleWrapWidth = renderer.getScreenWidth() - titlePadding * 2;
     layout.titleLines = getStatusBarTitleLines(
-        layout.usableWidth, SETTINGS.statusBarNoTitleTruncation,
+        titleWrapWidth, SETTINGS.statusBarNoTitleTruncation,
         maxTitleLineCount);
   }
 
@@ -1279,6 +1281,35 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
       }
     }
 
+    // When the title is in the top band, draw it first (outermost edge).
+    // When in the bottom band, draw it last (outermost edge).
+    const bool titleFirst = renderTopBand && showBandTitle;
+    const int titleLineStep = textHeight + statusTextLineGap;
+    const int titleBlockHeight =
+        showBandTitle ? static_cast<int>(statusBarLayout.titleLines.size()) * titleLineStep : 0;
+
+    int statusTextY = currentTextY;
+    int titleY = currentTextY;
+    if (titleFirst && showStatusTextRow) {
+      statusTextY += titleBlockHeight;
+    } else if (!titleFirst && showStatusTextRow) {
+      titleY += textHeight + statusTextLineGap;
+    }
+
+    if (titleFirst && showBandTitle) {
+      constexpr int titlePadding = 4;
+      const int titleFullWidth = renderer.getScreenWidth() - titlePadding * 2;
+      for (size_t i = 0; i < statusBarLayout.titleLines.size(); i++) {
+        const int titleWidth = renderer.getTextWidth(
+            SMALL_FONT_ID, statusBarLayout.titleLines[i].c_str());
+        const int titleX =
+            titlePadding + std::max(0, (titleFullWidth - titleWidth) / 2);
+        renderer.drawText(SMALL_FONT_ID, titleX,
+                          titleY + static_cast<int>(i) * titleLineStep,
+                          statusBarLayout.titleLines[i].c_str());
+      }
+    }
+
     const int batteryWidth =
         showBandBattery
             ? renderer.getTextWidth(SMALL_FONT_ID, "100%")
@@ -1289,7 +1320,7 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
     if (showBandBattery) {
       GUI.drawBatteryLeft(
           renderer,
-          Rect{currentX, currentTextY, metrics.batteryWidth,
+          Rect{currentX, statusTextY, metrics.batteryWidth,
                metrics.batteryHeight},
           showBatteryPercentage);
       currentX += batteryWidth + statusItemGap;
@@ -1339,7 +1370,7 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
           if (i > 0) {
             x += statusItemGap;
           }
-          renderer.drawText(SMALL_FONT_ID, x, currentTextY,
+          renderer.drawText(SMALL_FONT_ID, x, statusTextY,
                             items[i].text->c_str());
           x += items[i].width;
         }
@@ -1373,19 +1404,16 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
       }
     }
 
-    int titleY = currentTextY;
-    if (showStatusTextRow) {
-      titleY += textHeight + statusTextLineGap;
-    }
-    if (showBandTitle) {
-      const int lineStep = textHeight + statusTextLineGap;
+    if (!titleFirst && showBandTitle) {
+      constexpr int titlePadding = 4;
+      const int titleFullWidth = renderer.getScreenWidth() - titlePadding * 2;
       for (size_t i = 0; i < statusBarLayout.titleLines.size(); i++) {
         const int titleWidth = renderer.getTextWidth(
             SMALL_FONT_ID, statusBarLayout.titleLines[i].c_str());
         const int titleX =
-            orientedMarginLeft + std::max(0, (usableWidth - titleWidth) / 2);
+            titlePadding + std::max(0, (titleFullWidth - titleWidth) / 2);
         renderer.drawText(SMALL_FONT_ID, titleX,
-                          titleY + static_cast<int>(i) * lineStep,
+                          titleY + static_cast<int>(i) * titleLineStep,
                           statusBarLayout.titleLines[i].c_str());
       }
     }

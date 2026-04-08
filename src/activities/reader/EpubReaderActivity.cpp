@@ -470,9 +470,11 @@ EpubReaderActivity::StatusBarLayout EpubReaderActivity::buildStatusBarLayout(con
   }
 
   if (SETTINGS.statusBarShowChapterTitle) {
+    constexpr int titlePadding = 4;
+    const int titleWrapWidth = renderer.getScreenWidth() - titlePadding * 2;
     const int tocIndex = section->getTocIndexForPage(section->currentPage);
     layout.titleLines =
-        getStatusBarTitleLines(tocIndex, layout.usableWidth, SETTINGS.statusBarNoTitleTruncation, maxTitleLineCount);
+        getStatusBarTitleLines(tocIndex, titleWrapWidth, SETTINGS.statusBarNoTitleTruncation, maxTitleLineCount);
     layout.titleLineWidths.reserve(layout.titleLines.size());
     for (const auto& line : layout.titleLines) {
       layout.titleLineWidths.push_back(renderer.getTextWidth(SMALL_FONT_ID, line.c_str()));
@@ -1284,7 +1286,9 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
          !statusTextPositionIsTop(SETTINGS.statusBarChapterPercentagePosition));
     int titleLineCount = SETTINGS.statusBarShowChapterTitle ? 1 : 0;
     if (SETTINGS.statusBarShowChapterTitle && SETTINGS.statusBarNoTitleTruncation) {
-      titleLineCount = getWrappedStatusBarReserveLineCount(usableWidth);
+      constexpr int titlePadding = 4;
+      const int titleWrapWidth = renderer.getScreenWidth() - titlePadding * 2;
+      titleLineCount = getWrappedStatusBarReserveLineCount(titleWrapWidth);
     }
     const int topTitleLineCount =
         (SETTINGS.statusBarShowChapterTitle && statusBarItemIsTop(SETTINGS.statusBarTitlePosition)) ? titleLineCount
@@ -2144,11 +2148,39 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
       }
     }
 
+    // When the title is in the top band, draw it first (outermost edge).
+    // When in the bottom band, draw it last (outermost edge).
+    const bool titleFirst = renderTopBand && showBandTitle;
+    const int titleLineStep = textHeight + statusTextLineGap;
+    const int titleBlockHeight =
+        showBandTitle ? static_cast<int>(statusBarLayout.titleLines.size()) * titleLineStep : 0;
+
+    int statusTextY = currentTextY;
+    int titleY = currentTextY;
+    if (titleFirst && showStatusTextRow) {
+      statusTextY += titleBlockHeight;
+    } else if (!titleFirst && showStatusTextRow) {
+      titleY += textHeight + statusTextLineGap;
+    }
+
+    if (titleFirst && showBandTitle) {
+      constexpr int titlePadding = 4;
+      const int titleFullWidth = renderer.getScreenWidth() - titlePadding * 2;
+      for (size_t i = 0; i < statusBarLayout.titleLines.size(); i++) {
+        const int titleWidth = (i < statusBarLayout.titleLineWidths.size())
+                                   ? statusBarLayout.titleLineWidths[i]
+                                   : renderer.getTextWidth(SMALL_FONT_ID, statusBarLayout.titleLines[i].c_str());
+        const int titleX = titlePadding + std::max(0, (titleFullWidth - titleWidth) / 2);
+        renderer.drawText(SMALL_FONT_ID, titleX, titleY + static_cast<int>(i) * titleLineStep,
+                          statusBarLayout.titleLines[i].c_str());
+      }
+    }
+
     const int batteryWidth = showBandBattery ? renderer.getTextWidth(SMALL_FONT_ID, "100%") : 0;
     int currentX = orientedMarginLeft + std::max(0, (usableWidth - batteryWidth) / 2);
 
     if (showBandBattery) {
-      GUI.drawBatteryLeft(renderer, Rect{currentX, currentTextY, metrics.batteryWidth, metrics.batteryHeight},
+      GUI.drawBatteryLeft(renderer, Rect{currentX, statusTextY, metrics.batteryWidth, metrics.batteryHeight},
                           showBatteryPercentage);
       currentX += batteryWidth + statusItemGap;
     }
@@ -2192,7 +2224,7 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
           if (i > 0) {
             x += statusItemGap;
           }
-          renderer.drawText(SMALL_FONT_ID, x, currentTextY, items[i].text->c_str());
+          renderer.drawText(SMALL_FONT_ID, x, statusTextY, items[i].text->c_str());
           x += items[i].width;
         }
       };
@@ -2221,18 +2253,15 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
       }
     }
 
-    int titleY = currentTextY;
-    if (showStatusTextRow) {
-      titleY += textHeight + statusTextLineGap;
-    }
-    if (showBandTitle) {
-      const int lineStep = textHeight + statusTextLineGap;
+    if (!titleFirst && showBandTitle) {
+      constexpr int titlePadding = 4;
+      const int titleFullWidth = renderer.getScreenWidth() - titlePadding * 2;
       for (size_t i = 0; i < statusBarLayout.titleLines.size(); i++) {
         const int titleWidth = (i < statusBarLayout.titleLineWidths.size())
                                    ? statusBarLayout.titleLineWidths[i]
                                    : renderer.getTextWidth(SMALL_FONT_ID, statusBarLayout.titleLines[i].c_str());
-        const int titleX = orientedMarginLeft + std::max(0, (usableWidth - titleWidth) / 2);
-        renderer.drawText(SMALL_FONT_ID, titleX, titleY + static_cast<int>(i) * lineStep,
+        const int titleX = titlePadding + std::max(0, (titleFullWidth - titleWidth) / 2);
+        renderer.drawText(SMALL_FONT_ID, titleX, titleY + static_cast<int>(i) * titleLineStep,
                           statusBarLayout.titleLines[i].c_str());
       }
     }
