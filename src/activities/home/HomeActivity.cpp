@@ -249,9 +249,8 @@ void HomeActivity::loop() {
         const std::string path = selectedPath;
         enterNewActivity(new ConfirmDialogActivity(
             renderer, mappedInput,
-            std::string(tr(STR_REMOVE_FROM_RECENTS)) + "?\n\n" + title,
+            std::string(tr(STR_REMOVE_FROM_RECENTS)) + "? " + title,
             [this, path]() {
-              exitActivity();
               RECENT_BOOKS.removeBook(path);
               auto metrics = UITheme::getInstance().getMetrics();
               loadRecentBooks(metrics.homeRecentBooksCount);
@@ -262,6 +261,9 @@ void HomeActivity::loop() {
               }
               coverRendered = false;
               freeCoverBuffer();
+              // exitActivity destroys the ConfirmDialog (and this lambda's
+              // captured data), so it must come after all captured vars are used.
+              exitActivity();
               requestUpdate();
             },
             [this]() {
