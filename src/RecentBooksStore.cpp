@@ -12,6 +12,7 @@
 #include <cctype>
 #include <unordered_set>
 
+#include "CrossPointState.h"
 #include "util/StringUtils.h"
 
 namespace {
@@ -143,6 +144,80 @@ void RecentBooksStore::removeBook(const std::string &path) {
     dedupeRecentBooks(recentBooks);
     saveToFile();
   }
+}
+
+std::string RecentBooksStore::moveBookToRecents(const std::string &bookPath) {
+  const std::string normalized = normalizeRecentPath(bookPath);
+  if (normalized.empty()) {
+    return {};
+  }
+
+  // Already in /recents/ — nothing to do
+  const std::string lower = makeRecentPathKey(normalized);
+  if (lower.rfind("/recents/", 0) == 0) {
+    return {};
+  }
+
+  // Ensure /recents folder exists
+  Storage.mkdir("/recents");
+
+  // Extract filename
+  const auto slashPos = normalized.find_last_of('/');
+  const std::string filename =
+      (slashPos == std::string::npos) ? normalized : normalized.substr(slashPos + 1);
+  const std::string destination = "/recents/" + filename;
+
+  // Skip if destination already exists (name collision)
+  if (Storage.exists(destination.c_str())) {
+    return {};
+  }
+
+  // Build QUOTES sidecar path: strip extension + _QUOTES.txt
+  std::string quotesOld;
+  std::string quotesNew;
+  {
+    const auto dotPos = normalized.rfind('.');
+    const std::string basePath =
+        (dotPos != std::string::npos) ? normalized.substr(0, dotPos) : normalized;
+    quotesOld = basePath + "_QUOTES.txt";
+
+    const auto dotDst = destination.rfind('.');
+    const std::string baseDst =
+        (dotDst != std::string::npos) ? destination.substr(0, dotDst) : destination;
+    quotesNew = baseDst + "_QUOTES.txt";
+  }
+
+  // Move the book file (rename is instant on same filesystem)
+  if (!Storage.rename(normalized.c_str(), destination.c_str())) {
+    LOG_ERR("RBS", "Failed to move book to recents: %s -> %s",
+            normalized.c_str(), destination.c_str());
+    return {};
+  }
+  LOG_INF("RBS", "Moved book to recents: %s -> %s",
+          normalized.c_str(), destination.c_str());
+
+  // Move QUOTES sidecar if it exists
+  if (Storage.exists(quotesOld.c_str())) {
+    if (Storage.rename(quotesOld.c_str(), quotesNew.c_str())) {
+      LOG_DBG("RBS", "Moved QUOTES sidecar: %s -> %s",
+              quotesOld.c_str(), quotesNew.c_str());
+    } else {
+      LOG_ERR("RBS", "Failed to move QUOTES sidecar: %s", quotesOld.c_str());
+    }
+  }
+
+  // Update recents store path
+  removeBook(normalized);
+  RecentBook data = getDataFromBook(destination);
+  addBook(destination, data.title, data.author, data.coverBmpPath);
+
+  // Update APP_STATE if it points to the old path
+  if (APP_STATE.openEpubPath == normalized) {
+    APP_STATE.openEpubPath = destination;
+    APP_STATE.saveToFile();
+  }
+
+  return destination;
 }
 
 bool RecentBooksStore::saveToFile() const {

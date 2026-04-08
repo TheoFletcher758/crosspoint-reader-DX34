@@ -1329,6 +1329,14 @@ void CrossPointWebServer::handleDelete() const {
     } else {
       // It's a file (or couldn't open as dir) — remove file
       if (f) f.close();
+
+      // Protect QUOTES files from deletion
+      if (itemPath.endsWith("_QUOTES.txt")) {
+        failedItems += itemPath + " (QUOTES file protected); ";
+        allSuccess = false;
+        continue;
+      }
+
       success = Storage.remove(itemPath.c_str());
       clearBookCacheIfNeeded(itemPath);
       RECENT_BOOKS.removeBook(itemPath.c_str());

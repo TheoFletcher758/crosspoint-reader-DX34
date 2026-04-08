@@ -17,6 +17,7 @@ class Txt {
 
   bool load();
   [[nodiscard]] const std::string& getPath() const { return filepath; }
+  void setPath(std::string p) { filepath = std::move(p); }
   [[nodiscard]] const std::string& getCachePath() const { return cachePath; }
   [[nodiscard]] std::string getTitle() const;
   [[nodiscard]] size_t getFileSize() const { return fileSize; }

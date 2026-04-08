@@ -255,6 +255,14 @@ void EpubReaderActivity::onEnter() {
   APP_STATE.saveToFile();
   RECENT_BOOKS.addBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), epub->getThumbBmpPath());
 
+  // Move book to /recents/ folder on first open from another location
+  {
+    std::string newPath = RECENT_BOOKS.moveBookToRecents(epub->getPath());
+    if (!newPath.empty()) {
+      epub->setPath(newPath);
+    }
+  }
+
   invalidateStatusBarCaches();
   clearPageCache();
 

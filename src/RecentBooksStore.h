@@ -38,6 +38,10 @@ public:
                   const std::string &author, const std::string &coverBmpPath);
   void removeBook(const std::string &path);
 
+  // Move a book file (and its QUOTES sidecar) to /recents/.
+  // Returns new path on success, empty string if skipped or failed.
+  std::string moveBookToRecents(const std::string &bookPath);
+
   // Get the list of recent books (most recent first)
   const std::vector<RecentBook> &getBooks() const { return recentBooks; }
 

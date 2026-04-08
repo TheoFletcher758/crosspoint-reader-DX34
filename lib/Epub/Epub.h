@@ -54,6 +54,7 @@ class Epub {
   void setupCacheDir() const;
   const std::string& getCachePath() const;
   const std::string& getPath() const;
+  void setPath(std::string p) { filepath = std::move(p); }
   const std::string& getTitle() const;
   const std::string& getAuthor() const;
   const std::string& getLanguage() const;

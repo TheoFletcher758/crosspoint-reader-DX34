@@ -197,6 +197,19 @@ void TxtReaderActivity::onEnter() {
   APP_STATE.openEpubPath = filePath;
   APP_STATE.saveToFile();
   RECENT_BOOKS.addBook(filePath, fileName, "", "");
+
+  // Move book to /recents/ folder on first open from another location
+  {
+    std::string newPath = RECENT_BOOKS.moveBookToRecents(txt->getPath());
+    if (!newPath.empty()) {
+      txt->setPath(newPath);
+      filePath = newPath;
+      fileName = filePath.substr(filePath.rfind('/') + 1);
+      APP_STATE.openEpubPath = filePath;
+      APP_STATE.saveToFile();
+    }
+  }
+
   cachedTitleUsableWidth = -1;
   cachedTitleNoTitleTruncation = false;
   cachedTitleMaxLines = -1;

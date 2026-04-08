@@ -49,6 +49,14 @@ void XtcReaderActivity::onEnter() {
   RECENT_BOOKS.addBook(xtc->getPath(), xtc->getTitle(), xtc->getAuthor(),
                        xtc->getThumbBmpPath());
 
+  // Move book to /recents/ folder on first open from another location
+  {
+    std::string newPath = RECENT_BOOKS.moveBookToRecents(xtc->getPath());
+    if (!newPath.empty()) {
+      xtc->setPath(newPath);
+    }
+  }
+
   // Trigger first update
   requestUpdate();
 }

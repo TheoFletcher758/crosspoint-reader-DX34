@@ -55,6 +55,7 @@ class Xtc {
   // Path accessors
   const std::string& getCachePath() const { return cachePath; }
   const std::string& getPath() const { return filepath; }
+  void setPath(std::string p) { filepath = std::move(p); }
 
   // Metadata
   std::string getTitle() const;
