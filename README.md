@@ -6,6 +6,8 @@ This repository is not a mirror of upstream CrossPoint. It is a productized fork
 
 ![](./docs/images/cover.jpg)
 
+---
+
 ## What This Firmware Is
 
 `CrossPoint-Mod-DX34` is a custom firmware build for people who want the X4/DX34 hardware to behave like a practical reading device first:
@@ -19,311 +21,47 @@ This repository is not a mirror of upstream CrossPoint. It is a productized fork
 
 This fork keeps upstream credit and history, but it does **not** aim for strict parity with upstream behavior.
 
-## What Is Different From Mainline CrossPoint
+---
 
-The short version:
+## What's Different From Mainline CrossPoint
 
-- DX34 behavior is prioritized over upstream parity.
-- The shipped UX is **English-first**.
-- Reader configuration is tuned around DX34 reading use, not generic feature exposure.
-- EPUB has an expanded in-book workflow, including:
-  - live reader setting changes while inside a book
-  - named **Reading Themes**
-  - one-off reader changes without saving a preset
-- Sleep wallpaper behavior is more opinionated and more managed than upstream.
-- This repo is the primary support path for these DX34 changes.
+This is an independent fork. DX34 behavior and stability are always prioritized over upstream parity. Here's what sets it apart:
+
+| Area | DX34 Mod | Upstream CrossPoint |
+|------|----------|---------------------|
+| **UX language** | English-first | Multi-language |
+| **Font families** | ChareInk, Bookerly, Vollkorn | Different font set |
+| **In-book workflow** | Reading Themes, live settings, highlights, footnotes | Basic reader controls |
+| **Sleep wallpapers** | Managed folder system with favorites, trimming, randomization | Basic sleep image |
+| **Reader settings** | Extensive (word spacing, indent modes, render modes, etc.) | Fewer options |
+| **Release cadence** | Independent DX34 releases | Separate schedule |
+| **Home screen** | DX34-specific layout with recents and version label | Generic layout |
 
 More fork positioning notes live in [docs/differences-from-upstream.md](./docs/differences-from-upstream.md).
 
-## Current Feature Set
-
-### Library and file handling
-
-- Folder-based file browser
-- Recent books list on the home screen
-- Resume last opened book on boot
-- Wireless file upload over Wi-Fi
-- File management from browser:
-  - upload
-  - create folders
-  - move
-  - rename
-  - delete
-- OPDS browser support
-- Calibre wireless transfer support
-
-### Supported book formats
-
-- **EPUB**: main first-class reading format
-- **TXT / MD**: plain-text reader
-- **XTC / XTCH**: pre-rendered page format
-
-EPUB is where the advanced DX34 reading work lives. TXT and XTC are supported, but the new reading-theme workflow is intentionally **EPUB-only**.
-
-### EPUB reading
-
-- persistent reading position
-- chapter selection
-- go to percentage
-- configurable orientation
-- configurable margins
-- configurable line spacing
-- configurable paragraph alignment
-- configurable extra paragraph spacing
-- embedded CSS on/off
-- status bar customization
-- bold-swap shortcut
-- in-book reader settings
-- named **Reading Themes**
-- remove from recents / delete book / clean cache from inside the book
-- KOReader progress sync entry from the in-book menu
-
-### Device and system
-
-- OTA update support
-- configurable sleep timeout
-- configurable refresh frequency
-- short power button action selection
-- side button direction swap
-- front button remapping
-- sunlight fading compensation toggle
-- custom boot image (`/boot.bmp`)
-
-## EPUB In-Book Workflow
-
-Pressing `OK` while reading an EPUB opens the **in-book menu**. The current menu includes:
-
-- `Select Chapter`
-- `Reading Orientation`
-- `Go to %`
-- `Reading Themes`
-- `Go Home`
-- `Sync Progress`
-- `Clean Cache + Progress`
-- `Delete Book`
-- `Remove from Recents`
-
-### Reading Themes
-
-The new EPUB-only **Reading Themes** flow gives you two modes of use:
-
-1. **Adjust Current Settings**
-   Change the reader live and keep reading, without saving a preset.
-
-2. **Reading Themes**
-   Save the current display setup under a name, then later:
-   - apply it
-   - rename it
-   - overwrite it with the current settings
-   - delete it
-
-Applying a theme reflows the current EPUB chapter and restores your position approximately relative to the old pagination, so it should keep you near the same reading spot after font or margin changes.
-
-### Reader shortcuts
-
-While reading an EPUB:
-
-- **Single tap `OK`**: open the in-book menu
-- **Double tap `OK`**: toggle reader bold swap
-- **Long press `OK`**: toggle between portrait and landscape CCW
-- **Back**: return home
-- **Side / front page buttons**: previous/next page
-
-## Fonts and Reader Sizes
-
-### User-facing reading fonts
-
-This fork currently exposes **two built-in reader font families**:
-
-- `ChareInk`
-- `Bookerly`
-
-### ChareInk sizes
-
-ChareInk supports **7 reader sizes**:
-
-- 13
-- 14
-- 15
-- 16
-- 17
-- 18
-- 19
-
-### Bookerly sizes
-
-Bookerly supports **2 reader sizes**:
-
-- 13
-- 15
-
-### Notes about size behavior
-
-- The reader stores normalized family-specific sizes internally.
-- When you switch font family, the firmware remaps the current size to the nearest valid size for that family.
-- Default line spacing is also family-aware:
-  - `ChareInk`: 90%
-  - `Bookerly`: 85%
-
-### Other font details
-
-- UI text uses built-in bitmap/UI fonts rather than the reader font selection.
-- The shipped DX34 experience is English-first.
-- Reader rendering still includes broader glyph support through bundled fonts/fallbacks, but the supported DX34 UI behavior is English-first.
-
-## Reader Layout and Appearance Controls
-
-The firmware currently exposes these reader-related controls:
-
-- font family
-- font size
-- line spacing percentage
-- horizontal margin
-- top margin
-- bottom margin
-- paragraph alignment
-- extra paragraph spacing level
-- embedded style on/off
-- hyphenation toggle
-- orientation
-- status bar toggles and style
-
-Status bar options include:
-
-- show/hide status bar
-- battery
-- page counter
-- book percentage
-- chapter percentage
-- book progress bar
-- chapter progress bar
-- chapter title
-- no-title-truncation
-- text alignment
-- progress bar style
-
-## Sleep Screen and Wallpaper System
-
-This firmware has a more developed sleep wallpaper system than the basic upstream behavior.
-
-### Available sleep modes
-
-- `Dark`
-- `Light`
-- `Custom`
-- `Cover`
-- `None`
-- `Cover + Custom`
-
-### Custom sleep wallpaper locations
-
-The firmware looks for custom BMP sleep wallpapers in this order:
-
-1. `/sleep/` folder images
-2. `/sleep_F.bmp`
-3. `/sleep.bmp`
-
-If no valid custom bitmap is found, it falls back to the default DX34 sleep screen.
-
-### How random wallpaper selection works
-
-The logic depends on how many BMPs are in `/sleep`:
-
-- **Up to 200 images**
-  - the firmware keeps a persisted playlist
-  - by default, it follows a stable file-based order
-  - using **Randomize Sleep Images** reshuffles the playlist
-  - new images inserted into `/sleep` are pushed near the front so they appear quickly
-
-- **More than 200 images**
-  - the firmware avoids storing the full playlist in memory
-  - **Randomize Sleep Images** chooses a random starting wallpaper
-  - after that, the device advances sequentially through the sorted filenames
-
-### Wallpaper protection and trimming
-
-The sleep folder has a practical cap of **200 persisted entries**.
-
-If `/sleep` grows beyond that:
-
-- favorite wallpapers in `/sleep` are protected first
-- non-favorites beyond the limit are automatically moved to:
-  - `/sleep pause`
-
-This prevents the wallpaper system from growing until it becomes unstable or too memory-heavy.
-
-### Favorites
-
-Sleep wallpapers can be marked as favorites.
-
-- favorite files are stored with an `_F` suffix
-- favorites display with a `[F]` prefix in UI labels
-- favorites inside `/sleep` are protected from automatic trimming
-- the protected favorites count is limited to **200**
-
-### Other wallpaper behavior
-
-- The firmware remembers the last rendered sleep wallpaper path.
-- You can show the current sleep wallpaper filename on-screen.
-- The Settings UI includes tools for:
-  - randomizing sleep images
-  - inspecting the last sleep wallpaper
-  - moving the last wallpaper to `/sleep pause`
-  - favoriting / unfavoriting it
-  - deleting it
-
-## Wireless Features
-
-### Built-in web server
-
-The Wi-Fi file-transfer mode includes:
-
-- upload from phone or desktop browser
-- browse SD card contents
-- create folders
-- move / rename / delete files
-- basic status page with firmware version and IP address
-
-See [docs/webserver.md](./docs/webserver.md) and [docs/webserver-endpoints.md](./docs/webserver-endpoints.md).
-
-### Calibre wireless transfer
-
-Supported through the CrossPoint Reader Calibre plugin workflow.
-
-### OPDS browser
-
-You can configure an OPDS server URL, username, and password in settings and browse/download directly from the device.
-
-### KOReader sync
-
-The firmware includes KOReader progress sync support, including:
-
-- stored credentials
-- server URL
-- document matching method
-- in-book sync action for EPUB
-
-### OTA updates
-
-The firmware can check for and install updates over Wi-Fi.
-
-## Home Screen and General UX
-
-The home screen is DX34-specific rather than upstream-generic.
-
-It includes:
-
-- a DX34-style header/version label
-- recent books with progress percentage
-- optional OPDS entry when configured
-- file browser
-- file transfer
-- settings
-- sleep favorites capacity warning when the protected wallpaper list is full
+---
 
 ## Installation
 
-### Web flasher
+### Before you flash: back up your SD card
+
+If you are switching from another firmware (original CrossPoint, stock Xteink, or any other build), **back up the entire contents of your SD card to a folder on your computer first**.
+
+**Why this matters:**
+- This firmware creates its own data folder (`/.crosspoint/`) on the SD card at first boot — that part is automatic.
+- However, **your reading progress from the previous firmware will not carry over**. The DX34 mod stores book positions in its own format under `/.crosspoint/books/`. If the previous firmware used a different format or location, those saved positions are lost.
+- Your **book files are safe** — the firmware does not delete or modify your EPUBs, TXTs, or other content files. But having a full backup means you can always go back if needed.
+
+**How to back up:**
+1. Turn off the device.
+2. Remove the micro SD card.
+3. Insert it into your computer (use an adapter if needed).
+4. Copy **everything** from the SD card into a folder on your PC (e.g., `X4-SD-Backup`).
+5. Re-insert the SD card into the device.
+
+Once backed up, you can safely flash.
+
+### Web flasher (easiest)
 
 1. Connect the device by USB-C.
 2. Wake or reboot it if needed.
@@ -341,6 +79,508 @@ Release binaries are published here:
 ```sh
 pio run -t upload
 ```
+
+---
+
+## Features at a Glance
+
+- [Supported book formats](#supported-book-formats) — EPUB, TXT/MD, XTC/XTCH
+- [EPUB reading experience](#epub-reading-experience) — in-book menu, reading themes, highlights, footnotes
+- [Fonts and sizes](#fonts-and-sizes) — 3 font families with multiple sizes each
+- [Reader layout and appearance](#reader-layout-and-appearance) — full control over text rendering
+- [Sleep screen and wallpaper system](#sleep-screen-and-wallpaper-system) — managed wallpaper folder with favorites
+- [Home screen and library](#home-screen-and-library) — recents, file browser, search, QR sharing
+- [Wireless features](#wireless-features) — Wi-Fi transfer, OPDS, Calibre, KOReader sync, OTA
+- [Device and system controls](#device-and-system-controls) — buttons, sleep, refresh, orientation
+
+---
+
+## Supported Book Formats
+
+| Format | Description | Theme Support |
+|--------|-------------|---------------|
+| **EPUB** | Primary reading format — all advanced DX34 features live here | Yes |
+| **TXT / MD** | Plain-text reader with progress tracking | No |
+| **XTC / XTCH** | Pre-rendered page format with chapter selection | No |
+
+EPUB is where the advanced DX34 reading work lives. TXT and XTC are supported but they do not share the full EPUB in-book settings and theme workflow.
+
+---
+
+## EPUB Reading Experience
+
+The EPUB reader is the core of the DX34 firmware. It includes persistent reading position, chapter navigation, configurable text rendering, and a rich in-book workflow.
+
+| Crisp mode | Dark mode |
+|:---:|:---:|
+| ![Reader Crisp](./docs/images/screenshots/reader-crisp.jpg) | ![Reader Dark](./docs/images/screenshots/reader-dark.jpg) |
+
+### In-book menu
+
+Pressing **OK** while reading an EPUB opens the in-book menu:
+
+| Menu Item | What It Does |
+|-----------|--------------|
+| Select Chapter | Jump to any chapter in the book |
+| Reading Orientation | Switch between portrait and landscape modes |
+| Reading Themes | Open the theme manager (save, apply, rename, delete themes) |
+| Revert Theme | Undo the last theme change and restore previous settings |
+| Go Home | Return to the home screen |
+| Sync Progress | Sync reading position with a KOReader server |
+| Clean Cache + Progress | Clear cached data and reading position for this book |
+| Delete Book | Remove the book file from the device |
+| Remove from Recents | Remove the book from the recent books list |
+| **Wallpaper Triage** | |
+| Favorite | Mark/unmark the last sleep wallpaper as a favorite |
+| Move to sleep pause | Move the last wallpaper out of the active rotation |
+| Delete Wallpaper | Delete the last sleep wallpaper |
+
+| In-book menu | Chapter selection |
+|:---:|:---:|
+| ![In-book menu](./docs/images/screenshots/in-book-menu.jpg) | ![Chapter selection](./docs/images/screenshots/chapter-selection.jpg) |
+
+### Reading Themes
+
+The EPUB-only **Reading Themes** system lets you save and switch between different display configurations:
+
+**How it works:**
+
+1. **Adjust settings live** — change font, size, margins, spacing, or any reader setting while inside a book. Changes apply immediately without saving a theme.
+
+2. **Save as a theme** — capture the current display setup under a name for later use.
+
+3. **Manage themes** — up to 16 named themes per book:
+   - Apply a saved theme
+   - Rename a theme
+   - Overwrite a theme with current settings
+   - Delete a theme
+
+When you apply a theme, the firmware reflows the current chapter and restores your reading position approximately, so you stay near the same spot after font or margin changes.
+
+![Reading Themes with theme actions popup](./docs/images/screenshots/reading-themes.jpg)
+
+### Highlights and Quotes
+
+The firmware includes a text selection system for saving passages from EPUBs.
+
+**How to activate:** **Long press OK (hold for 1 second)** while reading. A cursor appears on the first word of the current page.
+
+**How it works (step by step):**
+
+1. **Enter highlight mode** — long press OK. A cursor appears on the first word of the current page.
+
+2. **Pick the start word** — move the cursor to the first word of the passage you want to save:
+   - **Left / Right** (or Page buttons): move one word at a time
+   - **Up / Down** (side buttons): jump one line up or down
+   - **OK**: confirm the start word
+
+3. **Pick the end word** — after confirming the start, the cursor jumps to the end of the page. Move it to the last word of your passage:
+   - Same navigation controls as step 2
+   - The end cursor can cross onto the next page if your passage spans multiple pages
+   - It won't go before the start word
+   - **OK**: confirm the end word
+
+4. **Review and save** — the selected text is shown underlined for 3 seconds, then automatically saved. A "Quote saved!" confirmation appears.
+
+5. **Cancel at any time** — press **Back** to exit highlight mode without saving.
+
+**Where quotes are stored:**
+
+Quotes are saved as `_QUOTES.txt` sidecar files next to the book file. For example, a book at `/recents/MyBook.epub` produces `/recents/MyBook_QUOTES.txt`.
+
+Each quote entry includes the chapter title and the selected text:
+
+```
+[Chapter 3: The Journey]
+The selected passage text goes here.
+---
+```
+
+Quote files are preserved when you remove a book from recents or delete it. You can open the `_QUOTES.txt` file on the device to review your saved passages.
+
+![Quotes file viewed on device](./docs/images/screenshots/quotes-file.jpg)
+
+**Selection mode preference:**
+
+You can choose between **Word** mode (default) and **Page** mode in reader settings. Word mode is the cursor-based flow described above. Page mode starts with the full page selected and lets you narrow down from there.
+
+| Normal reading | Selection active | Quote saved |
+|:---:|:---:|:---:|
+| ![Normal](./docs/images/screenshots/highlight-normal.jpg) | ![Selection](./docs/images/screenshots/highlight-selection.jpg) | ![Saved](./docs/images/screenshots/highlight-saved.jpg) |
+
+### Footnote Navigation
+
+When reading EPUBs with footnotes or endnotes, tapping a footnote link jumps to the note. The firmware maintains a position stack up to 3 levels deep, so you can follow nested references and return to your original reading position.
+
+### Reader Shortcuts
+
+While reading an EPUB:
+
+| Action | What It Does |
+|--------|--------------|
+| **Single tap OK** | Open the in-book menu |
+| **Double tap OK** | Toggle text render mode (Crisp / Dark) |
+| **Long press OK (1 second)** | Enter highlight / quote selection mode |
+| **Back** | Return home (or return from footnote) |
+| **Side / front page buttons** | Previous / next page |
+
+---
+
+## Fonts and Sizes
+
+The DX34 firmware ships with **three built-in reader font families**, each with full **regular**, **bold**, and **italic** styles.
+
+### Font family overview
+
+| Font | Style | Sizes Available | Character |
+|------|-------|-----------------|-----------|
+| **ChareInk** | Serif, optimized for e-ink | 14, 15, 16, 17, 18 | DX34-specific, clean and readable |
+| **Bookerly** | Serif | 13, 15, 18 | Amazon's reading font |
+| **Vollkorn** | Serif | 15, 17, 18 | Open-source book font |
+
+| ChareInk | Bookerly | Vollkorn |
+|:---:|:---:|:---:|
+| ![ChareInk](./docs/images/screenshots/reader-crisp.jpg) | ![Bookerly](./docs/images/screenshots/highlight-normal.jpg) | ![Vollkorn](./docs/images/screenshots/font-vollkorn.jpg) |
+
+### Size details
+
+**ChareInk** — 5 sizes
+
+| Size | Point Size |
+|------|-----------|
+| 1 | 14 pt |
+| 2 | 15 pt |
+| 3 | 16 pt (default) |
+| 4 | 17 pt |
+| 5 | 18 pt |
+
+**Bookerly** — 3 sizes
+
+| Size | Point Size |
+|------|-----------|
+| 1 | 13 pt |
+| 2 | 15 pt |
+| 3 | 18 pt |
+
+**Vollkorn** — 3 sizes
+
+| Size | Point Size |
+|------|-----------|
+| 1 | 15 pt |
+| 2 | 17 pt |
+| 3 | 18 pt |
+
+### How size switching works
+
+- When you switch font family, the firmware automatically remaps your current size to the nearest valid size for the new family.
+- For example, switching from ChareInk 16pt to Bookerly would land on Bookerly 15pt.
+
+### Additional font notes
+
+- All three font families support **regular**, **bold**, and **italic** rendering (ChareInk and Bookerly also support bold italic).
+- Default line spacing is **90%** for all families.
+- UI text (menus, popups, status bar) uses separate built-in bitmap fonts, not the reader font.
+- The firmware includes **Unifont** internally as a Unicode fallback for broader glyph coverage, but it is not selectable as a reader font.
+
+---
+
+## Reader Layout and Appearance
+
+The firmware exposes extensive control over how text is rendered. All of these can be changed live while reading an EPUB.
+
+### Text settings
+
+| Setting | Options | Default |
+|---------|---------|---------|
+| **Font family** | ChareInk, Bookerly, Vollkorn | ChareInk |
+| **Font size** | Depends on family (see above) | 16 pt (ChareInk) |
+| **Line spacing** | 65% to 150% | 90% |
+| **Paragraph alignment** | Justified, Left, Center, Right, Book Style | Justified |
+| **First-line indent** | Book (follow CSS), Off, Small, Medium, Large | Book |
+| **Word spacing** | Tight, Normal, Wide, Extra Wide | Normal |
+| **Extra paragraph spacing** | Off, Small, Medium, Large | Off |
+| **Text render mode** | Crisp, Dark (quick toggle: double tap OK) | Crisp |
+| **Reader style mode** | User (your settings override), Hybrid (blend with book CSS) | User |
+| **Embedded CSS** | On / Off | On |
+| **Hyphenation** | On / Off | — |
+| **Bold swap** | On / Off (double-tap OK shortcut) | Off |
+| **Highlight mode** | Word, Page | Word |
+
+| Device settings | In-book reader settings |
+|:---:|:---:|
+| ![Settings screen](./docs/images/screenshots/settings-display-reader.jpg) | ![Reader settings](./docs/images/screenshots/reader-settings.jpg) |
+
+### Margins
+
+| Setting | Range | Default |
+|---------|-------|---------|
+| **Horizontal margin** | 0–55 px | — |
+| **Top margin** | 0–55 px | — |
+| **Bottom margin** | 0–55 px | — |
+| **Uniform margins** | Toggle to link all margins | — |
+
+### Orientation
+
+Four orientation modes:
+
+- **Portrait** (default)
+- **Landscape CW** (clockwise)
+- **Inverted** (upside down)
+- **Landscape CCW** (counter-clockwise)
+
+### Status bar
+
+The status bar is highly configurable. Each element can be independently shown/hidden and positioned.
+
+| Element | Options |
+|---------|---------|
+| **Status bar** | Show / Hide |
+| **Battery** | Show / Hide, position (Top / Bottom) |
+| **Page counter** | Show / Hide, mode (Current/Total or Left in Chapter), position |
+| **Book percentage** | Show / Hide, position (6 positions: top/bottom + left/center/right) |
+| **Chapter percentage** | Show / Hide, position |
+| **Book progress bar** | Show / Hide, position, style (Thin / Thick / Dotted) |
+| **Chapter progress bar** | Show / Hide, position, style |
+| **Chapter title** | Show / Hide, position, truncation control |
+| **Text alignment** | Right, Center, Left |
+| **Hide battery %** | Never, In Reader, Always |
+
+| Status bar — title top, pages left bottom | Status bar — percentages top, title bottom |
+|:---:|:---:|
+| ![Status bar config 1](./docs/images/screenshots/statusbar-config1.jpg) | ![Status bar config 2](./docs/images/screenshots/statusbar-config2.jpg) |
+
+---
+
+## Sleep Screen and Wallpaper System
+
+This firmware has a more developed sleep wallpaper system than upstream.
+
+### Sleep modes
+
+| Mode | Behavior |
+|------|----------|
+| **Dark** | Solid dark screen |
+| **Light** | Solid light screen |
+| **Custom** | Show a wallpaper from the `/sleep` folder |
+| **Cover** | Show the cover of the last opened book |
+| **None (Blank)** | Leave the screen as-is |
+| **Cover + Custom** | Show the book cover if available, otherwise a custom wallpaper |
+
+### Cover display options
+
+When using Cover or Cover + Custom mode:
+
+| Setting | Options |
+|---------|---------|
+| **Cover mode** | Fit (letterbox) or Crop (fill screen) |
+| **Cover filter** | None, Black & White, Inverted Black & White |
+
+### Custom wallpaper locations
+
+The firmware looks for custom BMP sleep wallpapers in this order:
+
+1. `/sleep/` folder images
+2. `/sleep_F.bmp`
+3. `/sleep.bmp`
+
+If no valid custom bitmap is found, it falls back to the default DX34 sleep screen.
+
+### Random wallpaper selection
+
+The behavior depends on how many BMPs are in `/sleep`:
+
+**Up to 200 images:**
+- The firmware keeps a persisted playlist in memory and on SD.
+- By default, it follows a stable file-based order.
+- Using **Randomize Sleep Images** in settings reshuffles the playlist.
+- New images added to `/sleep` are pushed near the front so they appear quickly.
+
+**More than 200 images:**
+- The firmware avoids storing the full playlist in memory (ESP32-C3 has limited RAM).
+- **Randomize Sleep Images** chooses a random starting wallpaper.
+- After that, the device advances sequentially through the sorted filenames.
+
+### Wallpaper protection and trimming
+
+The sleep folder has a practical cap of **200 persisted entries**.
+
+If `/sleep` grows beyond that:
+- Favorite wallpapers are protected first.
+- Non-favorites beyond the limit are automatically moved to `/sleep pause`.
+
+This prevents the wallpaper system from growing until it becomes unstable or too memory-heavy.
+
+### Favorites
+
+Sleep wallpapers can be marked as favorites:
+
+- Favorite files are stored with an `_F` suffix.
+- Favorites display with a `[F]` prefix in UI labels.
+- Favorites inside `/sleep` are protected from automatic trimming.
+- The protected favorites count is limited to **200**.
+
+### Wallpaper management tools
+
+The Settings UI includes tools for managing sleep wallpapers:
+
+- Randomize sleep images
+- Inspect the last sleep wallpaper
+- Move the last wallpaper to `/sleep pause`
+- Favorite / unfavorite a wallpaper
+- Delete a wallpaper
+- Show the wallpaper filename on-screen (toggle)
+
+| Status bar settings | Controls & system settings |
+|:---:|:---:|
+| ![Status bar settings](./docs/images/screenshots/settings-statusbar.jpg) | ![Controls and system settings](./docs/images/screenshots/settings-controls-system.jpg) |
+
+---
+
+## Home Screen and Library
+
+### Home screen
+
+The home screen is DX34-specific and includes:
+
+- DX34 version label and header
+- **Recent books** list with progress percentage (up to 100 books)
+- Menu entries: My Library, Recents, File Transfer, Settings
+- Optional OPDS browser entry (when an OPDS server is configured)
+- Sleep favorites capacity warning when the protected wallpaper list is full
+
+![Home screen](./docs/images/screenshots/home-screen.jpg)
+
+### Recent books
+
+- Up to 100 recent books tracked.
+- Books are moved to the `/recents/` folder when opened (keeping them organized).
+- Each book shows its reading progress percentage.
+- Books can be removed from recents via the home screen or the in-book menu.
+- Quote files (`_QUOTES.txt`) are preserved when removing or deleting books.
+
+### My Library (file browser)
+
+The built-in file browser lets you manage files on the SD card:
+
+| Feature | Description |
+|---------|-------------|
+| **Browse folders** | Navigate the SD card directory tree |
+| **Open books** | Open EPUB, TXT, MD, XTC, XTCH files |
+| **Search** | Real-time fuzzy search across file names |
+| **Move files** | Move files to a different folder with destination picker |
+| **Rename files** | Rename files with on-device keyboard |
+| **Delete files** | Delete files with confirmation |
+| **View BMPs** | Preview BMP images directly on the e-ink screen |
+| **Load more** | Pagination for large folders (200 files at a time, 1000 for `/sleep`) |
+
+### QR code file sharing
+
+You can share individual files from the device over Wi-Fi:
+1. Select a file in the browser.
+2. Choose the QR share option.
+3. A QR code is displayed on screen with a download link.
+4. Scan the QR code from your phone to download the file.
+
+Requires an active Wi-Fi connection.
+
+---
+
+## Wireless Features
+
+### Built-in web server
+
+The Wi-Fi file-transfer mode starts a web server accessible from any browser on the same network.
+
+| Feature | Description |
+|---------|-------------|
+| **Upload** | Upload files from phone or desktop (with resume support) |
+| **Browse** | Browse the SD card directory tree |
+| **Create folders** | Make new directories |
+| **Move / Rename / Delete** | Full file management |
+| **Search** | Fuzzy search for books |
+| **Settings page** | View and change device settings from the browser |
+| **Status page** | Firmware version, IP address, free space |
+
+The web server supports both STA mode (join existing network) and AP mode (device creates its own hotspot).
+
+See [docs/webserver.md](./docs/webserver.md) and [docs/webserver-endpoints.md](./docs/webserver-endpoints.md) for details.
+
+<!-- screenshot: web-transfer -->
+
+### Calibre wireless transfer
+
+Supported through the CrossPoint Reader Calibre plugin workflow. The device starts a web server optimized for Calibre transfers and displays connection instructions on screen.
+
+### OPDS browser
+
+Configure an OPDS server URL, username, and password in settings, then browse and download books directly from the device.
+
+### KOReader progress sync
+
+Sync your reading position across devices using a KOReader-compatible server:
+
+- Stored credentials (server URL, username, password)
+- Document matching by filename or binary hash
+- In-book sync action: compare local and remote progress, then apply or upload
+
+### OTA updates
+
+The firmware can check for and install updates over Wi-Fi directly from GitHub releases. Version comparison prevents accidental downgrades.
+
+---
+
+## Device and System Controls
+
+### Button controls
+
+| Setting | Options |
+|---------|---------|
+| **Side button layout** | Previous/Next or Next/Previous |
+| **Long-press chapter skip** | Toggle long-press on side buttons to skip chapters |
+| **Short power button action** | Ignore, Sleep, or Page Turn |
+| **Front button remapping** | Remap Back, Confirm, Left, Right to any physical front button |
+
+Front button remapping uses an interactive step-by-step flow where you press the physical button you want for each logical role.
+
+### Display and power
+
+| Setting | Options |
+|---------|---------|
+| **Auto-sleep timeout** | 1, 5, 10, 15, or 30 minutes |
+| **E-ink refresh frequency** | Full refresh every 1, 5, 10, 15, or 30 pages |
+| **Sunlight fading compensation** | On / Off |
+| **Custom boot image** | Place `/boot.bmp` on the SD card |
+
+### Orientation
+
+The display orientation can be set globally or toggled from the in-book menu:
+
+- Portrait (default)
+- Landscape CW
+- Inverted
+- Landscape CCW
+
+---
+
+## Storage, Cache, and On-SD State
+
+The firmware stores runtime state and caches under `/.crosspoint/` on the SD card.
+
+This includes:
+- `settings.json` — all user preferences
+- `state.json` — runtime state (sleep playlist, last book, etc.)
+- `books/` — per-book caches (reading position, page index, themes)
+- Recent books list
+- Wi-Fi credentials
+
+The device aggressively caches parsed content to reduce RAM pressure and make repeated opens faster.
+
+Useful internals docs:
+- [docs/file-formats.md](./docs/file-formats.md)
+- [docs/webserver-endpoints.md](./docs/webserver-endpoints.md)
+- [docs/release-checklist.md](./docs/release-checklist.md)
+
+---
 
 ## Development
 
@@ -389,34 +629,24 @@ macOS example:
 python3 scripts/debugging_monitor.py /dev/cu.usbmodem101
 ```
 
-## Storage, Cache, and On-SD State
-
-The firmware stores runtime state and caches under:
-
-- `/.crosspoint/`
-
-This includes settings, state, recent books, reading themes, and book caches.
-
-The device aggressively caches parsed content to reduce RAM pressure and make repeated opens faster.
-
-Useful internals docs:
-
-- [docs/file-formats.md](./docs/file-formats.md)
-- [docs/webserver-endpoints.md](./docs/webserver-endpoints.md)
-- [docs/release-checklist.md](./docs/release-checklist.md)
+---
 
 ## Limitations and Scope Notes
 
-- EPUB is the primary reading target for advanced DX34 features.
-- TXT and XTC remain supported, but they do not share the full EPUB in-book settings/theme workflow.
-- Current releases are intentionally English-first.
-- Hyphenation exists in the codebase, but it is not positioned as a flagship DX34 feature.
+- **EPUB is the primary target** for advanced DX34 features. TXT and XTC are supported but do not share the full in-book settings/theme workflow.
+- Current releases are intentionally **English-first**.
+- Hyphenation exists in the codebase but is not positioned as a flagship DX34 feature.
+- The ESP32-C3 has limited RAM (~182 KB free heap), which constrains features like sleep playlist size and the number of files that can be browsed at once.
+
+---
 
 ## Support and Project Links
 
 - Ideas: [GitHub Discussions](https://github.com/diogo7dias/crosspoint-reader-DX34/discussions/categories/ideas)
 - Bugs: [GitHub Issues](https://github.com/diogo7dias/crosspoint-reader-DX34/issues)
 - Governance: [GOVERNANCE.md](./GOVERNANCE.md)
+
+---
 
 ## Attribution
 
