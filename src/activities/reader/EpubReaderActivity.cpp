@@ -1568,6 +1568,33 @@ std::vector<EpubReaderActivity::WordInfo> EpubReaderActivity::buildWordList(cons
   return result;
 }
 
+bool EpubReaderActivity::lookupWordInfo(const Page& page, const int wordIndex, const int xOffset, const int yOffset,
+                                        const int fontId, WordInfo& out) const {
+  int idx = 0;
+  for (const auto& el : page.elements) {
+    if (el->getTag() != TAG_PageLine) continue;
+    const auto& line = static_cast<const PageLine&>(*el);
+    const auto& tb = line.getTextBlock();
+    const auto& words = tb.getWords();
+    const auto& xpos = tb.getWordXpos();
+    const auto& styles = tb.getWordStyles();
+    const int16_t ls = tb.getLetterSpacing();
+    for (size_t i = 0; i < words.size(); i++) {
+      if (idx == wordIndex) {
+        out.x = static_cast<int>(xpos[i]) + line.xPos + xOffset;
+        out.y = line.yPos + yOffset;
+        out.width = renderer.getTextWidthSpaced(fontId, words[i].c_str(), ls, styles[i]);
+        out.text = words[i];
+        out.style = styles[i];
+        out.letterSpacing = ls;
+        return true;
+      }
+      idx++;
+    }
+  }
+  return false;
+}
+
 void EpubReaderActivity::rebuildHighlightWordCache(const int xOffset, const int yOffset) {
   highlightWordCache.clear();
   auto page = loadAndCachePage(section->currentPage);
@@ -1833,20 +1860,31 @@ void EpubReaderActivity::renderHighlights(const Page& page, const int fontId, co
     highlightCursorIndex = wordCount - 1;
   }
 
-  // Helper: draw thick underline beneath a word
-  const auto drawCursor = [&](const WordPos& cw) {
+  // Helper: draw inverse-video cursor (black background + white text) with underline
+  const auto drawCursor = [&](const WordPos& cw, const int cursorWordIdx) {
+    constexpr int pad = 2;  // padding around the word for the inverse rect
+    // Draw black background rect covering the word (clamp to non-negative origin)
+    const int rx = (cw.x > pad) ? cw.x - pad : 0;
+    const int ry = (cw.y > pad) ? cw.y - pad : 0;
+    renderer.fillRect(rx, ry, cw.width + (cw.x - rx) + pad, textHeight + (cw.y - ry) + pad, true);
+    // Re-draw the word text in white on top (use page ref already passed to renderHighlights)
+    WordInfo wi;
+    if (lookupWordInfo(page, cursorWordIdx, xOffset, yOffset, fontId, wi)) {
+      renderer.drawTextSpaced(fontId, wi.x, wi.y, wi.text.c_str(), wi.letterSpacing, false, wi.style);
+    }
+    // Draw thick underline beneath the word
     const int underY = cw.y + textHeight + 1;
     renderer.fillRect(cw.x, underY, cw.width, thickness, true);
   };
 
   if (highlightState == HighlightState::SELECT_START) {
     if (highlightCursorIndex >= 0 && highlightCursorIndex < wordCount) {
-      drawCursor(wordList[highlightCursorIndex]);
+      drawCursor(wordList[highlightCursorIndex], highlightCursorIndex);
     }
   } else if (highlightState == HighlightState::SELECT_END) {
     const int endIdx = highlightEndWordIndex;
     if (section->currentPage == highlightEndPage && endIdx >= 0 && endIdx < wordCount) {
-      drawCursor(wordList[endIdx]);
+      drawCursor(wordList[endIdx], endIdx);
     }
   } else if (highlightState == HighlightState::SHOW_UNDERLINE) {
     int selStart = -1;
