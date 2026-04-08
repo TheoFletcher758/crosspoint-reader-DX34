@@ -1,5 +1,6 @@
 #include "HomeActivity.h"
 #include "activities/boot_sleep/SleepActivity.h"
+#include "activities/util/ConfirmDialogActivity.h"
 
 #include <Bitmap.h>
 #include <Epub.h>
@@ -217,6 +218,12 @@ void HomeActivity::freeCoverBuffer() {
 }
 
 void HomeActivity::loop() {
+  // Let sub-activity (e.g. confirm dialog) handle input when active
+  if (subActivity) {
+    ActivityWithSubactivity::loop();
+    return;
+  }
+
   const int recentSlots = getRecentSlotCount();
   const auto menuItems = buildHomeMenuItems(hasOpdsUrl);
   const int menuCount = getMenuItemCount();
@@ -230,6 +237,41 @@ void HomeActivity::loop() {
     selectorIndex = ButtonNavigator::previousIndex(selectorIndex, menuCount);
     requestUpdate();
   });
+
+  // Back button: remove selected recent book from recents list
+  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+    if (selectorIndex >= 1 && selectorIndex <= static_cast<int>(recentBooks.size())) {
+      const int bookIndex = selectorIndex - 1;
+      const std::string &selectedPath = recentBooks[bookIndex].path;
+      // Only for actual books, not "See all..."
+      if (!selectedPath.empty()) {
+        const std::string title = recentBooks[bookIndex].title;
+        const std::string path = selectedPath;
+        enterNewActivity(new ConfirmDialogActivity(
+            renderer, mappedInput,
+            std::string(tr(STR_REMOVE_FROM_RECENTS)) + "?\n\n" + title,
+            [this, path]() {
+              exitActivity();
+              RECENT_BOOKS.removeBook(path);
+              auto metrics = UITheme::getInstance().getMetrics();
+              loadRecentBooks(metrics.homeRecentBooksCount);
+              // Reset selector if it's now out of bounds
+              const int menuCount = getMenuItemCount();
+              if (selectorIndex >= menuCount) {
+                selectorIndex = std::max(0, menuCount - 1);
+              }
+              coverRendered = false;
+              freeCoverBuffer();
+              requestUpdate();
+            },
+            [this]() {
+              exitActivity();
+              requestUpdate();
+            }));
+        return;
+      }
+    }
+  }
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     if (selectorIndex == 0) {
@@ -376,7 +418,12 @@ void HomeActivity::render(Activity::RenderLock &&) {
                       blackText, textStyle);
   }
 
-  const auto labels = mappedInput.mapLabels("", tr(STR_SELECT), tr(STR_DIR_UP),
+  // Show "Remove" hint on Back button when a recent book is selected
+  const bool isRecentBookSelected =
+      selectorIndex >= 1 && selectorIndex <= static_cast<int>(recentBooks.size()) &&
+      !recentBooks[selectorIndex - 1].path.empty();
+  const char *backLabel = isRecentBookSelected ? "Remove" : "";
+  const auto labels = mappedInput.mapLabels(backLabel, tr(STR_SELECT), tr(STR_DIR_UP),
                                             tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
                       labels.btn4);

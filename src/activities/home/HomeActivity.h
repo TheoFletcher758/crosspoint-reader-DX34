@@ -3,14 +3,14 @@
 #include <string>
 #include <vector>
 
-#include "../Activity.h"
+#include "../ActivityWithSubactivity.h"
 #include "./MyLibraryActivity.h"
 #include "util/ButtonNavigator.h"
 
 struct RecentBook;
 struct Rect;
 
-class HomeActivity final : public Activity {
+class HomeActivity final : public ActivityWithSubactivity {
   ButtonNavigator buttonNavigator;
   int selectorIndex = 0;
   bool recentsLoading = false;
@@ -44,7 +44,7 @@ class HomeActivity final : public Activity {
                         const std::function<void()>& onMyLibraryOpen, const std::function<void()>& onRecentsOpen,
                         const std::function<void()>& onSettingsOpen, const std::function<void()>& onFileTransferOpen,
                         const std::function<void()>& onOpdsBrowserOpen)
-      : Activity("Home", renderer, mappedInput),
+      : ActivityWithSubactivity("Home", renderer, mappedInput),
         onSelectBook(onSelectBook),
         onMyLibraryOpen(onMyLibraryOpen),
         onRecentsOpen(onRecentsOpen),
