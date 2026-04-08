@@ -1311,15 +1311,24 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
 
     if (titleFirst && showBandTitle) {
       constexpr int titlePadding = 4;
-      const int titleFullWidth = renderer.getScreenWidth() - titlePadding * 2;
+      const int screenWidth = renderer.getScreenWidth();
+      const int paddedWidth = screenWidth - titlePadding * 2;
       for (size_t i = 0; i < statusBarLayout.titleLines.size(); i++) {
-        const int titleWidth = renderer.getTextWidth(
-            SMALL_FONT_ID, statusBarLayout.titleLines[i].c_str());
-        const int titleX =
-            titlePadding + std::max(0, (titleFullWidth - titleWidth) / 2);
+        std::string lineText = statusBarLayout.titleLines[i];
+        int titleWidth = renderer.getTextWidth(SMALL_FONT_ID, lineText.c_str());
+        int titleX;
+        if (titleWidth <= paddedWidth) {
+          titleX = titlePadding + (paddedWidth - titleWidth) / 2;
+        } else if (titleWidth <= screenWidth) {
+          titleX = (screenWidth - titleWidth) / 2;
+        } else {
+          lineText = renderer.truncatedText(SMALL_FONT_ID, lineText.c_str(), screenWidth);
+          titleWidth = renderer.getTextWidth(SMALL_FONT_ID, lineText.c_str());
+          titleX = (screenWidth - titleWidth) / 2;
+        }
         renderer.drawText(SMALL_FONT_ID, titleX,
                           titleY + static_cast<int>(i) * titleLineStep,
-                          statusBarLayout.titleLines[i].c_str());
+                          lineText.c_str());
       }
     }
 
@@ -1419,15 +1428,24 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
 
     if (!titleFirst && showBandTitle) {
       constexpr int titlePadding = 4;
-      const int titleFullWidth = renderer.getScreenWidth() - titlePadding * 2;
+      const int screenWidth = renderer.getScreenWidth();
+      const int paddedWidth = screenWidth - titlePadding * 2;
       for (size_t i = 0; i < statusBarLayout.titleLines.size(); i++) {
-        const int titleWidth = renderer.getTextWidth(
-            SMALL_FONT_ID, statusBarLayout.titleLines[i].c_str());
-        const int titleX =
-            titlePadding + std::max(0, (titleFullWidth - titleWidth) / 2);
+        std::string lineText = statusBarLayout.titleLines[i];
+        int titleWidth = renderer.getTextWidth(SMALL_FONT_ID, lineText.c_str());
+        int titleX;
+        if (titleWidth <= paddedWidth) {
+          titleX = titlePadding + (paddedWidth - titleWidth) / 2;
+        } else if (titleWidth <= screenWidth) {
+          titleX = (screenWidth - titleWidth) / 2;
+        } else {
+          lineText = renderer.truncatedText(SMALL_FONT_ID, lineText.c_str(), screenWidth);
+          titleWidth = renderer.getTextWidth(SMALL_FONT_ID, lineText.c_str());
+          titleX = (screenWidth - titleWidth) / 2;
+        }
         renderer.drawText(SMALL_FONT_ID, titleX,
                           titleY + static_cast<int>(i) * titleLineStep,
-                          statusBarLayout.titleLines[i].c_str());
+                          lineText.c_str());
       }
     }
 
