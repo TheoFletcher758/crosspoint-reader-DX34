@@ -168,6 +168,12 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
 // 3. Rename current to .bak
 // 4. Rename .tmp to current
 static bool safeWriteFile(const char *path, const String &json) {
+  // Path + ".corrupt" (longest suffix) must fit in 128-char buffers used below.
+  if (!path || strlen(path) > 119) {
+    LOG_ERR("JSN", "safeWriteFile: path null or too long");
+    return false;
+  }
+
   auto ensureParentDirectory = [](const char *targetPath) -> bool {
     const char *slash = strrchr(targetPath, '/');
     if (!slash || slash == targetPath) {

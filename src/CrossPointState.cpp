@@ -55,7 +55,7 @@ bool CrossPointState::loadFromBinaryFile() {
   lastSleepWallpaperPath.clear();
   favoriteBmpPaths.clear();
 
-  uint8_t version;
+  uint8_t version = UINT8_MAX;  // safe default: triggers "unknown version" if read fails
   serialization::readPod(inputFile, version);
   if (version > STATE_FILE_VERSION) {
     LOG_ERR("CPS", "Deserialization failed: Unknown version %u", version);
@@ -73,6 +73,9 @@ bool CrossPointState::loadFromBinaryFile() {
   if (version >= 5) {
     uint16_t playlistCount = 0;
     serialization::readPod(inputFile, playlistCount);
+    if (playlistCount > SLEEP_PLAYLIST_MAX_PERSIST) {
+      playlistCount = SLEEP_PLAYLIST_MAX_PERSIST;
+    }
     sleepImagePlaylist.clear();
     sleepImagePlaylist.reserve(playlistCount);
     for (uint16_t i = 0; i < playlistCount; i++) {

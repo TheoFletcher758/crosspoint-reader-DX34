@@ -269,7 +269,7 @@ void ReaderSettingsActivity::buildSettingsList() {
   pushReader(SettingInfo::Enum(StrId::STR_ORIENTATION, &CrossPointSettings::orientation,
       {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_INVERTED, StrId::STR_LANDSCAPE_CCW}));
   pushReader(SettingInfo::Enum(StrId::STR_WORD_SPACING, &CrossPointSettings::wordSpacingPercent,
-      {StrId::STR_WSPACING_M30, StrId::STR_WSPACING_0, StrId::STR_WSPACING_P80, StrId::STR_WSPACING_P240}));
+      {StrId::STR_WSPACING_M30, StrId::STR_WSPACING_0, StrId::STR_WSPACING_P80, StrId::STR_WSPACING_P150, StrId::STR_WSPACING_P240}));
   pushReader(SettingInfo::Enum(StrId::STR_EXTRA_SPACING, &CrossPointSettings::extraParagraphSpacingLevel,
       {StrId::STR_NONE_OPT, StrId::STR_PARA_SPACING_17, StrId::STR_PARA_SPACING_25, StrId::STR_PARA_SPACING_33}));
   pushReader(SettingInfo::Enum(StrId::STR_TEXT_RENDER_MODE, &CrossPointSettings::textRenderMode,

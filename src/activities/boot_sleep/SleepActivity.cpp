@@ -185,6 +185,10 @@ void syncSleepPlaylistWithFiles(const std::vector<std::string> &files,
 // full playlist in memory. Instead we find the next file after the last-shown
 // one using a binary search on the already-sorted files list.
 std::string nextSleepImageLargeCollection(const std::vector<std::string> &files) {
+  if (files.empty()) {
+    return "";
+  }
+
   const auto &last = APP_STATE.lastShownSleepFilename;
   std::string next;
 

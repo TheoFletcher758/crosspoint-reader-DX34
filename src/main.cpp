@@ -54,7 +54,7 @@ HalGPIO gpio;
 MappedInputManager mappedInputManager(gpio);
 GfxRenderer renderer(display);
 FontDecompressor fontDecompressor;
-Activity* currentActivity;
+Activity* currentActivity = nullptr;
 
 // Fonts
 EpdFont chareink14RegularFont(&chareink_14_regular);
