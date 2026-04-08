@@ -363,7 +363,10 @@ void CrossPointWebServer::handleClient() {
       LOG_ERR("WS", "Download OOM: cannot allocate buffer");
       wsDownloadFile.close();
       wsDownloadInProgress = false;
-      wsServer->sendTXT(wsDownloadClientNum, "ERROR:Out of memory");
+      // Best-effort error notification — may itself fail if heap is exhausted
+      if (wsServer) {
+        wsServer->sendTXT(wsDownloadClientNum, "ERROR:Out of memory");
+      }
     } else {
       for (int i = 0; i < 2 && wsDownloadSent < wsDownloadSize; i++) {
         esp_task_wdt_reset();
@@ -1513,9 +1516,7 @@ void CrossPointWebServer::handlePostSettings() {
               SETTINGS.fontSize =
                   CrossPointSettings::normalizeFontSizeForFamily(
                       SETTINGS.fontFamily, SETTINGS.fontSize);
-              SETTINGS.lineSpacingPercent =
-                  CrossPointSettings::defaultLineSpacingPercentForFamily(
-                      SETTINGS.fontFamily, SETTINGS.lineSpacingPercent);
+              SETTINGS.lineSpacingPercent = 90;  // Reset to default on font change
             } else {
               SETTINGS.*(s.valuePtr) = static_cast<uint8_t>(val);
             }
@@ -1558,9 +1559,11 @@ void CrossPointWebServer::handlePostSettings() {
   server->send(200, "text/plain", String("Applied ") + String(applied) + " setting(s)");
 }
 
-// WebSocket callback trampoline
+// WebSocket callback trampoline — check both pointer and running flag.
+// During shutdown, wsInstance is cleared after running is set to false.
+// Checking running prevents processing events in the teardown window.
 void CrossPointWebServer::wsEventCallback(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
-  if (wsInstance) {
+  if (wsInstance && wsInstance->running) {
     wsInstance->onWebSocketEvent(num, type, payload, length);
   }
 }

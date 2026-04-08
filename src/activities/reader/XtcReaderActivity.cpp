@@ -135,11 +135,6 @@ void XtcReaderActivity::loop() {
 
   // Single tap opens chapter menu; double tap toggles text render mode (Dark/Crisp).
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    if (suppressNextConfirmRelease) {
-      suppressNextConfirmRelease = false;
-      pendingMenuOpen = false;
-      return;
-    }
     const unsigned long now = millis();
     if (pendingMenuOpen && now - lastConfirmReleaseMs <= confirmDoubleTapMs) {
       pendingMenuOpen = false;
@@ -156,7 +151,7 @@ void XtcReaderActivity::loop() {
       mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
       mappedInput.getHeldTime() >= goHomeMs) {
     confirmLongPressHandled = true;
-    suppressNextConfirmRelease = true;
+    mappedInput.suppressUntilAllReleased();
     SETTINGS.orientation =
         (SETTINGS.orientation == CrossPointSettings::ORIENTATION::LANDSCAPE_CCW)
             ? CrossPointSettings::ORIENTATION::PORTRAIT
@@ -355,6 +350,18 @@ void XtcReaderActivity::renderPage() {
   const uint16_t pageWidth = xtc->getPageWidth();
   const uint16_t pageHeight = xtc->getPageHeight();
   const uint8_t bitDepth = xtc->getBitDepth();
+
+  // Sanity-check dimensions before computing buffer size.
+  // Real e-ink pages are at most ~1024x1404; anything beyond 4096 is corrupt data.
+  // This also prevents integer overflow in the size_t multiplication below.
+  if (pageWidth == 0 || pageHeight == 0 || pageWidth > 4096 || pageHeight > 4096) {
+    LOG_ERR("XTR", "Invalid XTC page dimensions: %ux%u", pageWidth, pageHeight);
+    renderer.clearScreen();
+    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_PAGE_LOAD_ERROR), true,
+                              EpdFontFamily::REGULAR);
+    renderer.displayBuffer();
+    return;
+  }
 
   // Calculate buffer size for one page
   // XTG (1-bit): Row-major, ((width+7)/8) * height bytes

@@ -218,14 +218,6 @@ void SettingsActivity::buildSettingsList() {
     // Web-only categories (KOReader Sync, OPDS Browser) are skipped for device UI
   }
 
-  // Hide font size when a single-size font family is selected.
-  if (CrossPointSettings::isSingleSizeFontFamily(SETTINGS.fontFamily)) {
-    readerSettings.erase(
-        std::remove_if(readerSettings.begin(), readerSettings.end(),
-                       [](const SettingInfo& s) { return s.valuePtr == &CrossPointSettings::fontSize; }),
-        readerSettings.end());
-  }
-
   // Filter margin entries based on uniform/separate mode.
   {
     const bool uniform = SETTINGS.uniformMargins;
@@ -466,9 +458,7 @@ void SettingsActivity::toggleCurrentSetting() {
           CrossPointSettings::normalizeFontFamily(SETTINGS.fontFamily);
       SETTINGS.fontSize = CrossPointSettings::normalizeFontSizeForFamily(
           SETTINGS.fontFamily, SETTINGS.fontSize);
-      SETTINGS.lineSpacingPercent =
-          CrossPointSettings::defaultLineSpacingPercentForFamily(
-              SETTINGS.fontFamily, SETTINGS.lineSpacingPercent);
+      SETTINGS.lineSpacingPercent = 90;  // Reset to default on font change
       buildSettingsList();
       selectedRowIndex = std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
     }

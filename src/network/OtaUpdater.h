@@ -1,3 +1,11 @@
+/**
+ * @file OtaUpdater.h
+ * @brief Over-the-air firmware update checker and installer.
+ *
+ * Queries the GitHub Releases API for the latest firmware, compares version
+ * strings, and performs ESP-IDF HTTPS OTA if a newer version is found.
+ * Uses the device's secondary OTA partition (app1) for safe rollback.
+ */
 #pragma once
 
 #include <functional>

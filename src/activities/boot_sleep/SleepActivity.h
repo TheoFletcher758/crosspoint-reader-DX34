@@ -1,3 +1,12 @@
+/**
+ * @file SleepActivity.h
+ * @brief Sleep/screensaver screen — displays BMP images before deep sleep.
+ *
+ * Manages a playlist of BMP images from the /sleep folder on the SD card.
+ * Small collections (<=200 images) use a full shuffle playlist persisted in
+ * state.json. Large collections use sequential advance with wrap-around.
+ * After rendering the image, the device enters RTC deep sleep.
+ */
 #pragma once
 #include "../Activity.h"
 

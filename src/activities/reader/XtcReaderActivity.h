@@ -28,7 +28,6 @@ class XtcReaderActivity final : public ActivityWithSubactivity {
   bool pendingSingleBack = false;
   unsigned long lastBackReleaseMs = 0;
   bool confirmLongPressHandled = false;
-  bool suppressNextConfirmRelease = false;
   bool pendingMenuOpen = false;
   unsigned long lastConfirmReleaseMs = 0;
   bool progressDirty = false;

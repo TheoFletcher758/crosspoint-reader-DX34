@@ -1,3 +1,12 @@
+/**
+ * @file TxtReaderActivity.h
+ * @brief Plain-text (.txt) reader with word-wrap and pagination.
+ *
+ * Loads UTF-8 text files in chunks, reflows to the display width with
+ * configurable font/margins, and provides page-based navigation.
+ * Shares the status bar and progress tracking infrastructure with
+ * EpubReaderActivity via the common ReaderActivity base.
+ */
 #pragma once
 
 #include <Txt.h>
@@ -41,10 +50,8 @@ class TxtReaderActivity final : public ActivityWithSubactivity {
   bool recentSwitcherOpen = false;
   bool pendingThemesOpen = false;
   bool pendingSubactivityExit = false;
-  bool skipNextButtonCheck = false;
   bool confirmLongPressHandled = false;
   unsigned long lastConfirmReleaseMs = 0;
-  bool suppressNextConfirmRelease = false;
   bool progressDirty = false;
   unsigned long lastProgressChangeMs = 0;
   int lastObservedPage = -1;

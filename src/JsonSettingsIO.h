@@ -1,3 +1,14 @@
+/**
+ * @file JsonSettingsIO.h
+ * @brief JSON serialization/deserialization for CrossPointSettings and CrossPointState.
+ *
+ * Provides safeWriteFile() for atomic writes (write .tmp, rename old to .bak,
+ * rename .tmp to target) and safeReadFile() for reads with fallback to .bak.
+ * This prevents data loss if the device loses power mid-save.
+ *
+ * All settings fields use ArduinoJson's "value | default" pattern so that
+ * missing keys (from older firmware versions) silently fall back to defaults.
+ */
 #pragma once
 #include <WString.h>
 

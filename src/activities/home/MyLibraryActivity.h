@@ -1,3 +1,14 @@
+/**
+ * @file MyLibraryActivity.h
+ * @brief File browser for the SD card book library.
+ *
+ * Scans directories for supported formats (.epub, .txt, .xtc, .xtg, .xth),
+ * displays sorted file listings with folder navigation, and launches the
+ * appropriate reader activity. Special handling for the /sleep folder
+ * (sleep image management with playlist ordering).
+ *
+ * File list is capped at 300 entries (1000 for /sleep) to stay within heap.
+ */
 #pragma once
 #include <functional>
 #include <optional>

@@ -14,14 +14,24 @@
 #include "util/UrlUtils.h"
 
 bool HttpDownloader::fetchUrl(const std::string &url, Stream &outContent) {
-  // Use WiFiClientSecure for HTTPS, regular WiFiClient for HTTP
+  // Use WiFiClientSecure for HTTPS, regular WiFiClient for HTTP.
+  // With -fno-exceptions, operator new returns nullptr on OOM instead of throwing.
   std::unique_ptr<WiFiClient> client;
   if (UrlUtils::isHttpsUrl(url)) {
     auto *secureClient = new WiFiClientSecure();
+    if (!secureClient) {
+      LOG_ERR("HTTP", "OOM: failed to allocate WiFiClientSecure");
+      return false;
+    }
     secureClient->setInsecure();
     client.reset(secureClient);
   } else {
-    client.reset(new WiFiClient());
+    auto *plainClient = new WiFiClient();
+    if (!plainClient) {
+      LOG_ERR("HTTP", "OOM: failed to allocate WiFiClient");
+      return false;
+    }
+    client.reset(plainClient);
   }
   HTTPClient http;
 
@@ -68,14 +78,23 @@ HttpDownloader::DownloadError
 HttpDownloader::downloadToFile(const std::string &url,
                                const std::string &destPath,
                                ProgressCallback progress) {
-  // Use WiFiClientSecure for HTTPS, regular WiFiClient for HTTP
+  // With -fno-exceptions, operator new returns nullptr on OOM instead of throwing.
   std::unique_ptr<WiFiClient> client;
   if (UrlUtils::isHttpsUrl(url)) {
     auto *secureClient = new WiFiClientSecure();
+    if (!secureClient) {
+      LOG_ERR("HTTP", "OOM: failed to allocate WiFiClientSecure");
+      return DownloadError::OutOfMemory;
+    }
     secureClient->setInsecure();
     client.reset(secureClient);
   } else {
-    client.reset(new WiFiClient());
+    auto *plainClient = new WiFiClient();
+    if (!plainClient) {
+      LOG_ERR("HTTP", "OOM: failed to allocate WiFiClient");
+      return DownloadError::OutOfMemory;
+    }
+    client.reset(plainClient);
   }
   HTTPClient http;
 

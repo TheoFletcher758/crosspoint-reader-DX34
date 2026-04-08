@@ -12,9 +12,11 @@ constexpr char latestReleaseUrl[] =
     "https://api.github.com/repos/crosspoint-reader/crosspoint-reader/releases/"
     "latest";
 
-/* This is buffer and size holder to keep upcoming data from latestReleaseUrl */
-char *local_buf;
-int output_len;
+/* Buffer and length tracker for incremental HTTP response from latestReleaseUrl.
+ * Static storage is zero-initialized by C++, but explicit init makes intent clear
+ * and guards against future refactors that might move these to non-static scope. */
+char *local_buf = nullptr;
+int output_len = 0;
 
 /*
  * When esp_crt_bundle.h included, it is pointing wrong header file

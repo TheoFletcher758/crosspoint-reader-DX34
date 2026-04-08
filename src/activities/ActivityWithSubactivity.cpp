@@ -23,12 +23,19 @@ void ActivityWithSubactivity::exitActivity() {
     LOG_DBG("ACT", "Exiting subactivity...");
     subActivity->onExit();
     subActivity.reset();
+    // Suppress stale button events so that the press/release that closed the
+    // subactivity (e.g. Confirm on a dialog) doesn't leak into the parent's
+    // loop() and trigger an unintended action (like opening a book).
+    mappedInput.suppressUntilAllReleased();
   }
 }
 
 void ActivityWithSubactivity::enterNewActivity(Activity* activity) {
   // Acquire lock to avoid 2 activities rendering at the same time during transition
   RenderLock lock(*this);
+  // Suppress stale button events so the press that opened this subactivity
+  // doesn't immediately trigger an action inside it.
+  mappedInput.suppressUntilAllReleased();
   subActivity.reset(activity);
   subActivity->onEnter();
 }

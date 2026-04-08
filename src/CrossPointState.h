@@ -1,3 +1,15 @@
+/**
+ * @file CrossPointState.h
+ * @brief Runtime state persisted across reboots (current book, sleep playlist, etc.).
+ *
+ * Unlike CrossPointSettings (user preferences), CrossPointState tracks
+ * session data: which book is open, current page, sleep image playlist,
+ * recent books list, and reading statistics. Saved to /.crosspoint/state.json.
+ *
+ * Sleep playlist management has two paths:
+ *   - Small collections (<=SLEEP_PLAYLIST_MAX_PERSIST): full shuffle in RAM.
+ *   - Large collections (>200): sequential advance with lastShownSleepFilename.
+ */
 #pragma once
 #include <cstdint>
 #include <iosfwd>

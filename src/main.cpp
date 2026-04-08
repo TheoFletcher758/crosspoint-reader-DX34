@@ -1,3 +1,15 @@
+/**
+ * @file main.cpp
+ * @brief Application entry point, activity manager, and power management.
+ *
+ * Initializes hardware (display, SD card, fonts, GPIO), loads persisted
+ * settings/state, and runs the main loop. The loop dispatches to the
+ * current Activity (screen), polls buttons, manages sleep timeouts,
+ * and handles deep-sleep entry/exit via RTC wakeup.
+ *
+ * Activity transitions are callback-driven: each Activity calls
+ * onGoHome(), onGoToReader(), etc. which swap the global currentActivity.
+ */
 #include <Arduino.h>
 #include <Epub.h>
 #include <FontCacheManager.h>

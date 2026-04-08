@@ -1,3 +1,15 @@
+/**
+ * @file CrossPointSettings.h
+ * @brief Device settings model — enums, defaults, and persistence interface.
+ *
+ * Defines all user-configurable settings (fonts, margins, themes, network,
+ * button remapping, etc.) as a flat struct. Settings are serialized to JSON
+ * on the SD card at /.crosspoint/settings.json via JsonSettingsIO.
+ *
+ * Legacy binary format (pre-DX34) is still readable for migration; see
+ * loadFromBinaryFile(). Enum values marked LEGACY_* are kept so that
+ * normalizeFontFamily() can upgrade old settings files without data loss.
+ */
 #pragma once
 #include <HalStorage.h>
 
@@ -339,10 +351,7 @@ public:
   static uint8_t normalizeFontFamily(uint8_t family);
   static uint8_t fontFamilyToDisplayIndex(uint8_t family);
   static uint8_t displayIndexToFontFamily(uint8_t displayIndex);
-  static bool isSingleSizeFontFamily(uint8_t family);
   static uint8_t normalizeFontSizeForFamily(uint8_t family, uint8_t fontSize);
-  static uint8_t defaultLineSpacingPercentForFamily(uint8_t family,
-                                                    uint8_t currentPercent);
   static uint8_t nextFontSize(uint8_t family, uint8_t fontSize);
   static uint8_t fontSizeToPointSize(uint8_t family, uint8_t fontSize);
   static uint8_t fontSizeOptionCount(uint8_t family);

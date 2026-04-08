@@ -502,9 +502,8 @@ void EpubReaderActivity::loop() {
     // use-after-free
     if (pendingSubactivityExit) {
       pendingSubactivityExit = false;
-      exitActivity();
+      exitActivity();  // suppressUntilAllReleased() called inside
       requestUpdate();
-      skipNextButtonCheck = true;  // Skip button processing to ignore stale events
     }
     // Deferred go home: process after subActivity->loop() returns to avoid race
     // condition
@@ -564,28 +563,8 @@ void EpubReaderActivity::loop() {
     confirmLongPressHandled = false;
   }
 
-  // Skip button processing after returning from subactivity
-  // This prevents stale button release events from triggering actions
-  // We wait until: (1) all relevant buttons are released, AND (2) wasReleased
-  // events have been cleared
-  if (skipNextButtonCheck) {
-    const bool confirmCleared = !mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
-                                !mappedInput.wasReleased(MappedInputManager::Button::Confirm);
-    const bool backCleared = !mappedInput.isPressed(MappedInputManager::Button::Back) &&
-                             !mappedInput.wasReleased(MappedInputManager::Button::Back);
-    if (confirmCleared && backCleared) {
-      skipNextButtonCheck = false;
-    }
-    return;
-  }
-
   // Single tap opens menu; double tap toggles text render mode (Dark/Crisp).
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    if (suppressNextConfirmRelease) {
-      suppressNextConfirmRelease = false;
-      pendingMenuOpen = false;
-      return;
-    }
     const unsigned long now = millis();
     if (pendingMenuOpen && now - lastConfirmReleaseMs <= confirmDoubleTapMs) {
       pendingMenuOpen = false;
@@ -601,7 +580,7 @@ void EpubReaderActivity::loop() {
   if (!confirmLongPressHandled && mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
       mappedInput.getHeldTime() >= goHomeMs) {
     confirmLongPressHandled = true;
-    suppressNextConfirmRelease = true;
+    mappedInput.suppressUntilAllReleased();
     enterHighlightMode();
     return;
   }
@@ -943,7 +922,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
                                                  [this](const bool changed) {
                                                    exitActivity();
                                                    pendingMenuOpen = false;
-                                                   skipNextButtonCheck = true;
+                                                   // Input suppression handled by exitActivity()
                                                    if (changed) {
                                                      reloadCurrentSectionForDisplaySettings();
                                                    } else {
@@ -971,7 +950,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       delay(500);
       exitActivity();
       pendingMenuOpen = false;
-      skipNextButtonCheck = true;
+      // Input suppression handled by exitActivity()
       requestUpdate();
       break;
     }
@@ -983,7 +962,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
         delay(500);
         exitActivity();
         pendingMenuOpen = false;
-        skipNextButtonCheck = true;
+        // Input suppression handled by exitActivity()
         requestUpdate();
         break;
       }
@@ -1020,7 +999,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       delay(500);
       exitActivity();
       pendingMenuOpen = false;
-      skipNextButtonCheck = true;
+      // Input suppression handled by exitActivity()
       requestUpdate();
       break;
     }
@@ -1036,7 +1015,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       delay(500);
       exitActivity();
       pendingMenuOpen = false;
-      skipNextButtonCheck = true;
+      // Input suppression handled by exitActivity()
       requestUpdate();
       break;
     }
@@ -1805,13 +1784,8 @@ void EpubReaderActivity::handleHighlightInput() {
     return;
   }
 
-  // Confirm (release) advances state — but skip the release from the long-press
-  // that entered highlight mode (suppressNextConfirmRelease is still true).
+  // Confirm (release) advances highlight state.
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    if (suppressNextConfirmRelease) {
-      suppressNextConfirmRelease = false;
-      return;
-    }
     highlightConfirmSelection();
     return;
   }

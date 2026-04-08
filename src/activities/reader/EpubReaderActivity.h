@@ -1,3 +1,12 @@
+/**
+ * @file EpubReaderActivity.h
+ * @brief Core EPUB reader — text reflow, pagination, and rendering.
+ *
+ * Parses EPUB 2/3 archives, reflows HTML content to fit the e-ink display,
+ * handles chapter navigation, bookmarks, text search, footnotes, and
+ * reading progress tracking. Supports embedded fonts (via EpdFont),
+ * inline images (JPEG/PNG), and KOReader sync.
+ */
 #pragma once
 #include <Epub.h>
 #include <Epub/FootnoteEntry.h>
@@ -91,11 +100,9 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   bool pendingSubactivityExit = false;  // Defer subactivity exit to avoid use-after-free
   bool pendingGoHome = false;           // Defer go home to avoid race condition with display task
   bool pendingGoLibrary = false;        // Defer go library after destructive actions
-  bool skipNextButtonCheck = false;     // Skip button processing for one frame after subactivity exit
   bool pendingMenuOpen = false;
   unsigned long lastConfirmReleaseMs = 0;
   bool confirmLongPressHandled = false;
-  bool suppressNextConfirmRelease = false;
   bool progressDirty = false;
   unsigned long lastProgressChangeMs = 0;
   int lastObservedSpineIndex = -1;

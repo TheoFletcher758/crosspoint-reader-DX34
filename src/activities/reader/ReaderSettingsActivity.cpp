@@ -251,10 +251,8 @@ void ReaderSettingsActivity::buildSettingsList() {
   // --- Build reader settings directly (no intermediate vector) ---
   pushReader(SettingInfo::Enum(StrId::STR_FONT_FAMILY, &CrossPointSettings::fontFamily,
       {StrId::STR_CHAREINK, StrId::STR_BOOKERLY, StrId::STR_VOLLKORN}));
-  if (!CrossPointSettings::isSingleSizeFontFamily(SETTINGS.fontFamily)) {
-    pushReader(SettingInfo::Enum(StrId::STR_FONT_SIZE, &CrossPointSettings::fontSize,
-        {StrId::STR_SMALL, StrId::STR_MEDIUM, StrId::STR_LARGE}));
-  }
+  pushReader(SettingInfo::Enum(StrId::STR_FONT_SIZE, &CrossPointSettings::fontSize,
+      {StrId::STR_SMALL, StrId::STR_MEDIUM, StrId::STR_LARGE}));
   pushReader(SettingInfo::Value(StrId::STR_LINE_SPACING, &CrossPointSettings::lineSpacingPercent, {65, 150, 5}));
   pushReader(SettingInfo::Toggle(StrId::STR_UNIFORM_MARGINS, &CrossPointSettings::uniformMargins));
   pushReader(SettingInfo::Value(StrId::STR_SCREEN_MARGIN, &CrossPointSettings::screenMarginHorizontal, {0, 55, 5}));
@@ -379,9 +377,7 @@ void ReaderSettingsActivity::toggleCurrentSetting() {
           CrossPointSettings::normalizeFontFamily(SETTINGS.fontFamily);
       SETTINGS.fontSize = CrossPointSettings::normalizeFontSizeForFamily(
           SETTINGS.fontFamily, SETTINGS.fontSize);
-      SETTINGS.lineSpacingPercent =
-          CrossPointSettings::defaultLineSpacingPercentForFamily(
-              SETTINGS.fontFamily, SETTINGS.lineSpacingPercent);
+      SETTINGS.lineSpacingPercent = 90;  // Reset to default on font change
       buildSettingsList();
       selectedRowIndex =
           std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);

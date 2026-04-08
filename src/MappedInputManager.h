@@ -16,6 +16,10 @@ class MappedInputManager {
   explicit MappedInputManager(HalGPIO& gpio) : gpio(gpio) {}
 
   void update() const { gpio.update(); }
+  // Suppress all press/release events until every physical button is released.
+  // Use during activity transitions to prevent the button event that triggered
+  // the transition from leaking into the next screen.
+  void suppressUntilAllReleased() { gpio.suppressUntilAllReleased(); }
   bool wasPressed(Button button) const;
   bool wasReleased(Button button) const;
   bool isPressed(Button button) const;

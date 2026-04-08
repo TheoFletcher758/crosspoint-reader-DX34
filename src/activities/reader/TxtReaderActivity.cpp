@@ -445,9 +445,8 @@ void TxtReaderActivity::loop() {
     subActivity->loop();
     if (pendingSubactivityExit) {
       pendingSubactivityExit = false;
-      exitActivity();
+      exitActivity();  // suppressUntilAllReleased() called inside
       requestUpdate();
-      skipNextButtonCheck = true;
     }
     return;
   }
@@ -462,19 +461,6 @@ void TxtReaderActivity::loop() {
 
   if (!mappedInput.isPressed(MappedInputManager::Button::Confirm)) {
     confirmLongPressHandled = false;
-  }
-
-  if (skipNextButtonCheck) {
-    const bool confirmCleared =
-        !mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
-        !mappedInput.wasReleased(MappedInputManager::Button::Confirm);
-    const bool backCleared =
-        !mappedInput.isPressed(MappedInputManager::Button::Back) &&
-        !mappedInput.wasReleased(MappedInputManager::Button::Back);
-    if (confirmCleared && backCleared) {
-      skipNextButtonCheck = false;
-    }
-    return;
   }
 
   if (recentSwitcherOpen) {
@@ -518,11 +504,6 @@ void TxtReaderActivity::loop() {
   }
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    if (suppressNextConfirmRelease) {
-      suppressNextConfirmRelease = false;
-      pendingThemesOpen = false;
-      return;
-    }
     if (mappedInput.getHeldTime() >= goHomeMs) {
       return;
     }
@@ -543,7 +524,7 @@ void TxtReaderActivity::loop() {
       mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
       mappedInput.getHeldTime() >= goHomeMs) {
     confirmLongPressHandled = true;
-    suppressNextConfirmRelease = true;
+    mappedInput.suppressUntilAllReleased();
     pendingThemesOpen = false;
     SETTINGS.orientation =
         (SETTINGS.orientation == CrossPointSettings::ORIENTATION::LANDSCAPE_CCW)

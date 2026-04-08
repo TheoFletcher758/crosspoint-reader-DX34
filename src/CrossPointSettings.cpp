@@ -510,11 +510,6 @@ int CrossPointSettings::getRefreshFrequency() const {
   }
 }
 
-bool CrossPointSettings::isSingleSizeFontFamily(uint8_t family) {
-  (void)family;
-  return false; // Both ChareInk (5 sizes) and Bookerly (2 sizes) have multiple sizes
-}
-
 uint8_t CrossPointSettings::normalizeFontFamily(const uint8_t family) {
   switch (family) {
   case BOOKERLY:
@@ -598,13 +593,6 @@ uint8_t CrossPointSettings::normalizeFontSizeForFamily(const uint8_t family,
   case X_LARGE:
     return SIZE_18;
   }
-}
-
-uint8_t CrossPointSettings::defaultLineSpacingPercentForFamily(
-    const uint8_t family, const uint8_t currentPercent) {
-  (void)family;
-  (void)currentPercent;
-  return 90;
 }
 
 uint8_t CrossPointSettings::nextFontSize(const uint8_t family,

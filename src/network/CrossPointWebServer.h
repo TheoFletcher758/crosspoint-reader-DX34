@@ -1,3 +1,15 @@
+/**
+ * @file CrossPointWebServer.h
+ * @brief HTTP + WebSocket server for Wi-Fi file transfer and device settings.
+ *
+ * When Wi-Fi is connected, provides a web UI for uploading/downloading books,
+ * browsing the SD card, creating folders, renaming/deleting files, adjusting
+ * settings, and triggering OTA updates. File transfers use both HTTP POST
+ * (multipart upload) and WebSocket binary (chunked download/upload).
+ *
+ * UDP broadcast discovery (port 54982+) lets the web UI auto-detect the device.
+ * The server runs on the main loop via handleClient() — not on a separate task.
+ */
 #pragma once
 
 #include <HalStorage.h>

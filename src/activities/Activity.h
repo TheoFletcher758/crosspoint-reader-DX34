@@ -1,3 +1,15 @@
+/**
+ * @file Activity.h
+ * @brief Base class for all UI screens (activities) in the application.
+ *
+ * Each screen (home, reader, settings, etc.) is an Activity subclass.
+ * Lifecycle: onEnter() -> loop() [called each main-loop tick] -> onExit().
+ * Rendering runs on a dedicated FreeRTOS task to avoid blocking the main loop.
+ *
+ * RenderLock (RAII) ensures the activity is not deleted mid-render.
+ * Use requestUpdate() to trigger a render, requestUpdateAndWait() to block
+ * until the frame is displayed (e.g., before entering deep sleep).
+ */
 #pragma once
 #include <HardwareSerial.h>
 #include <Logging.h>
@@ -5,9 +17,10 @@
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 
-#include <cassert>
 #include <string>
 #include <utility>
+
+#include "esp_system.h"  // esp_restart()
 
 #include "GfxRenderer.h"
 #include "MappedInputManager.h"
@@ -35,8 +48,14 @@ class Activity {
         mappedInput(mappedInput),
         renderingMutex(xSemaphoreCreateMutex()),
         renderDoneSemaphore(xSemaphoreCreateBinary()) {
-    assert(renderingMutex != nullptr && "Failed to create rendering mutex");
-    assert(renderDoneSemaphore != nullptr && "Failed to create render completion semaphore");
+    // Semaphore creation fails only on heap exhaustion. assert() compiles to
+    // nothing in release builds (NDEBUG), so use an explicit check + restart.
+    // The device is non-functional without these semaphores.
+    if (!renderingMutex || !renderDoneSemaphore) {
+      LOG_ERR("ACT", "FATAL: semaphore alloc failed for '%s' — heap exhausted, restarting",
+              name.c_str());
+      esp_restart();
+    }
   }
   virtual ~Activity() {
     vSemaphoreDelete(renderingMutex);
