@@ -124,8 +124,6 @@ Pressing **OK** while reading an EPUB opens the in-book menu:
 | Select Chapter | Jump to any chapter in the book |
 | Reading Orientation | Switch between portrait and landscape modes |
 | Reading Themes | Open the theme manager (save, apply, rename, delete themes) |
-| Revert Theme | Undo the last theme change and restore previous settings |
-| Go Home | Return to the home screen |
 | Sync Progress | Sync reading position with a KOReader server |
 | Clean Cache + Progress | Clear cached data and reading position for this book |
 | Delete Book | Remove the book file from the device |
@@ -200,10 +198,6 @@ Quote files are preserved when you remove a book from recents or delete it. You 
 
 ![Quotes file viewed on device](./docs/images/screenshots/quotes-file.jpg)
 
-**Selection mode preference:**
-
-You can choose between **Word** mode (default) and **Page** mode in reader settings. Word mode is the cursor-based flow described above. Page mode starts with the full page selected and lets you narrow down from there.
-
 | Normal reading | Selection active | Quote saved |
 |:---:|:---:|:---:|
 | ![Normal](./docs/images/screenshots/highlight-normal.jpg) | ![Selection](./docs/images/screenshots/highlight-selection.jpg) | ![Saved](./docs/images/screenshots/highlight-saved.jpg) |
@@ -240,7 +234,7 @@ The DX34 firmware ships with **three built-in reader font families**, each with 
 
 | ChareInk | Bookerly | Vollkorn |
 |:---:|:---:|:---:|
-| ![ChareInk](./docs/images/screenshots/reader-crisp.jpg) | ![Bookerly](./docs/images/screenshots/highlight-normal.jpg) | ![Vollkorn](./docs/images/screenshots/font-vollkorn.jpg) |
+| ![ChareInk](./docs/images/screenshots/reader-crisp.jpg) | ![Bookerly](./docs/images/screenshots/font-vollkorn.jpg) | ![Vollkorn](./docs/images/screenshots/highlight-normal.jpg) |
 
 ### Size details
 
@@ -304,7 +298,6 @@ The firmware exposes extensive control over how text is rendered. All of these c
 | **Embedded CSS** | On / Off | On |
 | **Hyphenation** | On / Off | — |
 | **Bold swap** | On / Off (double-tap OK shortcut) | Off |
-| **Highlight mode** | Word, Page | Word |
 
 | Device settings | In-book reader settings |
 |:---:|:---:|

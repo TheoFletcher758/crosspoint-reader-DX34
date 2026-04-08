@@ -936,11 +936,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
           }));
       break;
     }
-    case EpubReaderMenuActivity::MenuAction::GO_HOME: {
-      // Defer go home to avoid race condition with display task
-      pendingGoHome = true;
-      break;
-    }
+    // GO_HOME menu item removed — Back button handles this
     case EpubReaderMenuActivity::MenuAction::THEMES_MENU: {
       exitActivity();
       enterNewActivity(new ReadingThemesActivity(renderer, mappedInput, epub ? epub->getCachePath() : std::string(),
@@ -956,26 +952,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
                                                  }));
       break;
     }
-    case EpubReaderMenuActivity::MenuAction::REVERT_THEME: {
-      exitActivity();
-      pendingMenuOpen = false;
-      skipNextButtonCheck = true;
-      const std::string cachePath = epub ? epub->getCachePath() : std::string();
-      if (!READING_THEMES.canRevertTheme(cachePath)) {
-        StatusPopup::showBlocking(renderer, tr(STR_NO_THEME_TO_REVERT));
-        delay(500);
-        requestUpdate();
-        break;
-      }
-      if (!READING_THEMES.revertThemeChange(cachePath)) {
-        StatusPopup::showBlocking(renderer, tr(STR_THEME_REVERT_FAILED));
-        delay(500);
-        requestUpdate();
-        break;
-      }
-      reloadCurrentSectionForDisplaySettings();
-      break;
-    }
+    // REVERT_THEME menu item removed — use Reading Themes to manage themes
     case EpubReaderMenuActivity::MenuAction::TRIAGE_FAVORITE: {
       const std::string lastPath = APP_STATE.lastSleepWallpaperPath;
       if (lastPath.empty()) break;

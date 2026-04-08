@@ -69,9 +69,7 @@ inline std::vector<SettingInfo> getSettingsList() {
                         "readerStyleMode", StrId::STR_CAT_READER),
       SettingInfo::Toggle(StrId::STR_DEBUG_BORDERS, &CrossPointSettings::debugBorders, "debugBorders",
                           StrId::STR_CAT_READER),
-      SettingInfo::Enum(StrId::STR_HIGHLIGHT_MODE, &CrossPointSettings::highlightMode,
-                        {StrId::STR_HIGHLIGHT_WORD, StrId::STR_HIGHLIGHT_FULL_PAGE},
-                        "highlightMode", StrId::STR_CAT_READER),
+      // Highlight mode removed — word-based selection is the only mode
       SettingInfo::Enum(StrId::STR_ORIENTATION, &CrossPointSettings::orientation,
                         {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_INVERTED, StrId::STR_LANDSCAPE_CCW},
                         "orientation", StrId::STR_CAT_READER),

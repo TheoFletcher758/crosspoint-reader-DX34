@@ -34,8 +34,7 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
   }
   items.push_back({MenuAction::ROTATE_SCREEN, StrId::STR_ORIENTATION});
   items.push_back({MenuAction::THEMES_MENU, StrId::STR_READING_THEMES});
-  items.push_back({MenuAction::REVERT_THEME, StrId::STR_REVERT_THEME});
-  items.push_back({MenuAction::GO_HOME, StrId::STR_GO_HOME_BUTTON});
+  // Removed: REVERT_THEME (use Reading Themes to manage), GO_HOME (Back button does this)
   items.push_back({MenuAction::SYNC, StrId::STR_SYNC_PROGRESS});
   items.push_back({MenuAction::DELETE_CACHE, StrId::STR_DELETE_CACHE});
   items.push_back({MenuAction::DELETE_BOOK, StrId::STR_DELETE_BOOK});
