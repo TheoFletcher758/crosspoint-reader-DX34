@@ -580,13 +580,17 @@ void TxtReaderActivity::loop() {
     lastProgressChangeMs = millis();
     flushProgressIfNeeded(true);
     requestUpdate();
-  } else if (nextTriggered && currentPage < totalPages - 1) {
-    currentPage++;
-    APP_STATE.sessionPagesRead++;
-    progressDirty = true;
-    lastProgressChangeMs = millis();
-    flushProgressIfNeeded(true);
-    requestUpdate();
+  } else if (nextTriggered) {
+    if (currentPage < totalPages - 1) {
+      currentPage++;
+      APP_STATE.sessionPagesRead++;
+      progressDirty = true;
+      lastProgressChangeMs = millis();
+      flushProgressIfNeeded(true);
+      requestUpdate();
+    } else {
+      onGoHome();
+    }
   }
 }
 
