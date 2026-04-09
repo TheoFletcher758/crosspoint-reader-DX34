@@ -783,6 +783,7 @@ void TxtReaderActivity::buildPageIndex() {
 
   StatusPopup::showBlocking(renderer, tr(STR_INDEXING));
 
+  constexpr size_t MAX_PAGE_OFFSETS = 5000;
   while (offset < fileSize) {
     std::vector<FlowLine> tempLines;
     size_t nextOffset = offset;
@@ -799,6 +800,12 @@ void TxtReaderActivity::buildPageIndex() {
     offset = nextOffset;
     if (offset < fileSize) {
       pageOffsets.push_back(offset);
+    }
+
+    if (pageOffsets.size() >= MAX_PAGE_OFFSETS) {
+      LOG_INF("TRS", "Page index capped at %zu pages to conserve memory",
+              MAX_PAGE_OFFSETS);
+      break;
     }
 
     // Yield to other tasks periodically and reset watchdog

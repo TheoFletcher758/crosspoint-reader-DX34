@@ -9,7 +9,7 @@
 
 namespace {
 constexpr char latestReleaseUrl[] =
-    "https://api.github.com/repos/crosspoint-reader/crosspoint-reader/releases/"
+    "https://api.github.com/repos/diogo7dias/crosspoint-reader-DX34/releases/"
     "latest";
 
 /* Buffer and length tracker for incremental HTTP response from latestReleaseUrl.
@@ -44,6 +44,11 @@ esp_err_t event_handler(esp_http_client_event_t *event) {
     int copy_len = 0;
 
     if (local_buf == NULL) {
+      /* Guard against bogus or malicious content-length values */
+      if (content_len <= 0 || content_len > 32768) {
+        LOG_ERR("OTA", "Rejecting content_len %d (max 32768)", content_len);
+        return ESP_ERR_NO_MEM;
+      }
       /* local_buf life span is tracked by caller checkForUpdate */
       local_buf = static_cast<char *>(calloc(content_len + 1, sizeof(char)));
       output_len = 0;
@@ -157,6 +162,11 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
 
   for (int i = 0; i < doc["assets"].size(); i++) {
     if (doc["assets"][i]["name"] == "firmware.bin") {
+      if (!doc["assets"][i]["browser_download_url"].is<std::string>() ||
+          !doc["assets"][i]["size"].is<size_t>()) {
+        LOG_ERR("OTA", "firmware.bin asset missing url or size fields");
+        return JSON_PARSE_ERROR;
+      }
       otaUrl = doc["assets"][i]["browser_download_url"].as<std::string>();
       otaSize = doc["assets"][i]["size"].as<size_t>();
       totalSize = otaSize;
@@ -185,10 +195,18 @@ bool OtaUpdater::isUpdateNewer() const {
 
   const auto currentVersion = CROSSPOINT_VERSION;
 
-  // semantic version check (only match on 3 segments)
-  sscanf(latestVersion.c_str(), "%d.%d.%d", &latestMajor, &latestMinor,
-         &latestPatch);
-  sscanf(currentVersion, "%d.%d.%d", &currentMajor, &currentMinor,
+  // Skip any leading non-digit prefix (e.g. "b.", "p.") before parsing
+  // semantic version segments
+  const char *latestDigits = latestVersion.c_str();
+  while (*latestDigits && !isdigit(static_cast<unsigned char>(*latestDigits)))
+    latestDigits++;
+  const char *currentDigits = currentVersion;
+  while (*currentDigits &&
+         !isdigit(static_cast<unsigned char>(*currentDigits)))
+    currentDigits++;
+
+  sscanf(latestDigits, "%d.%d.%d", &latestMajor, &latestMinor, &latestPatch);
+  sscanf(currentDigits, "%d.%d.%d", &currentMajor, &currentMinor,
          &currentPatch);
 
   /*

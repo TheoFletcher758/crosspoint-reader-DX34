@@ -13,6 +13,7 @@
 #include <HalStorage.h>
 #include <I18n.h>
 #include <Logging.h>
+#include <esp_task_wdt.h>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
@@ -449,6 +450,7 @@ void XtcReaderActivity::renderPage() {
         }
       }
     }
+    esp_task_wdt_reset();
 
     // Display BW with conditional refresh based on pagesUntilFullRefresh
     if (pagesUntilFullRefresh <= 1) {
@@ -469,6 +471,7 @@ void XtcReaderActivity::renderPage() {
         }
       }
     }
+    esp_task_wdt_reset();
     renderer.copyGrayscaleLsbBuffers();
 
     // Pass 3: MSB buffer - mark LIGHT AND DARK gray (XTH value 1 or 2)
@@ -482,6 +485,7 @@ void XtcReaderActivity::renderPage() {
         }
       }
     }
+    esp_task_wdt_reset();
     renderer.copyGrayscaleMsbBuffers();
 
     // Display grayscale overlay
@@ -497,6 +501,7 @@ void XtcReaderActivity::renderPage() {
         }
       }
     }
+    esp_task_wdt_reset();
 
     // Cleanup grayscale buffers with current frame buffer
     renderer.cleanupGrayscaleWithFrameBuffer();

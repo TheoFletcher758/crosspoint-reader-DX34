@@ -505,7 +505,7 @@ void CrossPointWebServer::scanFiles(const char* path, const std::function<void(F
   LOG_DBG("WEB", "Scanning files in: %s", path);
 
   FsFile file = root.openNextFile();
-  char name[500];
+  char name[256];
   while (file) {
     file.getName(name, sizeof(name));
     auto fileName = String(name);
@@ -552,6 +552,7 @@ void CrossPointWebServer::scanFiles(const char* path, const std::function<void(F
 void CrossPointWebServer::scanFilesRecursive(const char* basePath,
     const std::function<void(const String& fullPath, const FileInfo&)>& callback) const {
   // Stack-based iterative traversal to avoid deep recursion on ESP32
+  constexpr size_t MAX_DIR_STACK = 64;
   std::vector<String> dirStack;
   dirStack.push_back(String(basePath));
 
@@ -566,7 +567,7 @@ void CrossPointWebServer::scanFilesRecursive(const char* basePath,
     }
 
     FsFile file = root.openNextFile();
-    char name[500];
+    char name[256];
     while (file) {
       file.getName(name, sizeof(name));
       auto fileName = String(name);
@@ -596,8 +597,10 @@ void CrossPointWebServer::scanFilesRecursive(const char* basePath,
           info.size = 0;
           info.isEpub = false;
           info.isBmp = false;
-          // Queue subdirectory for scanning
-          dirStack.push_back(fullPath);
+          // Queue subdirectory for scanning (cap depth to prevent heap exhaustion)
+          if (dirStack.size() < MAX_DIR_STACK) {
+            dirStack.push_back(fullPath);
+          }
         } else {
           info.size = file.size();
           info.isEpub = isEpubFile(info.name);

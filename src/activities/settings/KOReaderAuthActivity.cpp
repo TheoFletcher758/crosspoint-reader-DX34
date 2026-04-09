@@ -63,13 +63,18 @@ void KOReaderAuthActivity::onEnter() {
     requestUpdate();
 
     // Perform authentication in a separate task
-    xTaskCreate(
-        [](void* param) {
-          auto* self = static_cast<KOReaderAuthActivity*>(param);
-          self->performAuthentication();
-          vTaskDelete(nullptr);
-        },
-        "AuthTask", 4096, this, 1, nullptr);
+    if (xTaskCreate(
+            [](void* param) {
+              auto* self = static_cast<KOReaderAuthActivity*>(param);
+              self->performAuthentication();
+              vTaskDelete(nullptr);
+            },
+            "AuthTask", 4096, this, 1, nullptr) != pdPASS) {
+      LOG_ERR("KOAuth", "Failed to create AuthTask — heap exhausted");
+      state = FAILED;
+      statusMessage = "Task creation failed";
+      requestUpdate();
+    }
     return;
   }
 

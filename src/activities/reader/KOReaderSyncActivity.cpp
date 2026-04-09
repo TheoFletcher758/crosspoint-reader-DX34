@@ -196,20 +196,25 @@ void KOReaderSyncActivity::onEnter() {
     requestUpdate();
 
     // Perform sync directly (will be handled in loop)
-    xTaskCreate(
-        [](void* param) {
-          auto* self = static_cast<KOReaderSyncActivity*>(param);
-          // Sync time first
-          syncTimeWithNTP();
-          {
-            RenderLock lock(*self);
-            self->statusMessage = tr(STR_CALC_HASH);
-          }
-          self->requestUpdate();
-          self->performSync();
-          vTaskDelete(nullptr);
-        },
-        "SyncTask", 4096, this, 1, nullptr);
+    if (xTaskCreate(
+            [](void* param) {
+              auto* self = static_cast<KOReaderSyncActivity*>(param);
+              // Sync time first
+              syncTimeWithNTP();
+              {
+                RenderLock lock(*self);
+                self->statusMessage = tr(STR_CALC_HASH);
+              }
+              self->requestUpdate();
+              self->performSync();
+              vTaskDelete(nullptr);
+            },
+            "SyncTask", 4096, this, 1, nullptr) != pdPASS) {
+      LOG_ERR("KOSync", "Failed to create SyncTask — heap exhausted");
+      state = SYNC_FAILED;
+      statusMessage = "Task creation failed";
+      requestUpdate();
+    }
     return;
   }
 

@@ -13,3 +13,4 @@ build
 .history/
 .venv
 firmware.bin
+CrossPoint-Mod-DX34-*.bin
