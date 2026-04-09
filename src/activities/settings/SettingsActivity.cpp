@@ -372,8 +372,13 @@ void SettingsActivity::loop() {
   }
 
   if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
-    persistSettingsWithLog("settings back");
-    onGoHome();
+    if (selectedRowIndex > 0) {
+      selectedRowIndex = 0;
+      requestUpdate();
+    } else {
+      persistSettingsWithLog("settings back");
+      onGoHome();
+    }
     return;
   }
 
