@@ -444,7 +444,7 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
     cssStyle = displayOnly;
   }
 
-  const float emSize = static_cast<float>(self->renderer.getLineHeight(self->fontId)) * self->lineCompression;
+  const float emSize = static_cast<float>(self->renderer.getFontAscenderSize(self->fontId));
   const auto userAlignmentBlockStyle = BlockStyle::fromCssStyle(
       cssStyle, emSize, static_cast<CssTextAlign>(self->paragraphAlignment), self->viewportWidth);
 

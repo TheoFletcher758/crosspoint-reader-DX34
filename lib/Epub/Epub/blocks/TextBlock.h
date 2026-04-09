@@ -13,12 +13,12 @@
 class TextBlock final : public Block {
  private:
   std::vector<std::string> words;
-  std::vector<uint16_t> wordXpos;
+  std::vector<int16_t> wordXpos;
   std::vector<EpdFontFamily::Style> wordStyles;
   BlockStyle blockStyle;
 
  public:
-  explicit TextBlock(std::vector<std::string> words, std::vector<uint16_t> word_xpos,
+  explicit TextBlock(std::vector<std::string> words, std::vector<int16_t> word_xpos,
                      std::vector<EpdFontFamily::Style> word_styles, const BlockStyle& blockStyle = BlockStyle())
       : words(std::move(words)),
         wordXpos(std::move(word_xpos)),
@@ -35,7 +35,7 @@ class TextBlock final : public Block {
 
   // Public accessors for highlight/quote selection
   const std::vector<std::string>& getWords() const { return words; }
-  const std::vector<uint16_t>& getWordXpos() const { return wordXpos; }
+  const std::vector<int16_t>& getWordXpos() const { return wordXpos; }
   const std::vector<EpdFontFamily::Style>& getWordStyles() const { return wordStyles; }
   int16_t getLetterSpacing() const { return blockStyle.letterSpacing; }
   bool serialize(FsFile& file) const;
