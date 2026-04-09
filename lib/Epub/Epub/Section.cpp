@@ -207,9 +207,28 @@ bool Section::loadSectionFile(const int fontId, const float lineCompression,
   }
 
   serialization::readPod(file, pageCount);
+  if (pageCount > 5000) {
+    file.close();
+    LOG_ERR("SCT", "Deserialization failed: page count %u exceeds maximum", pageCount);
+    clearCache();
+    return false;
+  }
   uint32_t lutOffset;
   file.seek(HEADER_SIZE - sizeof(uint32_t));
   serialization::readPod(file, lutOffset);
+
+  // Pre-check heap: pageLut is pageCount * sizeof(uint32_t)
+  {
+    const size_t needed = pageCount * sizeof(uint32_t);
+    void* check = malloc(needed);
+    if (!check) {
+      file.close();
+      LOG_ERR("SCT", "Deserialization OOM: pageLut needs %u bytes", (unsigned)needed);
+      clearCache();
+      return false;
+    }
+    free(check);
+  }
   pageLut.resize(pageCount);
   anchorLut.clear();
   pageTocLut.clear();

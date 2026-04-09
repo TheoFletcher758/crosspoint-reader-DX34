@@ -58,6 +58,7 @@ class ChapterHtmlSlimParser {
   std::vector<std::string> pendingAnchors;
 
   // Style tracking (replaces depth-based approach)
+  static constexpr size_t MAX_INLINE_STYLE_DEPTH = 64;
   struct StyleStackEntry {
     int depth = 0;
     bool hasBold = false, bold = false;

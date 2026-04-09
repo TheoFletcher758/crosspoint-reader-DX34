@@ -174,14 +174,32 @@ const uint8_t* FontDecompressor::getBitmap(const EpdFontData* fontData, const Ep
     stats.cacheMisses++;
     const EpdFontGroup& group = fontData->groups[groupIndex];
 
-    hotGroup.resize(group.uncompressedSize);
-    if (hotGroup.empty()) {
-      LOG_ERR("FDC", "Failed to allocate %u bytes for hot group %u", group.uncompressedSize, groupIndex);
-      hotGroupFont = nullptr;
-      hotGroupIndex = UINT16_MAX;
-      stats.getBitmapTimeUs += micros() - tStart;
-      return nullptr;
+    // Free existing hot group first to maximise available heap
+    hotGroup.clear();
+    hotGroup.shrink_to_fit();
+    hotGroupFont = nullptr;
+    hotGroupIndex = UINT16_MAX;
+
+    // Pre-check with malloc: on ESP32, vector::resize() calls abort() on OOM
+    void* check = malloc(group.uncompressedSize);
+    if (!check) {
+      // Page buffer is holding heap — free it and retry.  Remaining glyphs
+      // will decompress through the hot-group path (slower, but renders).
+      if (pageSlotCount > 0) {
+        LOG_INF("FDC", "Hot group OOM — releasing page buffer and retrying");
+        freePageBuffer();
+        check = malloc(group.uncompressedSize);
+      }
+      if (!check) {
+        LOG_ERR("FDC", "Failed to allocate %u bytes for hot group %u (free heap: %lu)",
+                group.uncompressedSize, groupIndex, (unsigned long)esp_get_free_heap_size());
+        stats.getBitmapTimeUs += micros() - tStart;
+        return nullptr;
+      }
     }
+    free(check);
+
+    hotGroup.resize(group.uncompressedSize);
 
     if (!decompressGroup(fontData, groupIndex, hotGroup.data(), group.uncompressedSize)) {
       hotGroup.clear();
@@ -201,11 +219,14 @@ const uint8_t* FontDecompressor::getBitmap(const EpdFontData* fontData, const Ep
 
   // Compact just the requested glyph from byte-aligned data into scratch buffer
   if (glyph->dataLength > hotGlyphBuf.size()) {
+    void* check = malloc(glyph->dataLength);
+    if (!check) {
+      LOG_ERR("FDC", "Failed to allocate scratch buffer (%u bytes)", glyph->dataLength);
+      stats.getBitmapTimeUs += micros() - tStart;
+      return nullptr;
+    }
+    free(check);
     hotGlyphBuf.resize(glyph->dataLength);
-  }
-  if (hotGlyphBuf.empty()) {
-    stats.getBitmapTimeUs += micros() - tStart;
-    return nullptr;
   }
 
   uint32_t alignedOff = getAlignedOffset(fontData, groupIndex, glyphIndex);

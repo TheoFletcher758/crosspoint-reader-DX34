@@ -1022,19 +1022,29 @@ bool JsonSettingsIO::loadReadingThemes(ReadingThemeStore& store,
     return false;
   }
 
-  store.themes.clear();
-  store.lastEditedThemeIndex = doc["lastEditedThemeIndex"] | -1;
+  // Parse into a temporary list first — never clear in-memory themes until we
+  // know the file actually contained data.  This prevents a valid-but-empty
+  // JSON (e.g. truncated write, SD corruption) from wiping the user's themes.
+  std::vector<ReadingTheme> parsed;
   JsonArray arr = doc["themes"].as<JsonArray>();
   for (JsonObject obj : arr) {
-    if (store.themes.size() >= ReadingThemeStore::MAX_THEMES) {
+    if (parsed.size() >= ReadingThemeStore::MAX_THEMES) {
       break;
     }
-
     ReadingTheme theme;
     readReadingThemeObject(obj, theme);
-    store.themes.push_back(theme);
+    parsed.push_back(theme);
   }
 
+  if (parsed.empty() && !store.themes.empty()) {
+    LOG_ERR("RTH", "Parsed 0 themes from JSON but %u in memory — rejecting load "
+            "(possible file corruption)",
+            (unsigned)store.themes.size());
+    return false;
+  }
+
+  store.themes = std::move(parsed);
+  store.lastEditedThemeIndex = doc["lastEditedThemeIndex"] | -1;
   if (store.lastEditedThemeIndex < 0 ||
       store.lastEditedThemeIndex >= static_cast<int>(store.themes.size())) {
     store.lastEditedThemeIndex = -1;

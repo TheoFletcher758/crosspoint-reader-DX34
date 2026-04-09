@@ -63,14 +63,20 @@ const ReadingTheme* ReadingThemeStore::getTheme(const size_t index) const {
 }
 
 bool ReadingThemeStore::saveToFile() const {
-  // Guard: if we never successfully loaded themes from disk, refuse to save an
-  // empty list.  This prevents a transient SD-read failure at boot from
-  // silently overwriting the user's good reading_themes.json with empty data.
+  // Guard 1: never loaded successfully — refuse to save (transient SD failure)
   if (!loadedFromFile && themes.empty()) {
     LOG_ERR("RTH",
             "saveToFile blocked: load never succeeded and themes is empty — "
             "refusing to overwrite file");
     return false;
+  }
+
+  // Guard 2: themes were loaded but are now empty.  The only legitimate path
+  // to an empty list is deleting the very last theme one-by-one, which is fine.
+  // But if we somehow ended up empty through a load bug, we'd silently wipe
+  // the user's .bak on the next save cycle.  Log a warning so it's visible.
+  if (loadedFromFile && themes.empty()) {
+    LOG_INF("RTH", "saveToFile: saving empty theme list (all themes deleted)");
   }
 
   Storage.mkdir("/.crosspoint");
@@ -84,8 +90,19 @@ bool ReadingThemeStore::loadFromFile() {
     return false;
   }
   if (!JsonSettingsIO::loadReadingThemes(*this, json.c_str())) {
-    LOG_ERR("RTH", "loadFromFile: failed to parse theme JSON");
-    return false;
+    // Primary parse failed or returned 0 themes while we had some in memory.
+    // Try the .bak file explicitly as a recovery path.
+    LOG_ERR("RTH", "loadFromFile: primary parse rejected — trying .bak");
+    char bakPath[128];
+    snprintf(bakPath, sizeof(bakPath), "%s.bak", READING_THEMES_FILE_JSON);
+    const String bakJson = JsonSettingsIO::safeReadFile(bakPath);
+    if (bakJson.isEmpty() ||
+        !JsonSettingsIO::loadReadingThemes(*this, bakJson.c_str())) {
+      LOG_ERR("RTH", "loadFromFile: .bak recovery also failed");
+      return false;
+    }
+    LOG_INF("RTH", "loadFromFile: recovered %d themes from .bak",
+            (int)themes.size());
   }
   loadedFromFile = true;
   return true;

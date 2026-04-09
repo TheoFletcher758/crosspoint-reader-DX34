@@ -4,6 +4,10 @@
 #include <Logging.h>
 #include <Serialization.h>
 
+#ifdef ESP_PLATFORM
+#include <esp_heap_caps.h>
+#endif
+
 void TextBlock::render(const GfxRenderer& renderer, const int fontId, const int x, const int y) const {
   // Validate iterator bounds before rendering
   if (words.size() != wordXpos.size() || words.size() != wordStyles.size()) {
@@ -97,6 +101,19 @@ std::unique_ptr<TextBlock> TextBlock::deserialize(FsFile& file) {
     LOG_ERR("TXB", "Deserialization failed: word count %u exceeds maximum", wc);
     return nullptr;
   }
+
+  // Pre-check heap before resize — on ESP32, vector::resize() calls abort() on OOM
+#ifdef ESP_PLATFORM
+  {
+    // Estimate: each word averages ~12 bytes string + 2 bytes xpos + 1 byte style
+    const size_t estimatedBytes = wc * 20u;
+    if (estimatedBytes > esp_get_free_heap_size() / 2) {
+      LOG_ERR("TXB", "Deserialization skipped: %u words (~%u bytes) would exceed safe heap limit",
+              wc, (unsigned)estimatedBytes);
+      return nullptr;
+    }
+  }
+#endif
 
   // Word data
   words.resize(wc);
