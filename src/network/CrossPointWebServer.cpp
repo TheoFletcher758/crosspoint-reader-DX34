@@ -776,38 +776,57 @@ void CrossPointWebServer::handleDownload() const {
     filename = nameBuf;
   }
 
-  // Use chunked transfer encoding so the final empty chunk (0\r\n\r\n)
-  // signals end-of-body at the HTTP level. This avoids the ESP32 WebServer's
-  // broken TCP close behavior that causes Chrome .crdownload files.
-  server->setContentLength(CONTENT_LENGTH_UNKNOWN);
+  const size_t fileSize = file.size();
+
+  // Send exact Content-Length so the browser knows when the download is done.
+  // Note: _prepareHeader already adds Connection: close, don't duplicate it.
+  server->setContentLength(fileSize);
   server->sendHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
   server->send(200, contentType.c_str(), "");
 
-  // Heap-allocate the download buffer to avoid stack overflow.
-  // The main Arduino task has only 8KB of stack; a 4KB stack buffer
-  // combined with WebServer + SD + TCP internals overflows it.
   constexpr size_t DL_BUF_SIZE = 4096;
   auto* buf = static_cast<uint8_t*>(malloc(DL_BUF_SIZE));
   if (!buf) {
     LOG_ERR("WEB", "Download OOM: cannot allocate %d byte buffer", DL_BUF_SIZE);
     file.close();
-    server->sendContent("");
     return;
   }
 
-  while (file.available()) {
+  size_t totalSent = 0;
+  bool ok = true;
+  while (file.available() && totalSent < fileSize) {
     esp_task_wdt_reset();
-    const int bytesRead = file.read(buf, DL_BUF_SIZE);
+
+    // Check if client is still connected
+    if (!server->client().connected()) {
+      LOG_ERR("WEB", "Download aborted: client disconnected at %u/%u bytes", totalSent, fileSize);
+      ok = false;
+      break;
+    }
+
+    const size_t remaining = fileSize - totalSent;
+    const size_t toRead = remaining < DL_BUF_SIZE ? remaining : DL_BUF_SIZE;
+    const int bytesRead = file.read(buf, toRead);
     if (bytesRead <= 0) break;
-    server->sendContent(reinterpret_cast<const char*>(buf), bytesRead);
-    yield();  // Let WiFi stack process
+
+    // Write directly to client and check return value
+    const size_t written = server->client().write(buf, bytesRead);
+    if (written == 0) {
+      LOG_ERR("WEB", "Download write failed at %u/%u bytes", totalSent, fileSize);
+      ok = false;
+      break;
+    }
+    totalSent += written;
+
+    // Yield to let WiFi stack flush TCP buffers
+    yield();
   }
   file.close();
   free(buf);
 
-  // Empty chunk signals end of chunked response
-  server->sendContent("");
-  LOG_DBG("WEB", "Download complete: %s", filename.c_str());
+  if (ok) {
+    LOG_DBG("WEB", "Download complete: %s (%u bytes)", filename.c_str(), totalSent);
+  }
 }
 
 void CrossPointWebServer::handlePreview() const {
