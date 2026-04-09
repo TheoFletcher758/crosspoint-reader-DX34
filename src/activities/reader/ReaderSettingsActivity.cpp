@@ -273,7 +273,7 @@ void ReaderSettingsActivity::buildSettingsList() {
   pushReader(SettingInfo::Enum(StrId::STR_EXTRA_SPACING, &CrossPointSettings::extraParagraphSpacingLevel,
       {StrId::STR_NONE_OPT, StrId::STR_PARA_SPACING_17, StrId::STR_PARA_SPACING_25, StrId::STR_PARA_SPACING_33}));
   pushReader(SettingInfo::Enum(StrId::STR_TEXT_RENDER_MODE, &CrossPointSettings::textRenderMode,
-      {StrId::STR_RENDER_CRISP, StrId::STR_RENDER_DARK}));
+      {StrId::STR_RENDER_CRISP, StrId::STR_RENDER_DARK, StrId::STR_RENDER_BIONIC}));
   if (!txt) {
     readerSettings.push_back(SettingInfo::Toggle(
         StrId::STR_HYPHENATION, &CrossPointSettings::hyphenationEnabled));

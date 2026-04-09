@@ -728,9 +728,7 @@ void EpubReaderActivity::openReaderMenu() {
 void EpubReaderActivity::toggleTextRenderMode() {
   TransitionFeedback::show(renderer, tr(STR_LOADING));
   flushProgressIfNeeded(true);
-  SETTINGS.textRenderMode = (SETTINGS.textRenderMode == CrossPointSettings::TEXT_RENDER_DARK)
-                                ? CrossPointSettings::TEXT_RENDER_CRISP
-                                : CrossPointSettings::TEXT_RENDER_DARK;
+  SETTINGS.textRenderMode = (SETTINGS.textRenderMode + 1) % CrossPointSettings::TEXT_RENDER_MODE_COUNT;
   if (!SETTINGS.saveToFile()) {
     LOG_ERR("ERS", "Failed to save settings after text render mode toggle");
   }

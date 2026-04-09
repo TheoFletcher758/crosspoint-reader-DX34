@@ -96,10 +96,13 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
   {
     const uint8_t raw =
         obj["textRenderMode"] | (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP;
-    if (obj["textRenderModeV2"].isNull() && raw == 1) {
-      theme.textRenderMode = (uint8_t)CrossPointSettings::TEXT_RENDER_DARK;
-    } else if (raw == 2 || raw == 3) {
-      theme.textRenderMode = (uint8_t)CrossPointSettings::TEXT_RENDER_DARK;
+    if (obj["textRenderModeV2"].isNull()) {
+      // Old v2 format: 0=Crisp, 1=Dark, 2=Dark(old), 3=ExtraDark(old) → map to new enum
+      if (raw >= 1) {
+        theme.textRenderMode = (uint8_t)CrossPointSettings::TEXT_RENDER_DARK;
+      } else {
+        theme.textRenderMode = (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP;
+      }
     } else if (raw >= CrossPointSettings::TEXT_RENDER_MODE_COUNT) {
       theme.textRenderMode = (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP;
     } else {
@@ -690,18 +693,13 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
       *needsResave = true;
     }
   } else {
-    // Migrate from v2 enum (Crisp=0, Light=1, Dark=2, ExtraDark=3) to v3 (Crisp=0, Dark=1).
+    // Migrate from v2 enum (Crisp=0, Light=1, Dark=2, ExtraDark=3) to v3 (Crisp=0, Dark=1, Bionic=2).
     const uint8_t raw =
         doc["textRenderMode"] | (uint8_t)S::TEXT_RENDER_CRISP;
-    if (doc["textRenderModeV2"].isNull() && raw == 1) {
-      // v1 had Dark=1, map to new Dark=1 (no change needed)
-      s.textRenderMode = (uint8_t)S::TEXT_RENDER_DARK;
-    } else if (raw == 2) {
-      // v2 Dark=2 → v3 Dark=1
-      s.textRenderMode = (uint8_t)S::TEXT_RENDER_DARK;
-    } else if (raw == 3) {
-      // v2 ExtraDark=3 → v3 Dark=1
-      s.textRenderMode = (uint8_t)S::TEXT_RENDER_DARK;
+    if (doc["textRenderModeV2"].isNull()) {
+      // Old v2 format: any non-zero value → Dark
+      s.textRenderMode = raw >= 1 ? (uint8_t)S::TEXT_RENDER_DARK
+                                  : (uint8_t)S::TEXT_RENDER_CRISP;
     } else if (raw >= S::TEXT_RENDER_MODE_COUNT) {
       s.textRenderMode = (uint8_t)S::TEXT_RENDER_CRISP;
     } else {
