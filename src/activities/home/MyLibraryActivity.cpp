@@ -12,6 +12,7 @@
 #include <cmath>
 #include <esp_task_wdt.h>
 
+#include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "LibrarySearchActivity.h"
 #include "LibrarySearchSupport.h"
@@ -84,7 +85,7 @@ void collectMoveDestinationPaths(const std::string& basePath,
   char name[500];
   for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
     file.getName(name, sizeof(name));
-    if (name[0] == '.' || strcmp(name, "System Volume Information") == 0) {
+    if ((!SETTINGS.showHiddenFiles && name[0] == '.') || strcmp(name, "System Volume Information") == 0) {
       file.close();
       continue;
     }
@@ -241,7 +242,7 @@ void MyLibraryActivity::loadFilesWithLimit() {
   char name[500];
   for (auto file = root.openNextFile(); file; file = root.openNextFile()) {
     file.getName(name, sizeof(name));
-    if (name[0] == '.' || strcmp(name, "System Volume Information") == 0) {
+    if ((!SETTINGS.showHiddenFiles && name[0] == '.') || strcmp(name, "System Volume Information") == 0) {
       file.close();
       continue;
     }
@@ -266,7 +267,7 @@ void MyLibraryActivity::loadFilesWithLimit() {
       for (auto next = root.openNextFile(); next; next = root.openNextFile()) {
         next.getName(name, sizeof(name));
         const bool skip =
-            name[0] == '.' || strcmp(name, "System Volume Information") == 0;
+            (!SETTINGS.showHiddenFiles && name[0] == '.') || strcmp(name, "System Volume Information") == 0;
         const bool relevant =
             !skip && (next.isDirectory() || isManagedFile(std::string(name)));
         next.close();

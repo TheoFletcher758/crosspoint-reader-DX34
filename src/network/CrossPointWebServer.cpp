@@ -486,7 +486,7 @@ void CrossPointWebServer::scanFiles(const char* path, const std::function<void(F
     auto fileName = String(name);
 
     // Skip hidden items (starting with ".")
-    bool shouldHide = fileName.startsWith(".");
+    bool shouldHide = !SETTINGS.showHiddenFiles && fileName.startsWith(".");
 
     // Check against explicitly hidden items list
     if (!shouldHide) {
@@ -547,7 +547,7 @@ void CrossPointWebServer::scanFilesRecursive(const char* basePath,
       auto fileName = String(name);
 
       // Skip hidden items
-      bool shouldHide = fileName.startsWith(".");
+      bool shouldHide = !SETTINGS.showHiddenFiles && fileName.startsWith(".");
       if (!shouldHide) {
         for (size_t i = 0; i < HIDDEN_ITEMS_COUNT; i++) {
           if (fileName.equals(HIDDEN_ITEMS[i])) {
