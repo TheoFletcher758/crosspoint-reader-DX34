@@ -4,7 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CrossPoint Reader - Files</title>
+  <script src="/js/jszip.min.js"></script>
   <style>
+    :root {
+      --font-color: #333;
+      --bg: #f5f5f5;
+      --title-color: #2c3e50;
+      --card-bg: #FFF;
+      --label-color: #7f8c8d;
+      --border-color: #eee;
+      --accent-color: #3498db;
+      --accent-color-10: rgba(52, 152, 219, 0.1);
+      --accent-hover-color: #2980b9;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
       Oxygen, Ubuntu, sans-serif;
@@ -125,12 +137,47 @@
       display: flex;
     }
     .modal {
-      background: white;
+      background: var(--card-bg);
       border-radius: 8px;
       padding: 25px;
       max-width: 450px;
       width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    .modal.picker-mode {
+      max-width: 920px;
+    }
+    .picker-columns.picker-active {
+      display: flex;
+      flex-direction: row;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .picker-columns.picker-active > .convert-options {
+      flex: 0 0 340px;
+      width: 340px;
+      margin-bottom: 0;
+    }
+    .picker-columns.picker-active > .image-picker-section {
+      flex: 1;
+      margin-top: 0;
+      max-height: 55vh;
+      overflow-y: auto;
+    }
+    @media (max-width: 850px) {
+      .modal.picker-mode { max-width: 95%; }
+      .picker-columns.picker-active {
+        flex-direction: column;
+      }
+      .picker-columns.picker-active > .convert-options {
+        flex: 0 0 auto;
+        width: 100%;
+      }
+      .picker-columns.picker-active > .image-picker-section {
+        max-height: 40vh;
+      }
     }
     .modal h3 {
       margin: 0 0 15px 0;
@@ -142,11 +189,19 @@
       border: none;
       font-size: 1.5em;
       cursor: pointer;
-      color: #7f8c8d;
+      color: var(--label-color);
       line-height: 1;
+      transition: opacity 0.15s;
     }
     .modal-close:hover {
-      color: #2c3e50;
+      color: var(--title-color);
+    }
+    .modal-close.disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .modal-close.disabled:hover {
+      color: var(--label-color);
     }
     .file-table {
       width: 100%;
@@ -232,6 +287,19 @@
       margin: 10px 0;
       width: 100%;
     }
+    .upload-form input[type="file"]::file-selector-button {
+      background-color: #27ae60;
+      color: white;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+      margin-right: 8px;
+    }
+    .upload-form input[type="file"].has-files::file-selector-button {
+      background-color: #95a5a6;
+    }
     .upload-btn {
       background-color: #27ae60;
       color: white;
@@ -241,6 +309,7 @@
       cursor: pointer;
       font-size: 1em;
       width: 100%;
+      margin-top: 12px;
     }
     .upload-btn:hover {
       background-color: #219a52;
@@ -249,6 +318,522 @@
       background-color: #95a5a6;
       cursor: not-allowed;
     }
+    .upload-btn.optimize {
+      background-color: #9b59b6;
+    }
+    .upload-btn.optimize:hover {
+      background-color: #8e44ad;
+    }
+    /* Convert options */
+    .convert-options {
+      margin-bottom: 10px;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid var(--accent-color);
+    }
+    .convert-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .convert-checkbox input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      outline: none;
+    }
+    .convert-checkbox input[type="checkbox"]:focus {
+      outline: none;
+      box-shadow: none;
+    }
+    .convert-warning {
+      font-size: 0.85em;
+      color: #d68910;
+      background-color: rgba(214, 137, 16, 0.1);
+      border: 1px solid #d68910;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-top: 8px;
+      margin-bottom: 12px;
+      line-height: 1.4;
+      text-align: center;
+    }
+    .convert-info {
+      font-size: 0.85em;
+      color: var(--label-color);
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+    .convert-settings {
+      font-size: 0.8em;
+      color: var(--label-color);
+      margin-top: 6px;
+      padding-left: 26px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .convert-settings span {
+      display: inline-block;
+    }
+    .convert-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .convert-separator {
+      display: none;
+    }
+    .advanced-options-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.85em;
+      color: var(--label-color);
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.2s;
+    }
+    .advanced-options-toggle:hover {
+      color: var(--accent-color);
+    }
+    .advanced-options-toggle[style*="opacity: 0.3"]:hover,
+    .advanced-options-toggle[style*="opacity: 0.5"]:hover {
+      color: var(--label-color);
+    }
+    .advanced-options-text {
+      font-weight: 500;
+    }
+    .advanced-options-arrow {
+      font-size: 0.7em;
+      transition: transform 0.2s;
+    }
+    .advanced-options-arrow.expanded {
+      transform: rotate(90deg);
+    }
+    .advanced-settings-content {
+      display: none;
+      margin-top: 12px;
+      padding-left: 4px;
+    }
+    .advanced-settings-content.visible {
+      display: block;
+    }
+    .advanced-setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .advanced-setting-row:first-child {
+      margin-top: 10px;
+    }
+    .quality-row {
+      flex-wrap: wrap;
+    }
+    .quality-row .setting-title {
+      flex: 1;
+      min-width: 100px;
+    }
+    .setting-label {
+      flex-shrink: 0;
+    }
+    .setting-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .setting-row-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .setting-title {
+      font-size: 0.85em;
+      color: var(--title-color);
+      font-weight: 500;
+    }
+    .setting-value {
+      font-size: 0.8em;
+      color: var(--accent-color);
+      font-weight: 600;
+    }
+    .quality-slider-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .quality-slider {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border-color);
+      -webkit-appearance: none;
+      appearance: none;
+      cursor: pointer;
+    }
+    .quality-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      cursor: pointer;
+    }
+    .quality-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      border: none;
+      cursor: pointer;
+    }
+    .quality-input-wrapper {
+      display: flex;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 4px 8px;
+    }
+    .quality-input {
+      width: 40px;
+      border: none;
+      background: transparent;
+      text-align: center;
+      font-size: 0.85em;
+      color: var(--title-color);
+      font-weight: 600;
+    }
+    .quality-input:focus {
+      outline: none;
+    }
+    .quality-unit {
+      font-size: 0.75em;
+      color: var(--label-color);
+    }
+    .quality-slider-container-inline {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      max-width: 180px;
+      min-width: 0;
+    }
+    .quality-slider-container-inline .quality-slider {
+      flex: 1;
+      min-width: 50px;
+    }
+    .quality-slider-container-inline .quality-input-wrapper {
+      padding: 2px 4px;
+      flex-shrink: 0;
+    }
+    .quality-slider-container-inline .quality-input {
+      width: 32px;
+      font-size: 0.8em;
+    }
+    .quality-presets {
+      display: flex;
+      gap: 0;
+      background: var(--border-color);
+      border-radius: 6px;
+      padding: 3px;
+      width: fit-content;
+    }
+    .quality-preset {
+      padding: 6px 14px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.75em;
+      font-weight: 500;
+      color: var(--label-color);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .quality-preset:hover {
+      background: var(--accent-color-10);
+      color: var(--accent-color);
+    }
+    .quality-preset.active {
+      background: var(--accent-color);
+      color: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .setting-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--border-color);
+      border-radius: 24px;
+      transition: 0.2s;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--accent-color);
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+    .setting-desc {
+      font-size: 0.75em;
+      color: var(--label-color);
+      margin-top: 4px;
+      line-height: 1.3;
+    }
+    .rotation-buttons {
+      display: flex;
+      gap: 0;
+      background: var(--border-color);
+      border-radius: 6px;
+      padding: 3px;
+    }
+    .rotation-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 14px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.75em;
+      font-weight: 500;
+      color: var(--label-color);
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .rotation-btn:hover {
+      background: var(--accent-color-10);
+      color: var(--accent-color);
+    }
+    .rotation-btn.active {
+      background: var(--accent-color);
+      color: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .rotation-btn .rot-icon {
+      font-size: 1.1em;
+    }
+    .overlap-selector {
+      display: flex;
+      gap: 0;
+      background: var(--border-color);
+      border-radius: 6px;
+      padding: 3px;
+    }
+    .overlap-btn {
+      padding: 6px 14px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.75em;
+      font-weight: 500;
+      color: var(--label-color);
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .overlap-btn:hover {
+      background: var(--accent-color-10);
+      color: var(--accent-color);
+    }
+    .overlap-btn.active {
+      background: var(--accent-color);
+      color: white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .image-picker-section {
+      margin-top: 15px;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      max-height: 350px;
+      overflow-y: auto;
+    }
+    .image-picker-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .image-picker-title {
+      font-size: 0.85em;
+      font-weight: 600;
+      color: var(--title-color);
+    }
+    .image-picker-count {
+      font-size: 0.75em;
+      color: var(--label-color);
+    }
+    .image-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px;
+    }
+    .image-item {
+      position: relative;
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--card-bg);
+    }
+    .image-item:hover {
+      border-color: var(--accent-color);
+      transform: scale(1.02);
+    }
+    .image-item.state-0 { border-color: var(--border-color); }
+    .image-item.state-1 { border-color: #3498db; background: rgba(52, 152, 219, 0.1); }
+    .image-item.state-2 { border-color: #e74c3c; background: rgba(231, 76, 60, 0.1); }
+    .image-item.state-3 { border-color: #9b59b6; background: rgba(155, 89, 182, 0.1); }
+    .image-item.cover-locked {
+      border-color: #e67e22;
+      background: rgba(230, 126, 34, 0.1);
+      cursor: default;
+      opacity: 0.85;
+    }
+    .image-item.cover-locked:hover { transform: none; border-color: #e67e22; }
+    .image-item.cover-locked .image-state-badge { background: #e67e22; }
+    .image-item.separator-locked {
+      border-color: #1abc9c;
+      background: rgba(26, 188, 156, 0.1);
+      cursor: default;
+      opacity: 0.85;
+    }
+    .image-item.separator-locked:hover { transform: none; border-color: #1abc9c; }
+    .image-item.separator-locked .image-state-badge { background: #1abc9c; }
+    .image-item img {
+      width: 100%;
+      height: 80px;
+      object-fit: contain;
+      display: block;
+      background: #fff;
+      transition: transform 0.2s ease;
+    }
+    .image-state-badge {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.65em;
+      font-weight: 600;
+      color: white;
+    }
+    .state-0 .image-state-badge { background: var(--label-color); }
+    .state-1 .image-state-badge { background: #3498db; }
+    .state-2 .image-state-badge { background: #e74c3c; }
+    .state-3 .image-state-badge { background: #9b59b6; }
+    .image-preview-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      bottom: 20px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .image-item:hover .image-preview-overlay { opacity: 1; }
+    .split-lines { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+    .split-line {
+      position: absolute; top: 0; bottom: 0;
+      width: 4px; transform: translateX(-50%); border-radius: 2px;
+    }
+    .split-line.split-h {
+      background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.5), 0 0 2px rgba(52, 152, 219, 0.8);
+    }
+    .split-line.split-v {
+      background: linear-gradient(180deg, #e74c3c 0%, #c0392b 100%);
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.5), 0 0 2px rgba(231, 76, 60, 0.8);
+    }
+    .image-item.rotate-cw:hover img { transform: rotate(90deg) scale(0.75); }
+    .image-item.rotate-ccw:hover img { transform: rotate(-90deg) scale(0.75); }
+    .image-name {
+      font-size: 0.65em;
+      color: var(--label-color);
+      padding: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+    .state-legend {
+      display: flex;
+      gap: 8px;
+      font-size: 0.7em;
+      margin: 10px 0;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.02);
+      border-radius: 6px;
+      align-items: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    .legend-item.locked { opacity: 0.7; }
+    .legend-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      padding: 4px 10px;
+      border: 1px solid var(--btn-color);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-color);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: inherit;
+      font-family: inherit;
+    }
+    .legend-btn:hover { background: var(--btn-color); color: white; }
+    .legend-btn .legend-color { background: var(--btn-color); }
+    .legend-color { width: 10px; height: 10px; border-radius: 3px; }
     .file-info {
       color: #7f8c8d;
       font-size: 0.85em;
@@ -371,6 +956,9 @@
       background-color: #27ae60;
       width: 0%;
       transition: width 0.3s;
+    }
+    #progress-fill.no-transition {
+      transition: none !important;
     }
     #progress-text {
       text-align: center;
@@ -703,7 +1291,111 @@
         padding: 20px;
         font-size: 0.9em;
       }
+      .quality-slider-container-inline {
+        max-width: 215px;
+        gap: 4px;
+      }
+      .quality-slider-container-inline .quality-slider {
+        min-width: 40px;
+      }
+      .quality-slider-container-inline .quality-input {
+        width: 28px;
+      }
     }
+    /* Enhanced Logging System Styles */
+    .log-section {
+      margin-top: 15px;
+      display: none;
+    }
+    .log-section.visible {
+      display: block;
+    }
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .log-title {
+      font-weight: 600;
+      color: var(--title-color);
+      font-size: 0.95em;
+    }
+    .log-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Droid Sans Mono', 'Source Code Pro', monospace;
+      font-size: 0.8em;
+    }
+    .log-entry {
+      color: var(--font-color);
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+    .log-entry.success { color: var(--accent-color); }
+    .log-entry.error { color: #e74c3c; }
+    .log-entry.warning { color: #f39c12; }
+    .log-entry.info { color: #3498db; }
+    .log-timestamp {
+      color: var(--label-color);
+      font-size: 0.75em;
+      min-width: 52px;
+      opacity: 0.7;
+    }
+    .log-tag {
+      font-size: 0.7em;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      min-width: 56px;
+      text-align: center;
+    }
+    .log-tag.convert { background: rgba(52, 152, 219, 0.15); color: var(--accent-color); }
+    .log-tag.split { background: rgba(243, 156, 18, 0.15); color: #f39c12; }
+    .log-tag.fix { background: rgba(39, 174, 96, 0.15); color: #27ae60; }
+    .log-tag.skip { background: rgba(127, 140, 141, 0.15); color: #7f8c8d; }
+    .log-tag.info { background: rgba(52, 152, 219, 0.15); color: #3498db; }
+    .log-tag.error { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
+    .log-tag.done { background: rgba(39, 174, 96, 0.15); color: #27ae60; }
+    .log-message { flex: 1; word-break: break-word; }
+    .log-detail { color: var(--label-color); font-size: 0.9em; }
+    .log-summary {
+      background: rgba(52, 152, 219, 0.08);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .log-summary-title {
+      background: rgba(52, 152, 219, 0.15);
+      padding: 8px 12px;
+      font-weight: 600;
+      font-size: 0.85em;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--accent-color);
+    }
+    .log-summary-table {
+      width: 100%;
+      font-size: 0.8em;
+    }
+    .log-summary-table td {
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .log-summary-table tr:last-child td { border-bottom: none; }
+    .log-summary-table td:first-child { color: var(--label-color); width: 45%; }
+    .log-summary-table td:last-child { color: var(--font-color); font-weight: 500; text-align: right; }
+    .log-summary-table .highlight { color: var(--accent-color); }
+    .log-summary-table .saved { color: #27ae60; }
+    .log-summary-table .increased { color: #f39c12; }
   </style>
 </head>
 <body>
@@ -782,15 +1474,143 @@
 <!-- Upload Modal -->
 <div class="modal-overlay" id="uploadModal">
   <div class="modal">
-    <button class="modal-close" onclick="closeUploadModal()">&times;</button>
+    <button class="modal-close" id="uploadModalClose" onclick="closeUploadModal()">&times;</button>
     <h3>📤 Upload file</h3>
     <div class="upload-form">
       <p class="file-info">Select a file to upload to <strong id="uploadPathDisplay"></strong></p>
       <input type="file" id="fileInput" onchange="validateFile()" multiple>
+      <div class="picker-columns" id="pickerColumns">
+        <div class="convert-options" id="convertOptions" style="display:none;">
+          <div class="convert-row">
+            <label class="convert-checkbox">
+              <input type="checkbox" id="convertBeforeUpload" onchange="toggleConvertOptions()">
+              <span>Optimize EPUB</span>
+            </label>
+            <span class="convert-separator">&mdash;</span>
+            <span class="advanced-options-toggle" id="advancedOptionsToggle" onclick="toggleAdvancedOptions()">
+              <span class="advanced-options-arrow" id="advancedOptionsArrow">&#9654;</span>
+              <span class="advanced-options-text">Advanced Mode</span>
+            </span>
+          </div>
+
+          <div id="convertInfo" style="display:none; margin-bottom: 10px; font-size: 0.9em;">
+          </div>
+
+          <div class="convert-settings" id="convertSettings" style="display:block;">
+            <span>&#9899; True-Grayscale</span>
+            <span>&#128207; Max 480x800px</span>
+            <span>&#128230; 85% JPEG</span>
+            <span>&#128295; Fix SVG</span>
+          </div>
+          <!-- Advanced Settings Content -->
+          <div class="advanced-settings-content" id="advancedSettingsContent">
+            <!-- JPEG Quality -->
+            <div class="advanced-setting-row quality-row">
+              <div class="setting-title">&#128230; JPEG Quality</div>
+              <div class="quality-presets">
+                <button class="quality-preset" data-value="30" onclick="setQualityPreset(30)" title="Minimum quality">30%</button>
+                <button class="quality-preset" data-value="45" onclick="setQualityPreset(45)" title="Low quality">45%</button>
+                <button class="quality-preset" data-value="60" onclick="setQualityPreset(60)" title="Medium-low quality">60%</button>
+                <button class="quality-preset" data-value="75" onclick="setQualityPreset(75)" title="Medium quality">75%</button>
+                <button class="quality-preset active" data-value="85" onclick="setQualityPreset(85)" title="High quality">85%</button>
+                <button class="quality-preset" data-value="95" onclick="setQualityPreset(95)" title="Maximum quality">95%</button>
+              </div>
+              <input type="hidden" id="qualitySlider" value="85">
+              <input type="hidden" id="qualityInput" value="85">
+            </div>
+            <!-- Rotation Direction -->
+            <div class="advanced-setting-row" id="rotationSettingRow">
+              <div class="setting-title">&#8635; Rotation Direction</div>
+              <div class="setting-controls">
+                <div class="rotation-buttons">
+                  <button class="rotation-btn" id="rotationCCW" onclick="setHandedness('left')">
+                    <span class="rot-icon">&#8634;</span> CCW
+                  </button>
+                  <button class="rotation-btn active" id="rotationCW" onclick="setHandedness('right')">
+                    <span class="rot-icon">&#8635;</span> CW
+                  </button>
+                </div>
+              </div>
+            </div>
+            <!-- Overlap Settings -->
+            <div class="advanced-setting-row" id="overlapSettingRow">
+              <div class="setting-title">&#128208; Min Overlap</div>
+              <div class="setting-controls">
+                <div class="overlap-selector">
+                  <button class="overlap-btn active" data-value="5" onclick="setOverlap(5)">5%</button>
+                  <button class="overlap-btn" data-value="10" onclick="setOverlap(10)">10%</button>
+                  <button class="overlap-btn" data-value="15" onclick="setOverlap(15)">15%</button>
+                </div>
+              </div>
+            </div>
+            <!-- Conversion Log Export -->
+            <div class="advanced-setting-row">
+              <div class="setting-label">
+                <div class="setting-title">&#128229; Auto-download Log</div>
+                <div class="setting-desc">Export detailed log with statistics</div>
+              </div>
+              <div class="setting-controls">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="export-log-checkbox">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div><!-- advanced-settings-content -->
+        </div><!-- end convert-options -->
+        <!-- Image Picker Section -->
+        <div class="image-picker-section" id="imagePickerSection" style="display:none;">
+          <div class="image-picker-header">
+            <span class="image-picker-title">&#128444;&#65039; Image Processing Options</span>
+            <span class="image-picker-count" id="imagePickerCount">0 images</span>
+          </div>
+          <div class="state-legend">
+            <div class="legend-item locked">
+              <span>&#128274;</span>
+              <span>Cover</span>
+            </div>
+            <div class="legend-item locked">
+              <span style="color:#1abc9c">&#10022;</span>
+              <span>Separator</span>
+            </div>
+            <button class="legend-btn" style="--btn-color:var(--label-color)" onclick="applyStateToAll(0)">
+              <div class="legend-color"></div>
+              <span>Normal</span>
+            </button>
+            <button class="legend-btn" style="--btn-color:#3498db" onclick="applyStateToAll(1)">
+              <div class="legend-color"></div>
+              <span>H-Split</span>
+            </button>
+            <button class="legend-btn" style="--btn-color:#e74c3c" onclick="applyStateToAll(2)">
+              <div class="legend-color"></div>
+              <span>V-Split</span>
+            </button>
+            <button class="legend-btn" style="--btn-color:#9b59b6" onclick="applyStateToAll(3)">
+              <div class="legend-color"></div>
+              <span>Rotate</span>
+            </button>
+          </div>
+          <div class="image-grid" id="imageGrid"></div>
+        </div>
+      </div><!-- end picker-columns -->
+      <!-- Sync compatibility warning -->
+      <div class="convert-warning" id="convertWarning" style="display:none;" role="alert" aria-live="polite">
+        &#9888;&#65039; Converting will modify files and can break hash-based sync. &#9888;&#65039;<br>
+        Please back up or disable sync before proceeding.
+      </div>
+      <!-- Optimize & Upload button -->
+      <button id="startConversionBtn" class="upload-btn optimize" style="display:none;" onclick="startConversionWithImageStates()">Optimize &amp; Upload</button>
       <button id="uploadBtn" class="upload-btn" onclick="uploadFile()" disabled>Upload</button>
+      <button class="delete-btn-cancel" onclick="handleCancelUploadModal()">Cancel</button>
       <div id="progress-container">
         <div id="progress-bar"><div id="progress-fill"></div></div>
         <div id="progress-text"></div>
+      </div>
+      <div class="log-section" id="log-section">
+        <div class="log-header">
+          <div class="log-title">&#128203; Conversion Log</div>
+        </div>
+        <div class="log-container" id="log-container"></div>
       </div>
     </div>
   </div>
@@ -1014,17 +1834,102 @@
 
   // Modal functions
   function openUploadModal() {
+    // Reset converter variables to defaults
+    ENABLE_GRAYSCALE = true;
+    JPEG_QUALITY = 85;
+    HANDEDNESS = 'right';
+    OVERLAP_PERCENT = 5;
+    imageStates = {};
+
+    // Hide convert options when opening modal (no files selected initially)
+    const convertOptions = document.getElementById('convertOptions');
+    if (convertOptions) {
+      convertOptions.style.display = 'none';
+    }
+
+    // Reset rotation and overlap UI
+    setHandedness('right');
+    setOverlap(5);
+
+    // Hide log section from previous session
+    const logSection = document.getElementById('log-section');
+    if (logSection) logSection.classList.remove('visible');
+    const logContainer = document.getElementById('log-container');
+    if (logContainer) logContainer.innerHTML = '';
+
     document.getElementById('uploadPathDisplay').textContent = currentPath === '/' ? '/ 🏠' : currentPath;
     document.getElementById('uploadModal').classList.add('open');
   }
 
+  function handleCancelUploadModal() {
+    if (!isUploadInProgress) {
+      closeUploadModal();
+      return;
+    }
+    operationCancelled = true;
+    if (currentUploadWs) { currentUploadWs.close(); currentUploadWs = null; }
+    if (currentUploadXhr) { currentUploadXhr.abort(); currentUploadXhr = null; }
+  }
+
+  function restoreAfterCancel() {
+    operationCancelled = false;
+    isUploadInProgress = false;
+    document.getElementById('uploadModalClose').classList.remove('disabled');
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    progressFill.style.width = '0%';
+    progressFill.style.backgroundColor = '#e74c3c';
+    progressText.style.color = '#e74c3c';
+    progressText.textContent = 'Upload cancelled by User!';
+    document.getElementById('uploadBtn').disabled = false;
+  }
+
   function closeUploadModal() {
+    if (isUploadInProgress) {
+      return;
+    }
     document.getElementById('uploadModal').classList.remove('open');
-    document.getElementById('fileInput').value = '';
-    document.getElementById('uploadBtn').disabled = true;
+    const fileInput = document.getElementById('fileInput');
+    fileInput.value = '';
+    fileInput.classList.remove('has-files');
+    const uploadBtn = document.getElementById('uploadBtn');
+    uploadBtn.disabled = true;
+    uploadBtn.style.display = 'block';
+    uploadBtn.textContent = 'Upload';
+    uploadBtn.classList.remove('optimize');
+    document.getElementById('startConversionBtn').style.display = 'none';
     document.getElementById('progress-container').style.display = 'none';
     document.getElementById('progress-fill').style.width = '0%';
     document.getElementById('progress-fill').style.backgroundColor = '#27ae60';
+    document.getElementById('convertBeforeUpload').checked = false;
+    document.getElementById('convertInfo').style.display = 'none';
+    document.getElementById('convertWarning').style.display = 'none';
+    // Clear image picker cache and reset layout
+    epubImagesCache = [];
+    imageStates = {};
+    document.getElementById('imagePickerSection').style.display = 'none';
+    const imageGrid = document.getElementById('imageGrid');
+    if (imageGrid) imageGrid.innerHTML = '';
+    document.querySelector('#uploadModal .modal').classList.remove('picker-mode');
+    document.getElementById('pickerColumns').classList.remove('picker-active');
+    // Hide log section
+    const logSec = document.getElementById('log-section');
+    if (logSec) logSec.classList.remove('visible');
+    // Reset advanced options
+    const advancedSettingsContent = document.getElementById('advancedSettingsContent');
+    if (advancedSettingsContent) advancedSettingsContent.classList.remove('visible');
+    document.getElementById('advancedOptionsArrow').classList.remove('expanded');
+    const advancedOptionsToggle = document.getElementById('advancedOptionsToggle');
+    if (advancedOptionsToggle) {
+      advancedOptionsToggle.style.opacity = '0.5';
+      advancedOptionsToggle.style.pointerEvents = 'none';
+    }
+    // Reset to defaults
+    document.getElementById('qualitySlider').value = 85;
+    document.getElementById('qualityInput').value = 85;
+    setHandedness('right');
+    setOverlap(5);
+    updateQualitySettings();
   }
 
   function openFolderModal() {
@@ -1345,17 +2250,1079 @@
     });
   }
 
+  function updateBatchModeUI(isBatch) {
+    const rotationRow = document.getElementById('rotationSettingRow');
+    const overlapRow = document.getElementById('overlapSettingRow');
+    if (rotationRow) rotationRow.style.display = isBatch ? 'none' : '';
+    if (overlapRow) overlapRow.style.display = isBatch ? 'none' : '';
+  }
+
   function validateFile() {
     const fileInput = document.getElementById('fileInput');
     const uploadBtn = document.getElementById('uploadBtn');
     const files = fileInput.files;
-    uploadBtn.disabled = !(files.length > 0);
+    const convertOptions = document.getElementById('convertOptions');
+    fileInput.classList.toggle('has-files', files.length > 0);
+
+    // Show/hide convert options based on file selection
+    if (files.length > 0) {
+      convertOptions.style.display = 'block';
+    } else {
+      clearImagePicker();
+    }
+
+    if (files.length > 0) {
+      // If advanced settings is expanded and single EPUB, show image picker
+      const advancedContent = document.getElementById('advancedSettingsContent');
+      const convertEnabled = document.getElementById('convertBeforeUpload').checked;
+      if (advancedContent.classList.contains('visible') && files.length === 1 && convertEnabled && files[0].name.toLowerCase().endsWith('.epub')) {
+        showImagePicker(files[0]).catch(err => console.error('Image picker error:', err));
+      }
+
+      updateBatchModeUI(files.length > 1);
+      uploadBtn.disabled = false;
+    } else {
+      updateBatchModeUI(false);
+      uploadBtn.disabled = true;
+    }
   }
 
 let failedUploadsGlobal = [];
 let wsConnection = null;
+let isUploadInProgress = false;
+let operationCancelled = false;
+let uploadGeneration = 0;
+let currentUploadWs = null;
+let currentUploadXhr = null;
 const WS_PORT = 81;
 const WS_CHUNK_SIZE = 4096; // 4KB chunks - smaller for ESP32 stability
+
+// ============================================================================
+// EPUB Image Conversion Functions
+// ============================================================================
+
+const DEFAULT_MAX_WIDTH = 480;
+const DEFAULT_MAX_HEIGHT = 800;
+const DEFAULT_JPEG_QUALITY = 85;
+const DEFAULT_ENABLE_GRAYSCALE = true;
+
+let MAX_WIDTH = DEFAULT_MAX_WIDTH;
+let MAX_HEIGHT = DEFAULT_MAX_HEIGHT;
+let JPEG_QUALITY = DEFAULT_JPEG_QUALITY;
+let ENABLE_GRAYSCALE = DEFAULT_ENABLE_GRAYSCALE;
+let HANDEDNESS = 'right';
+let OVERLAP_PERCENT = 5;
+
+// ============================================================================
+// Image Picker State Management
+// ============================================================================
+
+let imageStates = {};
+let epubImagesCache = [];
+let pendingConversionFile = null;
+
+// ============================================================================
+// Enhanced Logging System
+// ============================================================================
+
+let logStartTime = null;
+let conversionStats = { images: 0, splits: 0, splitParts: 0, fixes: 0, skipped: 0, errors: 0, originalSize: 0, newSize: 0 };
+const logSection = document.getElementById('log-section');
+const logContainer = document.getElementById('log-container');
+const exportLogCheckbox = document.getElementById('export-log-checkbox');
+
+let batchLogEntries = [];
+let batchStats = { filesProcessed: 0, filesSucceeded: 0, filesFailed: 0, totalImages: 0, totalSplits: 0, totalFixes: 0, totalErrors: 0, totalOriginalSize: 0, totalNewSize: 0 };
+let batchStartTime = null;
+let isBatchMode = false;
+
+function formatBytes(b) {
+  if (!b) return '0 B';
+  const k = 1024;
+  const s = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(b) / Math.log(k));
+  return (b / Math.pow(k, i)).toFixed(1) + ' ' + s[i];
+}
+
+function getTimestamp() {
+  if (!logStartTime) return '[00:00.0]';
+  const elapsed = (Date.now() - logStartTime) / 1000;
+  const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+  const secs = (elapsed % 60).toFixed(1).padStart(4, '0');
+  return `[${mins}:${secs}]`;
+}
+
+function log(message, type = '', tag = '') {
+  const entry = document.createElement('div');
+  entry.className = 'log-entry ' + type;
+  const timestamp = document.createElement('span');
+  timestamp.className = 'log-timestamp';
+  timestamp.textContent = getTimestamp();
+  entry.appendChild(timestamp);
+  if (tag) {
+    const tagEl = document.createElement('span');
+    tagEl.className = 'log-tag ' + tag.toLowerCase();
+    tagEl.textContent = tag;
+    entry.appendChild(tagEl);
+  }
+  const msg = document.createElement('span');
+  msg.className = 'log-message';
+  msg.innerHTML = message;
+  entry.appendChild(msg);
+  logContainer.appendChild(entry);
+  logContainer.scrollTop = logContainer.scrollHeight;
+}
+
+function logImage(name, origW, origH, origFormat, origSize, newW, newH, newSize, wasSplit = false, splitCount = 0, partsInfo = null, imageState = 0) {
+  const saved = origSize - newSize;
+  const savedPct = ((saved / origSize) * 100).toFixed(0);
+  const dims = `${origW}\u00d7${origH}`;
+  const newDims = `${newW}\u00d7${newH}`;
+  const stateLabels = ['', 'H-Split', 'V-Split', 'Rotate'];
+  const stateColors = ['', '#3498db', '#e74c3c', '#9b59b6'];
+  const stateLabel = stateLabels[imageState] || '';
+  const stateColor = stateColors[imageState] || '';
+
+  if (wasSplit) {
+    conversionStats.splits++;
+    conversionStats.splitParts += splitCount;
+    let partsDetail = '';
+    if (partsInfo && partsInfo.length > 0) {
+      const baseName = name.replace(/\.[^.]+$/, '');
+      partsDetail = partsInfo.map(p => `${baseName}${p.suffix}.jpg (${p.width}\u00d7${p.height}, ${formatBytes(p.size)})`).join(', ');
+    }
+    const savedInfo = saved > 0 ? `, <span style="color:#27ae60">-${savedPct}%</span>` : '';
+    const stateIndicator = imageState > 0 ? ` <span style="color:${stateColor};font-weight:600;">[${stateLabel}]</span>` : '';
+    log(`<strong>${escapeHtml(name)}</strong>${stateIndicator} <span class="log-detail">(${dims} ${origFormat.toUpperCase()}, ${formatBytes(origSize)}) \u2192 ${splitCount} parts${savedInfo}</span>`, '', 'SPLIT');
+    if (partsDetail) { log(`<span class="log-detail" style="margin-left: 20px;">\u21b3 ${partsDetail}</span>`, '', ''); }
+  } else {
+    conversionStats.images++;
+    const stateIndicator = imageState > 0 ? ` <span style="color:${stateColor};font-weight:600;">[${stateLabel}]</span>` : '';
+    const detail = saved > 0
+      ? `<span class="log-detail">(${dims} \u2192 ${newDims}, ${formatBytes(origSize)} \u2192 ${formatBytes(newSize)}, <span style="color:#27ae60">-${savedPct}%</span>)</span>`
+      : `<span class="log-detail">(${dims} \u2192 ${newDims}, ${formatBytes(newSize)})</span>`;
+    log(`<strong>${escapeHtml(name)}</strong>${stateIndicator} ${detail}`, '', 'CONVERT');
+  }
+}
+
+function logFix(type, detail) { conversionStats.fixes++; log(`${type}: <span class="log-detail">${detail}</span>`, 'success', 'FIX'); }
+function logSkip(name, reason) { conversionStats.skipped++; log(`${escapeHtml(name)} <span class="log-detail">(${reason})</span>`, '', 'SKIP'); }
+function logError(message) { conversionStats.errors++; log(message, 'error', 'ERROR'); }
+
+function logSummary(originalSize, newSize, timeElapsed) {
+  const saved = originalSize - newSize;
+  const savedPct = ((saved / originalSize) * 100).toFixed(1);
+  const totalImages = conversionStats.images + conversionStats.splits;
+  const totalOutput = conversionStats.images + conversionStats.splitParts;
+  const summaryHtml = `<div class="log-summary"><div class="log-summary-title">Conversion Summary</div><table class="log-summary-table"><tr><td>Images found</td><td class="highlight">${totalImages}</td></tr><tr><td>Images processed</td><td>${totalOutput}${conversionStats.splitParts > conversionStats.splits ? ` (+${conversionStats.splitParts - conversionStats.splits} from splits)` : ''}</td></tr><tr><td>EPUB repairs</td><td>${conversionStats.fixes > 0 ? conversionStats.fixes + ' fixes applied' : 'None needed'}</td></tr>${conversionStats.errors > 0 ? `<tr><td>Errors</td><td style="color:#e74c3c">${conversionStats.errors}</td></tr>` : ''}<tr><td>Original size</td><td>${formatBytes(originalSize)}</td></tr><tr><td>Optimized size</td><td>${formatBytes(newSize)}</td></tr><tr><td>Saved</td><td class="${saved > 0 ? 'saved' : 'increased'}">${saved > 0 ? formatBytes(saved) + ' (' + savedPct + '%)' : '+' + formatBytes(-saved)}</td></tr><tr><td>Time</td><td>${timeElapsed.toFixed(1)}s</td></tr></table></div>`;
+  logContainer.insertAdjacentHTML('beforeend', summaryHtml);
+  logContainer.scrollTop = logContainer.scrollHeight;
+}
+
+function clearLog() {
+  logContainer.innerHTML = '';
+  logStartTime = Date.now();
+  conversionStats = { images: 0, splits: 0, splitParts: 0, fixes: 0, skipped: 0, errors: 0, originalSize: 0, newSize: 0 };
+}
+
+function startBatchLog(fileCount) {
+  isBatchMode = true; batchStartTime = Date.now(); batchLogEntries = [];
+  batchStats = { filesProcessed: 0, filesSucceeded: 0, filesFailed: 0, totalImages: 0, totalSplits: 0, totalFixes: 0, totalErrors: 0, totalOriginalSize: 0, totalNewSize: 0 };
+  clearLog(); logContainer.innerHTML = '';
+  log(`Starting batch conversion: ${fileCount} file(s)`, '', 'INFO');
+}
+
+function saveToFileBatchLog(fileName, succeeded) {
+  if (!isBatchMode) return;
+  const entries = Array.from(logContainer.querySelectorAll('.log-entry'));
+  batchLogEntries.push({ fileName, succeeded, entries, stats: { ...conversionStats } });
+  batchStats.filesProcessed++;
+  if (succeeded) batchStats.filesSucceeded++; else batchStats.filesFailed++;
+  batchStats.totalImages += conversionStats.images;
+  batchStats.totalSplits += conversionStats.splits;
+  batchStats.totalFixes += conversionStats.fixes;
+  batchStats.totalErrors += conversionStats.errors;
+  logContainer.innerHTML = '';
+  conversionStats = { images: 0, splits: 0, splitParts: 0, fixes: 0, skipped: 0, errors: 0, originalSize: 0, newSize: 0 };
+}
+
+function finalizeBatchLog() {
+  if (!isBatchMode) return;
+  const batchTime = (Date.now() - batchStartTime) / 1000;
+  logContainer.innerHTML = '';
+  log(`Starting batch conversion: ${batchStats.filesProcessed} file(s)`, '', 'INFO');
+  batchLogEntries.forEach((fileLog, index) => {
+    const fileHeader = document.createElement('div');
+    fileHeader.className = 'log-entry';
+    fileHeader.style.marginTop = index > 0 ? '15px' : '5px';
+    fileHeader.style.borderTop = index > 0 ? '1px solid var(--border-color)' : 'none';
+    fileHeader.style.paddingTop = index > 0 ? '10px' : '0';
+    fileHeader.innerHTML = `<span class="log-timestamp"></span><span class="log-message"><strong>${escapeHtml(fileLog.fileName)}</strong> \u2014 ${fileLog.succeeded ? '<span style="color:#27ae60">\u2713 Success</span>' : '<span style="color:#e74c3c">\u2717 Failed</span>'}</span>`;
+    logContainer.appendChild(fileHeader);
+    fileLog.entries.forEach(entry => { logContainer.appendChild(entry.cloneNode(true)); });
+  });
+  const batchSummaryHtml = `<div class="log-summary"><div class="log-summary-title">Batch Conversion Summary</div><table class="log-summary-table"><tr><td>Files processed</td><td class="highlight">${batchStats.filesProcessed}</td></tr><tr><td>Successful</td><td style="color:#27ae60">${batchStats.filesSucceeded}</td></tr><tr><td>Failed</td><td style="${batchStats.filesFailed > 0 ? 'color:#e74c3c' : 'color:#7f8c8d'}">${batchStats.filesFailed}</td></tr><tr><td>Total images</td><td>${batchStats.totalImages}</td></tr><tr><td>Total splits</td><td>${batchStats.totalSplits}</td></tr><tr><td>Total fixes</td><td>${batchStats.totalFixes}</td></tr>${batchStats.totalErrors > 0 ? `<tr><td>Total errors</td><td style="color:#e74c3c">${batchStats.totalErrors}</td></tr>` : ''}<tr><td>Total time</td><td>${batchTime.toFixed(1)}s</td></tr></table></div>`;
+  logContainer.insertAdjacentHTML('beforeend', batchSummaryHtml);
+  logContainer.scrollTop = logContainer.scrollHeight;
+  if (exportLogCheckbox && exportLogCheckbox.checked) { setTimeout(() => { exportLogToFile(null, true); }, 200); }
+  isBatchMode = false; batchLogEntries = [];
+}
+
+function showLog() { logSection.classList.add('visible'); }
+function hideLog() { logSection.classList.remove('visible'); }
+
+function generateLogFilename(isBatch = false) {
+  const now = new Date();
+  const date = now.toISOString().split('T')[0];
+  const time = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+  return `${isBatch ? 'batch' : 'epub'}-conversion-log-${date}_${time}.txt`;
+}
+
+function exportLogToFile(filename = null, isBatch = false) {
+  if (!filename) filename = generateLogFilename(isBatch);
+  const entries = logContainer.querySelectorAll('.log-entry');
+  let logText = `CrossPoint Reader - EPUB Conversion Log\nGenerated: ${new Date().toLocaleString()}\n${'='.repeat(60)}\n\n`;
+  entries.forEach(entry => {
+    const ts = entry.querySelector('.log-timestamp')?.textContent || '';
+    const tg = entry.querySelector('.log-tag')?.textContent || '';
+    const ms = entry.querySelector('.log-message')?.textContent || entry.textContent;
+    logText += tg ? `${ts} [${tg}] ${ms}\n` : `${ts} ${ms}\n`;
+  });
+  const summary = logContainer.querySelector('.log-summary');
+  if (summary) {
+    logText += `\n${'='.repeat(60)}\n`;
+    logText += `${summary.querySelector('.log-summary-title')?.textContent || 'Summary'}\n${'-'.repeat(40)}\n`;
+    summary.querySelectorAll('tr').forEach(row => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length >= 2) logText += `${cells[0].textContent.padEnd(25)} ${cells[1].textContent}\n`;
+    });
+  }
+  const blob = new Blob([logText], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+// ============================================================================
+// Optimizer UI Controls
+// ============================================================================
+
+function toggleConvertOptions() {
+  const checked = document.getElementById('convertBeforeUpload').checked;
+  const uploadBtn = document.getElementById('uploadBtn');
+  document.getElementById('convertWarning').style.display = checked ? 'block' : 'none';
+  document.getElementById('convertInfo').style.display = checked ? 'block' : 'none';
+  if (checked) { uploadBtn.textContent = 'Optimize & Upload'; uploadBtn.classList.add('optimize'); }
+  else { uploadBtn.textContent = 'Upload'; uploadBtn.classList.remove('optimize'); clearImagePicker(); }
+  if (!checked) {
+    const advancedSettingsContent = document.getElementById('advancedSettingsContent');
+    if (advancedSettingsContent) advancedSettingsContent.classList.remove('visible');
+    document.getElementById('advancedOptionsArrow').classList.remove('expanded');
+  }
+  const advancedOptionsToggle = document.getElementById('advancedOptionsToggle');
+  if (advancedOptionsToggle) {
+    advancedOptionsToggle.style.opacity = checked ? '1' : '0.5';
+    advancedOptionsToggle.style.pointerEvents = checked ? 'auto' : 'none';
+  }
+}
+
+function toggleAdvancedOptions() {
+  const convertEnabled = document.getElementById('convertBeforeUpload').checked;
+  if (!convertEnabled) return;
+  const content = document.getElementById('advancedSettingsContent');
+  const arrow = document.getElementById('advancedOptionsArrow');
+  const isExpanding = !content.classList.contains('visible');
+  content.classList.toggle('visible');
+  arrow.classList.toggle('expanded');
+  if (isExpanding) {
+    const fileInput = document.getElementById('fileInput');
+    const files = fileInput.files;
+    if (files.length === 1 && files[0].name.toLowerCase().endsWith('.epub')) {
+      showImagePicker(files[0]).catch(err => console.error('Image picker error:', err));
+    }
+  } else {
+    document.getElementById('imagePickerSection').style.display = 'none';
+    document.getElementById('startConversionBtn').style.display = 'none';
+    document.getElementById('uploadBtn').style.display = 'block';
+    document.getElementById('uploadBtn').disabled = false;
+    document.querySelector('#uploadModal .modal').classList.remove('picker-mode');
+    document.getElementById('pickerColumns').classList.remove('picker-active');
+  }
+}
+
+function setQualityPreset(value) {
+  document.getElementById('qualitySlider').value = value;
+  document.getElementById('qualityInput').value = value;
+  document.querySelectorAll('.quality-preset').forEach(btn => {
+    btn.classList.remove('active');
+    if (parseInt(btn.dataset.value, 10) === value) btn.classList.add('active');
+  });
+  updateQualitySettings();
+}
+
+function updateQualitySettings() {
+  const quality = document.getElementById('qualitySlider').value;
+  JPEG_QUALITY = parseInt(quality, 10);
+  ENABLE_GRAYSCALE = true;
+}
+
+function setHandedness(value) {
+  HANDEDNESS = value;
+  document.getElementById('rotationCW').classList.remove('active');
+  document.getElementById('rotationCCW').classList.remove('active');
+  document.getElementById(value === 'right' ? 'rotationCW' : 'rotationCCW').classList.add('active');
+  if (document.getElementById('imagePickerSection').style.display !== 'none') renderImageGrid();
+}
+
+function setOverlap(value) {
+  OVERLAP_PERCENT = value;
+  document.querySelectorAll('.overlap-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.value) === value);
+  });
+}
+
+// ============================================================================
+// Image Picker Functions
+// ============================================================================
+
+async function extractImagesForPreview(file) {
+  const zip = await JSZip.loadAsync(file);
+  const imageExtensions = ['.png', '.gif', '.webp', '.bmp', '.jpg', '.jpeg'];
+  const allImages = [];
+  for (const [path, fileObj] of Object.entries(zip.files)) {
+    if (fileObj.dir) continue;
+    const ext = path.substring(path.lastIndexOf('.')).toLowerCase();
+    if (imageExtensions.includes(ext)) allImages.push(path);
+  }
+  let orderedImages = [];
+  let coverImagePath = null;
+  try {
+    let opfPath = null;
+    zip.forEach(p => { if (p.toLowerCase().endsWith('.opf')) opfPath = p; });
+    if (opfPath) {
+      const opfContent = await zip.files[opfPath].async('string');
+      const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/')) : '';
+      let coverId = null, m;
+      if (m = opfContent.match(/<item[^>]+id=["']([^"']+)["'][^>]+properties="[^"]*cover-image[^"]*"/)) coverId = m[1];
+      if (!coverId && (m = opfContent.match(/<item[^>]+properties="[^"]*cover-image[^"]*"[^>]+id=["']([^"']+)["']/))) coverId = m[1];
+      if (!coverId && (m = opfContent.match(/<meta\s+name=["']cover["']\s+content=["']([^"']+)["']/))) coverId = m[1];
+      if (!coverId && (m = opfContent.match(/<meta\s+content=["']([^"']+)["']\s+name=["']cover["']/))) coverId = m[1];
+      const manifest = {};
+      const manifestRegex = /<item[^>]+id=["']([^"']+)["'][^>]+href=["']([^"']+)["'][^>]*>/gi;
+      let match;
+      while ((match = manifestRegex.exec(opfContent)) !== null) {
+        const fullPath = opfDir ? opfDir + '/' + match[2] : match[2];
+        manifest[match[1]] = fullPath;
+        if (match[1] === coverId) coverImagePath = fullPath;
+      }
+      const manifestRegex2 = /<item[^>]+href=["']([^"']+)["'][^>]+id=["']([^"']+)["'][^>]*>/gi;
+      while ((match = manifestRegex2.exec(opfContent)) !== null) {
+        const fullPath = opfDir ? opfDir + '/' + match[1] : match[1];
+        manifest[match[2]] = fullPath;
+        if (match[2] === coverId) coverImagePath = fullPath;
+      }
+      const spineOrder = [];
+      const spineRegex = /<itemref[^>]+idref=["']([^"']+)["'][^>]*>/gi;
+      while ((match = spineRegex.exec(opfContent)) !== null) {
+        if (manifest[match[1]]) spineOrder.push(manifest[match[1]]);
+      }
+      const seenImages = new Set();
+      for (const xhtmlPath of spineOrder) {
+        if (!zip.files[xhtmlPath]) continue;
+        const xhtmlContent = await zip.files[xhtmlPath].async('string');
+        const xhtmlDir = xhtmlPath.includes('/') ? xhtmlPath.substring(0, xhtmlPath.lastIndexOf('/')) : '';
+        const imgRegex = /(?:src|xlink:href)=["']([^"']+)["']/gi;
+        while ((match = imgRegex.exec(xhtmlContent)) !== null) {
+          let imgHref = match[1];
+          if (!imageExtensions.some(ext => imgHref.toLowerCase().endsWith(ext))) continue;
+          let imgPath;
+          if (imgHref.startsWith('../')) { const parts = xhtmlDir.split('/'); parts.pop(); imgPath = parts.join('/') + '/' + imgHref.substring(3); }
+          else if (imgHref.startsWith('/')) imgPath = imgHref.substring(1);
+          else imgPath = xhtmlDir ? xhtmlDir + '/' + imgHref : imgHref;
+          imgPath = imgPath.replace(/\/+/g, '/');
+          for (const realPath of allImages) {
+            if (realPath === imgPath || realPath.endsWith('/' + imgHref) || realPath.endsWith(imgHref)) {
+              if (!seenImages.has(realPath)) { seenImages.add(realPath); orderedImages.push(realPath); }
+              break;
+            }
+          }
+        }
+      }
+      for (const imgPath of allImages) { if (!seenImages.has(imgPath)) orderedImages.push(imgPath); }
+    }
+  } catch (e) { console.warn('Failed to parse reading order:', e); }
+  if (orderedImages.length === 0) orderedImages = [...allImages].sort();
+
+  const images = [];
+  for (const path of orderedImages) {
+    const data = await zip.files[path].async('arraybuffer');
+    const blob = new Blob([data]);
+    const dataUrl = URL.createObjectURL(blob);
+    const dims = await getImageDimensions(data);
+    const isCover = (path === coverImagePath) || path.toLowerCase().includes('cover') && images.length === 0;
+    const filename = path.split('/').pop();
+    let isSeparator = false;
+    if (!isCover) { try { isSeparator = await isSeparatorImage(dataUrl, dims.width, dims.height, filename); } catch (e) {} }
+    const isTiny = (dims.width < 200 && dims.height < 200);
+    const fitsScreen = (dims.width <= 480 && dims.height <= 800);
+    const canHSplit = dims.width >= 800;
+    const canVSplit = dims.height >= 800;
+    images.push({ path, name: filename, dataUrl, width: dims.width, height: dims.height, isCover, isSeparator: isSeparator || isTiny, fitsScreen, canHSplit, canVSplit });
+  }
+  return images;
+}
+
+function getImageDimensions(data) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([data]));
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.width, height: img.height }); };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve({ width: 0, height: 0 }); };
+    img.src = url;
+  });
+}
+
+async function isSeparatorImage(dataUrl, width, height, filename) {
+  const MAX_DIMENSION = 150;
+  const isSmall = (height < MAX_DIMENSION || width < MAX_DIMENSION);
+  if (!isSmall) return false;
+  const separatorNames = ['separator', 'divider', 'ornament', 'break', 'flourish', 'scene', 'divid', 'decor'];
+  if (separatorNames.some(n => filename.toLowerCase().includes(n))) return true;
+  const aspectRatio = width / height;
+  if (aspectRatio > 10 || aspectRatio < 0.1) return true;
+  if (width < 10 || height < 10) return true;
+  try { return await checkHorizontalSymmetry(dataUrl, width, height, 0.85); } catch (e) { return false; }
+}
+
+function checkHorizontalSymmetry(dataUrl, width, height, threshold) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 100 / width);
+      const w = Math.max(2, Math.floor(width * scale));
+      const h = Math.max(1, Math.floor(height * scale));
+      const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const pixels = ctx.getImageData(0, 0, w, h).data;
+      const halfW = Math.floor(w / 2);
+      let matching = 0, total = 0;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < halfW; x++) {
+          const li = (y * w + x) * 4, ri = (y * w + (w - 1 - x)) * 4;
+          if (Math.abs(pixels[li] - pixels[ri]) < 30 && Math.abs(pixels[li+1] - pixels[ri+1]) < 30 && Math.abs(pixels[li+2] - pixels[ri+2]) < 30) matching++;
+          total++;
+        }
+      }
+      resolve(matching / total >= threshold);
+    };
+    img.onerror = () => resolve(false);
+    img.src = dataUrl;
+  });
+}
+
+async function showImagePicker(file) {
+  if (typeof JSZip === 'undefined') { console.error('JSZip not loaded'); startConversionWithImageStates(); return; }
+  const pickerSection = document.getElementById('imagePickerSection');
+  const imageGrid = document.getElementById('imageGrid');
+  const countDisplay = document.getElementById('imagePickerCount');
+  imageStates = {}; epubImagesCache = []; pendingConversionFile = file;
+  try {
+    const images = await extractImagesForPreview(file);
+    epubImagesCache = images;
+    images.forEach(img => { imageStates[img.path] = 0; });
+    renderImageGrid();
+    const coverCount = images.filter(img => img.isCover).length;
+    const separatorCount = images.filter(img => img.isSeparator).length;
+    const lockedCount = coverCount + separatorCount;
+    const selectableCount = images.length - lockedCount;
+    if (lockedCount > 0) {
+      const parts = [];
+      if (coverCount > 0) parts.push(`${coverCount} cover`);
+      if (separatorCount > 0) parts.push(`${separatorCount} separator${separatorCount !== 1 ? 's' : ''}`);
+      countDisplay.textContent = `${images.length} images (${selectableCount} selectable, ${parts.join(', ')})`;
+    } else {
+      countDisplay.textContent = `${images.length} image${images.length !== 1 ? 's' : ''} (all selectable)`;
+    }
+    pickerSection.style.display = 'block';
+    document.getElementById('uploadBtn').style.display = 'none';
+    document.getElementById('startConversionBtn').style.display = 'block';
+    document.querySelector('#uploadModal .modal').classList.add('picker-mode');
+    document.getElementById('pickerColumns').classList.add('picker-active');
+  } catch (error) {
+    console.error('Failed to extract images:', error);
+    alert('Failed to preview images: ' + error.message + '\n\nConversion will proceed normally.');
+    startConversionWithImageStates();
+  }
+}
+
+function renderImageGrid() {
+  const imageGrid = document.getElementById('imageGrid');
+  imageGrid.innerHTML = '';
+  const stateLabels = ['', 'H-Split', 'V-Split', 'Rotate'];
+  const stateClasses = ['state-0', 'state-1', 'state-2', 'state-3'];
+  epubImagesCache.forEach(img => {
+    const isCover = img.isCover, isSeparator = img.isSeparator;
+    const state = imageStates[img.path] || 0;
+    const item = document.createElement('div');
+    if (isCover) {
+      item.className = 'image-item cover-locked';
+      item.title = `${img.width}\u00d7${img.height} - Cover image (locked)`;
+      item.innerHTML = `<span class="image-state-badge cover-badge">\ud83d\udd12</span><img src="${img.dataUrl}" alt="${img.name}" loading="lazy"><div class="image-name">${img.name}</div>`;
+    } else if (isSeparator) {
+      item.className = 'image-item separator-locked';
+      item.title = `${img.width}\u00d7${img.height} - Separator (locked)`;
+      item.innerHTML = `<span class="image-state-badge separator-badge">\u2726</span><img src="${img.dataUrl}" alt="${img.name}" loading="lazy"><div class="image-name">${img.name}</div>`;
+    } else {
+      const showRotation = (state === 1 || state === 3);
+      const showSplitLines = (state === 1 || state === 2);
+      const rotateClass = showRotation ? (HANDEDNESS === 'right' ? 'rotate-cw' : 'rotate-ccw') : '';
+      let numParts = 1;
+      if (showSplitLines) {
+        let finalWidth;
+        if (state === 1) { const scaledH = Math.round(img.height * (800 / img.width)); finalWidth = scaledH; }
+        else { finalWidth = Math.round(img.width * (800 / img.height)); }
+        if (finalWidth > 480) {
+          const minOverlapPx = Math.round(480 * (OVERLAP_PERCENT / 100));
+          const maxStep = 480 - minOverlapPx;
+          numParts = Math.ceil((finalWidth - minOverlapPx) / maxStep);
+          if (numParts < 2) numParts = 2;
+        }
+      }
+      let splitLinesHtml = '';
+      if (showSplitLines && numParts > 1) {
+        const lines = [];
+        const splitClass = state === 1 ? 'split-h' : 'split-v';
+        for (let i = 1; i < numParts; i++) { lines.push(`<div class="split-line ${splitClass}" style="left:${(i / numParts) * 100}%"></div>`); }
+        splitLinesHtml = `<div class="split-lines">${lines.join('')}</div>`;
+      }
+      const stateText = stateLabels[state] || 'Normal';
+      const partsText = numParts > 1 ? ` (${numParts} parts)` : '';
+      item.className = `image-item ${stateClasses[state]} ${rotateClass}`.trim();
+      item.onclick = () => cycleImageState(img.path);
+      item.title = `${img.width}\u00d7${img.height} - ${stateText}${partsText}`;
+      item.innerHTML = `<span class="image-state-badge">${stateLabels[state] || '\u2022'}</span><div class="image-preview-overlay">${splitLinesHtml}</div><img src="${img.dataUrl}" alt="${img.name}" loading="lazy"><div class="image-name">${img.name}</div>`;
+    }
+    imageGrid.appendChild(item);
+  });
+}
+
+function cycleImageState(imagePath) { imageStates[imagePath] = ((imageStates[imagePath] || 0) + 1) % 4; renderImageGrid(); }
+
+function applyStateToAll(state) {
+  epubImagesCache.forEach(img => {
+    if (img.isCover || img.isSeparator) return;
+    const canHSplit = img.canHSplit && !img.fitsScreen;
+    const canVSplit = img.canVSplit && !img.fitsScreen;
+    const isLandscape = img.width > img.height;
+    if (state === 0) imageStates[img.path] = 0;
+    else if (state === 1) { if (isLandscape && canHSplit) imageStates[img.path] = 1; }
+    else if (state === 2) { if (canVSplit) imageStates[img.path] = 2; }
+    else if (state === 3) { if (isLandscape && !img.fitsScreen) imageStates[img.path] = 3; }
+  });
+  renderImageGrid();
+}
+
+function startConversionWithImageStates() {
+  document.getElementById('imagePickerSection').style.display = 'none';
+  document.getElementById('startConversionBtn').style.display = 'none';
+  document.querySelector('#uploadModal .modal').classList.remove('picker-mode');
+  document.getElementById('pickerColumns').classList.remove('picker-active');
+  const uploadBtn = document.getElementById('uploadBtn');
+  uploadBtn.style.display = 'block'; uploadBtn.disabled = false;
+  uploadFile();
+}
+
+function getImageState(imagePath) { return imageStates[imagePath] || 0; }
+function getStateLabel(state) { return ['Normal', 'H-Split', 'V-Split', 'Rotate'][state] || 'Normal'; }
+
+function clearImagePicker() {
+  epubImagesCache = []; imageStates = {};
+  const imageGrid = document.getElementById('imageGrid');
+  if (imageGrid) imageGrid.innerHTML = '';
+  const pickerSection = document.getElementById('imagePickerSection');
+  if (pickerSection) pickerSection.style.display = 'none';
+  document.querySelector('#uploadModal .modal')?.classList.remove('picker-mode');
+  document.getElementById('pickerColumns')?.classList.remove('picker-active');
+  const startBtn = document.getElementById('startConversionBtn');
+  if (startBtn) startBtn.style.display = 'none';
+  const uploadBtn = document.getElementById('uploadBtn');
+  if (uploadBtn) uploadBtn.style.display = 'block';
+}
+
+// Initialize quality settings handlers
+document.addEventListener('DOMContentLoaded', function() {
+  const qualitySlider = document.getElementById('qualitySlider');
+  const qualityInput = document.getElementById('qualityInput');
+  const convertCheckbox = document.getElementById('convertBeforeUpload');
+  const advancedToggle = document.getElementById('advancedOptionsToggle');
+  if (convertCheckbox && advancedToggle) {
+    advancedToggle.style.opacity = convertCheckbox.checked ? '1' : '0.5';
+    advancedToggle.style.pointerEvents = convertCheckbox.checked ? 'auto' : 'none';
+  }
+  if (qualitySlider && qualityInput) { updateQualitySettings(); }
+});
+
+// Set up file input click listener
+(function setupFileInputListener() {
+  const fileInput = document.getElementById('fileInput');
+  if (!fileInput) return;
+  fileInput.addEventListener('click', function() {
+    setTimeout(() => {
+      if (fileInput.files.length === 0) { clearImagePicker(); document.getElementById('uploadBtn').disabled = true; }
+    }, 10);
+  });
+})();
+
+// ============================================================================
+// EPUB Utilities
+// ============================================================================
+
+const DEFENSIVE_STYLE = '<style type="text/css">img,svg{max-width:100%;height:auto}body{overflow-wrap:break-word}table{max-width:100%;table-layout:fixed}pre,code{white-space:pre-wrap;word-wrap:break-word}*{box-sizing:border-box}</style>';
+
+function xmlEscape(str) { return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function decodeHref(href) { try { return decodeURIComponent(href); } catch (e) { return href; } }
+
+async function safeReadText(fileObj) {
+  const raw = await fileObj.async('uint8array');
+  let offset = 0;
+  if (raw.length >= 3 && raw[0] === 0xEF && raw[1] === 0xBB && raw[2] === 0xBF) offset = 3;
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(raw.subarray(offset)); } catch (e) {}
+  const ascii = new TextDecoder('ascii', { fatal: false }).decode(raw.subarray(offset, offset + 512));
+  const encodingMatch = ascii.match(/encoding=["']([^"']+)["']/i) || ascii.match(/charset=["']?([^"'\s;]+)/i);
+  const encoding = encodingMatch ? encodingMatch[1].toLowerCase() : 'windows-1252';
+  try { return new TextDecoder(encoding, { fatal: false }).decode(raw.subarray(offset)); } catch (e) {
+    return new TextDecoder('iso-8859-1', { fatal: false }).decode(raw.subarray(offset));
+  }
+}
+
+async function findOPFPath(zip) {
+  try {
+    const containerPath = Object.keys(zip.files).find(p => p.toLowerCase() === 'meta-inf/container.xml');
+    if (containerPath) {
+      const containerXml = await zip.files[containerPath].async('string');
+      const match = containerXml.match(/<rootfile[^>]+full-path=["']([^"']+)["']/i);
+      if (match && zip.files[match[1]]) return match[1];
+    }
+  } catch (e) {}
+  let fallback = null;
+  zip.forEach(p => { if (!fallback && p.toLowerCase().endsWith('.opf')) fallback = p; });
+  return fallback;
+}
+
+function resolvePath(basePath, href) {
+  if (href.startsWith('/')) return href.substring(1);
+  href = href.replace(/^\.\//, '');
+  const baseDir = basePath.includes('/') ? basePath.substring(0, basePath.lastIndexOf('/')) : '';
+  const baseParts = baseDir ? baseDir.split('/') : [];
+  const hrefParts = href.split('/');
+  while (hrefParts.length > 0 && hrefParts[0] === '..') { hrefParts.shift(); if (baseParts.length > 0) baseParts.pop(); }
+  return [...baseParts, ...hrefParts].join('/').replace(/\/+/g, '/');
+}
+
+function safeSerialize(doc, originalContent) {
+  let result = new XMLSerializer().serializeToString(doc);
+  if (originalContent && /^\s*<\?xml\b/.test(originalContent) && !/^\s*<\?xml\b/.test(result)) {
+    const declMatch = originalContent.match(/^\s*(<\?xml[^?]*\?>)/);
+    if (declMatch) result = declMatch[1] + '\n' + result;
+  }
+  result = result.replace(/ xmlns:ns\d+="[^"]*"/g, '');
+  result = result.replace(/ ns\d+:/g, ' ');
+  return result;
+}
+
+function extractIdentifier(opfContent) {
+  let mainIdentifier = null;
+  try {
+    const doc = new DOMParser().parseFromString(opfContent, 'application/xml');
+    if (!doc.querySelector('parsererror')) {
+      const pkg = doc.getElementsByTagNameNS('*', 'package')[0];
+      const uid = pkg ? pkg.getAttribute('unique-identifier') : null;
+      if (uid) { const el = [...doc.getElementsByTagNameNS('*', 'identifier')].find(e => e.getAttribute('id') === uid); if (el) mainIdentifier = (el.textContent || '').trim(); }
+      if (!mainIdentifier) { const el = doc.getElementsByTagNameNS('*', 'identifier')[0]; if (el) mainIdentifier = (el.textContent || '').trim(); }
+    }
+  } catch (e) {}
+  if (!mainIdentifier) {
+    const uniqueIdMatch = opfContent.match(/<(?:\w+:)?package[^>]*unique-identifier=["']([^"']+)["']/i);
+    if (uniqueIdMatch) { const idMatch = opfContent.match(new RegExp(`<dc:identifier[^>]*id=["']${uniqueIdMatch[1]}["'][^>]*>([^<]+)</dc:identifier>`, 'i')); if (idMatch) mainIdentifier = idMatch[1].trim(); }
+    if (!mainIdentifier) { const m = opfContent.match(/<dc:identifier[^>]*>([^<]+)/i); if (m) mainIdentifier = m[1].trim(); }
+  }
+  return mainIdentifier;
+}
+
+function syncNCXIdentifier(ncxText, mainIdentifier) {
+  if (!mainIdentifier) return ncxText;
+  let t = ncxText;
+  try {
+    const doc = new DOMParser().parseFromString(t, 'application/xml');
+    if (!doc.querySelector('parsererror')) {
+      const meta = [...doc.getElementsByTagNameNS('*', 'meta')].find(m => m.getAttribute('name') === 'dtb:uid');
+      if (meta) { meta.setAttribute('content', mainIdentifier); t = safeSerialize(doc, ncxText); }
+    }
+  } catch (e) { t = t.replace(/<meta\s+name=["']dtb:uid["']\s+content=["'][^"']*["']\s*\/?>/gi, `<meta name="dtb:uid" content="${xmlEscape(mainIdentifier)}"/>`); }
+  return t;
+}
+
+function fixOPF(opfText, opfOriginal, opfDir, splitImages = {}) {
+  let t = opfText;
+  try {
+    const doc = new DOMParser().parseFromString(t, 'application/xml');
+    if (doc.querySelector('parsererror')) throw new Error('OPF parse failed');
+    const items = [...doc.getElementsByTagNameNS('*', 'item')];
+    const manifestEl = doc.getElementsByTagNameNS('*', 'manifest')[0];
+    for (const item of items) { const href = item.getAttribute('href') || '', type = item.getAttribute('media-type') || ''; if (href.endsWith('.jpg') && type.match(/^image\/(png|gif|webp|bmp)$/)) item.setAttribute('media-type', 'image/jpeg'); }
+    for (const item of items) { const props = item.getAttribute('properties') || ''; if (props.includes('svg')) { const newProps = props.split(/\s+/).filter(p => p !== 'svg').join(' ').trim(); if (newProps) item.setAttribute('properties', newProps); else item.removeAttribute('properties'); } }
+    for (const [splitKey, splitInfo] of Object.entries(splitImages)) {
+      const parts = splitInfo.parts || splitInfo;
+      let origHref = opfDir && splitKey.startsWith(opfDir + '/') ? splitKey.substring(opfDir.length + 1) : splitKey;
+      const origHrefJpg = origHref.replace(/\.(png|gif|webp|bmp|jpeg)$/i, '.jpg');
+      const part1Href = origHrefJpg.replace(/\.jpg$/i, '_part1.jpg');
+      for (const item of items) { const h = item.getAttribute('href') || ''; if (h === origHref || h === origHrefJpg || decodeHref(h) === origHref || decodeHref(h) === origHrefJpg) { item.setAttribute('href', part1Href); break; } }
+      if (manifestEl) { const ns = manifestEl.namespaceURI || 'http://www.idpf.org/2007/opf'; for (let j = 1; j < parts.length; j++) { const p = parts[j]; const href = opfDir && p.path.startsWith(opfDir + '/') ? p.path.substring(opfDir.length + 1) : p.path; const newItem = doc.createElementNS(ns, 'item'); newItem.setAttribute('id', `img-${p.id}`); newItem.setAttribute('href', href); newItem.setAttribute('media-type', 'image/jpeg'); manifestEl.appendChild(newItem); } }
+    }
+    t = safeSerialize(doc, opfOriginal);
+  } catch (e) {
+    t = t.replace(/(<(?:\w+:)?item\b[^>]*href="[^"]+\.jpg"[^>]*)media-type="image\/(png|gif|webp|bmp)"/g, '$1media-type="image/jpeg"');
+    t = t.replace(/(<(?:\w+:)?item\b[^>]*)media-type="image\/(png|gif|webp|bmp)"([^>]*href="[^"]+\.jpg")/g, '$1media-type="image/jpeg"$3');
+    t = t.replace(/\s+svg(?=["'\s>])/g, '');
+    for (const [splitKey, splitInfo] of Object.entries(splitImages)) {
+      const parts = splitInfo.parts || splitInfo;
+      let origHref = opfDir && splitKey.startsWith(opfDir + '/') ? splitKey.substring(opfDir.length + 1) : splitKey;
+      const origHrefJpg = origHref.replace(/\.(png|gif|webp|bmp|jpeg)$/i, '.jpg');
+      const part1Href = origHrefJpg.replace(/\.jpg$/i, '_part1.jpg');
+      t = t.replace(new RegExp(`(href=["'])(${escapeRegex(origHref)}|${escapeRegex(origHrefJpg)})(["'])`, 'gi'), `$1${part1Href}$3`);
+      let adds = '';
+      for (let j = 1; j < parts.length; j++) { const p = parts[j]; const href = opfDir && p.path.startsWith(opfDir + '/') ? p.path.substring(opfDir.length + 1) : p.path; adds += `<item id="img-${xmlEscape(p.id)}" href="${xmlEscape(href)}" media-type="image/jpeg"/>\n`; }
+      if (adds && t.includes('</manifest>')) t = t.replace('</manifest>', adds + '</manifest>');
+    }
+  }
+  const cm = ensureCoverMeta(t);
+  if (cm.fixed) t = cm.o;
+  return t;
+}
+
+function fixSvgCover(content) {
+  if (!content.includes('<svg') && !content.includes('<svg:')) return { c: content, fixed: false, count: 0 };
+  if (!content.includes('xlink:href')) return { c: content, fixed: false, count: 0 };
+  if (!content.includes('calibre:cover') && !content.includes('name="cover"') && !content.includes('<title>Cover</title>')) return { c: content, fixed: false, count: 0 };
+  const m = content.match(/xlink:href=["']([^"']+)["']/);
+  if (!m) return { c: content, fixed: false, count: 0 };
+  return { c: `<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en" xml:lang="en">\n<head><meta content="text/html; charset=UTF-8" http-equiv="default-style"/><title>Cover</title></head>\n<body><section epub:type="cover"><img style="max-width:100%;height:auto" alt="Cover" src="${m[1]}"/></section></body>\n</html>`, fixed: true, count: 1 };
+}
+
+function fixSvgWrappedImages(content) {
+  if (!content.includes('<svg') && !content.includes('<svg:')) return { c: content, fixed: false, count: 0 };
+  if (!content.includes('xlink:href')) return { c: content, fixed: false, count: 0 };
+  let fixedCount = 0;
+  const svgImageRegex = /<(?:svg:)?svg\b[^>]*>[\s\S]*?<(?:svg:)?image\b[^>]*xlink:href=["']([^"']+)["'][^>]*\/?>\s*<\/(?:svg:)?svg>/gi;
+  const newContent = content.replace(svgImageRegex, (match, href) => { fixedCount++; return `<img style="max-width:100%;height:auto" src="${href}" alt="" />`; });
+  return { c: newContent, fixed: fixedCount > 0, count: fixedCount };
+}
+
+function ensureCoverMeta(opfString) {
+  try {
+    const doc = new DOMParser().parseFromString(opfString, 'application/xml');
+    if (doc.querySelector('parsererror')) throw new Error('Parse failed');
+    let coverId = null;
+    const items = [...doc.getElementsByTagNameNS('*', 'item')];
+    for (const item of items) { const props = item.getAttribute('properties') || '', type = item.getAttribute('media-type') || ''; if (!type.startsWith('image/')) continue; if (props.includes('cover-image')) { coverId = item.getAttribute('id'); break; } }
+    if (!coverId) { for (const item of items) { const id = item.getAttribute('id') || '', href = item.getAttribute('href') || '', type = item.getAttribute('media-type') || ''; if (!type.startsWith('image/')) continue; if (id.toLowerCase().includes('cover') || href.toLowerCase().includes('cover')) { coverId = id; break; } } }
+    if (!coverId) return { o: opfString, fixed: false };
+    const metas = [...doc.getElementsByTagNameNS('*', 'meta')];
+    const coverMeta = metas.find(m => m.getAttribute('name') === 'cover');
+    if (coverMeta) { if (coverMeta.getAttribute('content') === coverId) return { o: opfString, fixed: false }; coverMeta.setAttribute('content', coverId); }
+    else { const metadata = doc.getElementsByTagNameNS('*', 'metadata')[0]; if (!metadata) return { o: opfString, fixed: false }; const newMeta = doc.createElementNS(metadata.namespaceURI || 'http://www.idpf.org/2007/opf', 'meta'); newMeta.setAttribute('name', 'cover'); newMeta.setAttribute('content', coverId); metadata.appendChild(newMeta); }
+    return { o: safeSerialize(doc, opfString), fixed: true };
+  } catch (e) {
+    let coverId = null, m;
+    if (m = opfString.match(/<\w+:?item[^>]+id="([^"]+)"[^>]+properties="[^"]*cover-image[^"]*"/i)) coverId = m[1];
+    if (!coverId && (m = opfString.match(/<\w+:?item[^>]*id="([^"]*cover[^"]*)"[^>]*media-type="image\//i))) coverId = m[1];
+    if (!coverId) return { o: opfString, fixed: false };
+    const idx = opfString.indexOf('</metadata>');
+    if (idx !== -1) return { o: opfString.substring(0, idx) + `    <meta name="cover" content="${xmlEscape(coverId)}"/>\n  </metadata>` + opfString.substring(idx + 11), fixed: true };
+    return { o: opfString, fixed: false };
+  }
+}
+
+function applyGrayscale(ctx, width, height) {
+  if (!ENABLE_GRAYSCALE) return;
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3] / 255;
+    const gray = Math.round((data[i] * a + 255 * (1 - a)) * 0.299 + (data[i + 1] * a + 255 * (1 - a)) * 0.587 + (data[i + 2] * a + 255 * (1 - a)) * 0.114);
+    data[i] = gray; data[i + 1] = gray; data[i + 2] = gray; data[i + 3] = 255;
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+const IMAGE_LOAD_TIMEOUT_MS = 30000;
+async function processImage(data, imageState = 0, imagePath = '') {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([data]));
+    const img = new Image();
+    const origSize = data.byteLength;
+    const timeoutId = setTimeout(() => { URL.revokeObjectURL(url); reject(new Error('Image load timeout')); }, IMAGE_LOAD_TIMEOUT_MS);
+
+    img.onload = async () => {
+      clearTimeout(timeoutId);
+      URL.revokeObjectURL(url);
+      const origW = img.width, origH = img.height;
+
+      if (imageState === 1) {
+        const scale = MAX_HEIGHT / origW;
+        const scaledW = MAX_HEIGHT, scaledH = Math.round(origH * scale);
+        const sc = document.createElement('canvas'); sc.width = scaledW; sc.height = scaledH;
+        const sctx = sc.getContext('2d'); sctx.imageSmoothingEnabled = true; sctx.imageSmoothingQuality = 'high';
+        sctx.fillStyle = '#FFF'; sctx.fillRect(0, 0, scaledW, scaledH); sctx.drawImage(img, 0, 0, origW, origH, 0, 0, scaledW, scaledH);
+        const rotW = scaledH, rotH = scaledW;
+        const rc = document.createElement('canvas'); rc.width = rotW; rc.height = rotH;
+        const rctx = rc.getContext('2d'); rctx.fillStyle = '#FFF'; rctx.fillRect(0, 0, rotW, rotH);
+        if (HANDEDNESS === 'right') { rctx.translate(rotW, 0); rctx.rotate(Math.PI / 2); } else { rctx.translate(0, rotH); rctx.rotate(-Math.PI / 2); }
+        rctx.drawImage(sc, 0, 0); rctx.setTransform(1, 0, 0, 1, 0, 0); applyGrayscale(rctx, rotW, rotH);
+        if (rotW <= MAX_WIDTH) {
+          const blob = await new Promise(res => rc.toBlob(res, 'image/jpeg', JPEG_QUALITY / 100));
+          const ab = await blob.arrayBuffer();
+          resolve({ parts: [{ data: ab, suffix: '', width: rotW, height: rotH, size: ab.byteLength }], meta: { origW, origH, origSize, wasSplit: false, rotated: true, finalW: rotW, finalH: rotH, finalSize: ab.byteLength, imageState: 1 } });
+        } else {
+          const parts = [], maxW = MAX_WIDTH, isClockwise = HANDEDNESS === 'right';
+          const minOverlapPx = Math.round(maxW * (OVERLAP_PERCENT / 100)), maxStep = maxW - minOverlapPx;
+          let numParts = Math.ceil((rotW - minOverlapPx) / maxStep); if (numParts < 2) numParts = 2;
+          let step = Math.round((rotW - maxW) / (numParts - 1)), overlapPx = maxW - step;
+          if (overlapPx < minOverlapPx) { overlapPx = minOverlapPx; step = maxW - overlapPx; }
+          const positions = [];
+          for (let i = 0; i < numParts; i++) { let x = isClockwise ? rotW - maxW - (i * step) : i * step; positions.push(Math.max(0, Math.min(x, rotW - maxW))); }
+          if (isClockwise) { positions[0] = rotW - maxW; positions[numParts - 1] = 0; } else { positions[0] = 0; positions[numParts - 1] = rotW - maxW; }
+          for (let i = 0; i < numParts; i++) {
+            const pc = document.createElement('canvas'); pc.width = maxW; pc.height = rotH;
+            const pctx = pc.getContext('2d'); pctx.fillStyle = '#FFF'; pctx.fillRect(0, 0, maxW, rotH);
+            pctx.drawImage(rc, positions[i], 0, maxW, rotH, 0, 0, maxW, rotH);
+            const blob = await new Promise(res => pc.toBlob(res, 'image/jpeg', JPEG_QUALITY / 100));
+            const ab = await blob.arrayBuffer();
+            parts.push({ data: ab, suffix: `_part${i + 1}`, width: maxW, height: rotH, size: ab.byteLength });
+          }
+          resolve({ parts, meta: { origW, origH, origSize, wasSplit: true, splitCount: numParts, rotated: true, finalW: parts[0].width, finalH: parts[0].height, finalSize: parts.reduce((s, p) => s + p.size, 0), imageState: 1 } });
+        }
+      } else if (imageState === 2) {
+        const scale = MAX_HEIGHT / origH, scaledW = Math.round(origW * scale), scaledH = MAX_HEIGHT;
+        const sc = document.createElement('canvas'); sc.width = scaledW; sc.height = scaledH;
+        const sctx = sc.getContext('2d'); sctx.imageSmoothingEnabled = true; sctx.imageSmoothingQuality = 'high';
+        sctx.fillStyle = '#FFF'; sctx.fillRect(0, 0, scaledW, scaledH); sctx.drawImage(img, 0, 0, origW, origH, 0, 0, scaledW, scaledH);
+        applyGrayscale(sctx, scaledW, scaledH);
+        if (scaledW <= MAX_WIDTH) {
+          const blob = await new Promise(res => sc.toBlob(res, 'image/jpeg', JPEG_QUALITY / 100));
+          const ab = await blob.arrayBuffer();
+          resolve({ parts: [{ data: ab, suffix: '', width: scaledW, height: scaledH, size: ab.byteLength }], meta: { origW, origH, origSize, wasSplit: false, rotated: false, finalW: scaledW, finalH: scaledH, finalSize: ab.byteLength, imageState: 2 } });
+        } else {
+          const parts = [], maxW = MAX_WIDTH;
+          const minOverlapPx = Math.round(maxW * (OVERLAP_PERCENT / 100)), maxStep = maxW - minOverlapPx;
+          let numParts = Math.ceil((scaledW - minOverlapPx) / maxStep); if (numParts < 2) numParts = 2;
+          let step = Math.round((scaledW - maxW) / (numParts - 1)), overlapPx = maxW - step;
+          if (overlapPx < minOverlapPx) { overlapPx = minOverlapPx; step = maxW - overlapPx; }
+          const positions = [];
+          for (let i = 0; i < numParts; i++) { positions.push(Math.max(0, Math.min(i * step, scaledW - maxW))); }
+          positions[0] = 0; positions[numParts - 1] = scaledW - maxW;
+          for (let i = 0; i < numParts; i++) {
+            const pc = document.createElement('canvas'); pc.width = maxW; pc.height = scaledH;
+            const pctx = pc.getContext('2d'); pctx.fillStyle = '#FFF'; pctx.fillRect(0, 0, maxW, scaledH);
+            pctx.drawImage(sc, positions[i], 0, maxW, scaledH, 0, 0, maxW, scaledH);
+            const blob = await new Promise(res => pc.toBlob(res, 'image/jpeg', JPEG_QUALITY / 100));
+            const ab = await blob.arrayBuffer();
+            parts.push({ data: ab, suffix: `_part${i + 1}`, width: maxW, height: scaledH, size: ab.byteLength });
+          }
+          resolve({ parts, meta: { origW, origH, origSize, wasSplit: true, splitCount: numParts, rotated: false, finalW: parts[0].width, finalH: parts[0].height, finalSize: parts.reduce((s, p) => s + p.size, 0), imageState: 2 } });
+        }
+      } else if (imageState === 3) {
+        const rotW = origH, rotH = origW;
+        const rc = document.createElement('canvas'); rc.width = rotW; rc.height = rotH;
+        const rctx = rc.getContext('2d'); rctx.fillStyle = '#FFF'; rctx.fillRect(0, 0, rotW, rotH);
+        if (HANDEDNESS === 'right') { rctx.translate(rotW, 0); rctx.rotate(Math.PI / 2); } else { rctx.translate(0, rotH); rctx.rotate(-Math.PI / 2); }
+        rctx.drawImage(img, 0, 0); rctx.setTransform(1, 0, 0, 1, 0, 0);
+        if (rotW <= MAX_WIDTH && rotH <= MAX_HEIGHT) {
+          applyGrayscale(rctx, rotW, rotH);
+          const blob = await new Promise(res => rc.toBlob(res, 'image/jpeg', JPEG_QUALITY / 100));
+          const ab = await blob.arrayBuffer();
+          resolve({ parts: [{ data: ab, suffix: '', width: rotW, height: rotH, size: ab.byteLength }], meta: { origW, origH, origSize, wasSplit: false, rotated: true, finalW: rotW, finalH: rotH, finalSize: ab.byteLength, imageState: 3 } });
+        } else {
+          const scale = Math.min(MAX_WIDTH / rotW, MAX_HEIGHT / rotH), newW = Math.round(rotW * scale), newH = Math.round(rotH * scale);
+          const sc = document.createElement('canvas'); sc.width = newW; sc.height = newH;
+          const sctx = sc.getContext('2d'); sctx.imageSmoothingEnabled = true; sctx.imageSmoothingQuality = 'high';
+          sctx.fillStyle = '#FFF'; sctx.fillRect(0, 0, newW, newH); sctx.drawImage(rc, 0, 0, newW, newH);
+          applyGrayscale(sctx, newW, newH);
+          const blob = await new Promise(res => sc.toBlob(res, 'image/jpeg', JPEG_QUALITY / 100));
+          const ab = await blob.arrayBuffer();
+          resolve({ parts: [{ data: ab, suffix: '', width: newW, height: newH, size: ab.byteLength }], meta: { origW, origH, origSize, wasSplit: false, rotated: true, finalW: newW, finalH: newH, finalSize: ab.byteLength, imageState: 3 } });
+        }
+      } else {
+        const fitsInScreen = origW <= MAX_WIDTH && origH <= MAX_HEIGHT;
+        const c = document.createElement('canvas');
+        let newW, newH;
+        if (fitsInScreen) { newW = origW; newH = origH; } else { const scale = Math.min(MAX_WIDTH / origW, MAX_HEIGHT / origH); newW = Math.round(origW * scale); newH = Math.round(origH * scale); }
+        c.width = newW; c.height = newH;
+        const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+        ctx.fillStyle = '#FFF'; ctx.fillRect(0, 0, newW, newH);
+        if (fitsInScreen) ctx.drawImage(img, 0, 0); else ctx.drawImage(img, 0, 0, newW, newH);
+        applyGrayscale(ctx, newW, newH);
+        const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', JPEG_QUALITY / 100));
+        const ab = await blob.arrayBuffer();
+        resolve({ parts: [{ data: ab, suffix: '', width: newW, height: newH, size: ab.byteLength }], meta: { origW, origH, origSize, wasSplit: false, rotated: false, finalW: newW, finalH: newH, finalSize: ab.byteLength, imageState: 0 } });
+      }
+    };
+    img.onerror = () => { clearTimeout(timeoutId); URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+    img.src = url;
+  });
+}
+
+async function convertEpubFile(file, progressCallback) {
+  const startTime = Date.now();
+  const originalSize = file.size;
+  let totalImageSize = 0, totalNewSize = 0;
+  clearLog(); showLog();
+  log(`<strong>${file.name}</strong> <span class="log-detail">(${formatBytes(originalSize)})</span>`, '', 'INFO');
+  log(`Quality: ${JPEG_QUALITY}% | Overlap: ${OVERLAP_PERCENT}% | Rotation: ${HANDEDNESS === 'right' ? 'CW' : 'CCW'} | Grayscale: ${ENABLE_GRAYSCALE ? 'ON' : 'OFF'}`, '', 'INFO');
+
+  const zip = await JSZip.loadAsync(file);
+  const renamed = {};
+  zip.forEach(p => { if (p.toLowerCase().match(/\.(png|gif|webp|bmp|jpeg)$/)) renamed[p] = p.replace(/\.(png|gif|webp|bmp|jpeg)$/i, '.jpg'); });
+
+  const out = new JSZip();
+  const entries = Object.entries(zip.files);
+  const splitImages = {}, xhtmlFiles = {};
+  let opfPath = null, opfContent = null, mainIdentifier = null;
+
+  if (zip.files['mimetype']) { out.file('mimetype', await zip.files['mimetype'].async('arraybuffer'), { compression: 'STORE', createFolders: false }); }
+
+  for (let i = 0; i < entries.length; i++) {
+    if (operationCancelled) throw new Error('Cancelled by user');
+    const [path, fileObj] = entries[i];
+    if (fileObj.dir || path === 'mimetype') continue;
+    const low = path.toLowerCase();
+    if (low.match(/\.(png|gif|webp|bmp|jpg|jpeg)$/)) {
+      const data = await fileObj.async('arraybuffer');
+      const imageState = getImageState(path);
+      let result;
+      try { result = await processImage(data, imageState, path); }
+      catch (imageError) {
+        console.error(`Failed to process image ${path}:`, imageError);
+        result = { parts: [{ data, suffix: '', width: 0, height: 0, size: data.byteLength }], meta: { origW: 0, origH: 0, origSize: data.byteLength, wasSplit: false, rotated: false, finalW: 0, finalH: 0, finalSize: data.byteLength, imageState, processingError: true } };
+      }
+      const parts = result.parts, meta = result.meta;
+      const imgName = path.split('/').pop(), origFormat = path.split('.').pop();
+      logImage(imgName, meta.origW, meta.origH, origFormat, meta.origSize, meta.finalW, meta.finalH, meta.finalSize, meta.wasSplit, meta.splitCount || 0, parts, meta.imageState || 0);
+      totalImageSize += meta.origSize; totalNewSize += meta.finalSize;
+      const baseName = path.replace(/\.[^.]+$/, ''), newExt = '.jpg';
+      if (parts.length === 1 && parts[0].suffix === '') { out.file(renamed[path] || path.replace(/\.[^.]+$/, newExt), parts[0].data, { compression: 'STORE', createFolders: false }); }
+      else {
+        const origName = path.split('/').pop(), origDir = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '';
+        splitImages[path] = { origName, origDir, parts: [] };
+        for (const part of parts) {
+          const partName = baseName.split('/').pop() + part.suffix + newExt;
+          const partPath = (path.includes('/') ? path.substring(0, path.lastIndexOf('/') + 1) : '') + partName;
+          out.file(partPath, part.data, { compression: 'STORE', createFolders: false });
+          splitImages[path].parts.push({ path: partPath, imgName: partName, id: baseName.split('/').pop() + part.suffix, suffix: part.suffix });
+        }
+      }
+    } else if (low.match(/\.(xhtml|html|htm)$/)) { xhtmlFiles[path] = await safeReadText(fileObj); }
+    else if (low.endsWith('.opf')) { opfPath = path; opfContent = await safeReadText(fileObj); }
+    if (progressCallback) progressCallback((i / entries.length) * 60);
+  }
+
+  for (const [xhtmlPath, content] of Object.entries(xhtmlFiles)) {
+    if (operationCancelled) throw new Error('Cancelled by user');
+    let t = content;
+    const r = fixSvgCover(t); if (r.fixed) { t = r.c; logFix('SVG cover', xhtmlPath.split('/').pop()); }
+    const r2 = fixSvgWrappedImages(t); if (r2.fixed) { t = r2.c; logFix(`SVG images (${r2.count})`, xhtmlPath.split('/').pop()); }
+    for (const [o, n] of Object.entries(renamed)) { t = t.split(o.split('/').pop()).join(n.split('/').pop()); }
+    try {
+      const doc = new DOMParser().parseFromString(t, 'application/xhtml+xml');
+      if (!doc.querySelector('parsererror')) {
+        let modified = false;
+        for (const imgEl of doc.querySelectorAll('img')) { if (imgEl.hasAttribute('width')) { imgEl.removeAttribute('width'); modified = true; } if (imgEl.hasAttribute('height')) { imgEl.removeAttribute('height'); modified = true; } }
+        if (Object.keys(splitImages).length > 0) {
+          const xhtmlDir = xhtmlPath.includes('/') ? xhtmlPath.substring(0, xhtmlPath.lastIndexOf('/')) : '';
+          const rootFolders = ['ops', 'oebps', 'epub', 'content'];
+          for (const [fullPath, splitInfo] of Object.entries(splitImages)) {
+            const origName = splitInfo.origName, origDir = splitInfo.origDir, parts = splitInfo.parts;
+            const newName = origName.replace(/\.(png|gif|webp|bmp|jpeg)$/i, '.jpg');
+            const splitDirParts = origDir.split('/').filter(p => p);
+            const lastDir = splitDirParts.length > 0 ? splitDirParts[splitDirParts.length - 1].toLowerCase() : null;
+            const immediateParent = (lastDir && !rootFolders.includes(lastDir)) ? splitDirParts[splitDirParts.length - 1] : null;
+            const xhtmlDirParts = xhtmlDir.split('/').filter(p => p);
+            const matchingImgs = [];
+            for (const imgEl of doc.querySelectorAll('img')) {
+              const src = imgEl.getAttribute('src') || '';
+              const srcParts = src.split('/').filter(p => p && p !== '..' && p !== '.');
+              const srcName = srcParts.pop() || '';
+              if (srcName !== origName && srcName !== newName) continue;
+              if (immediateParent) { if (srcParts.length === 0) { const xld = xhtmlDirParts.length > 0 ? xhtmlDirParts[xhtmlDirParts.length - 1] : null; if (xld !== immediateParent) continue; } else { if (srcParts[srcParts.length - 1] !== immediateParent) continue; } }
+              else { if (srcParts.length > 0 && !rootFolders.includes(srcParts[srcParts.length - 1].toLowerCase())) continue; }
+              matchingImgs.push(imgEl);
+            }
+            for (const imgEl of matchingImgs) {
+              const src = imgEl.getAttribute('src') || '';
+              imgEl.setAttribute('src', src.replace(origName, parts[0].imgName).replace(newName, parts[0].imgName));
+              if (parts.length > 1) {
+                imgEl.removeAttribute('width'); imgEl.removeAttribute('height'); imgEl.removeAttribute('class');
+                imgEl.setAttribute('style', 'max-width:100%;height:auto');
+                let container = imgEl.parentElement;
+                const safeContainers = ['div', 'p', 'figure', 'aside', 'section', 'body'];
+                while (container && !safeContainers.includes(container.tagName.toLowerCase())) container = container.parentElement;
+                const insertTarget = container || imgEl.parentElement;
+                if (insertTarget && insertTarget.tagName.toLowerCase() !== 'body') { insertTarget.removeAttribute('class'); insertTarget.removeAttribute('style'); }
+                const insertParent = insertTarget.parentElement, insertRef = insertTarget.nextSibling;
+                const ns = doc.documentElement.namespaceURI || 'http://www.w3.org/1999/xhtml';
+                for (let pi = 1; pi < parts.length; pi++) {
+                  const wrapper = doc.createElementNS(ns, 'div');
+                  const newImg = doc.createElementNS(ns, 'img');
+                  newImg.setAttribute('src', src.replace(origName, parts[pi].imgName).replace(newName, parts[pi].imgName));
+                  newImg.setAttribute('alt', ''); newImg.setAttribute('style', 'max-width:100%;height:auto');
+                  wrapper.appendChild(newImg);
+                  if (insertRef) insertParent.insertBefore(wrapper, insertRef); else insertParent.appendChild(wrapper);
+                }
+              }
+              modified = true;
+            }
+          }
+        }
+        if (modified) t = safeSerialize(doc, content);
+      }
+    } catch (e) { console.warn('DOMParser error for', xhtmlPath, e.message); }
+    if (t.includes('</head>')) t = t.replace('</head>', DEFENSIVE_STYLE + '</head>');
+    out.file(xhtmlPath, t, { compression: 'DEFLATE', compressionOptions: { level: 8 }, createFolders: false });
+  }
+
+  if (opfContent) mainIdentifier = extractIdentifier(opfContent);
+  if (opfContent) {
+    let t = opfContent;
+    for (const [o, n] of Object.entries(renamed)) { t = t.split(o.split('/').pop()).join(n.split('/').pop()); }
+    const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/')) : '';
+    t = fixOPF(t, opfContent, opfDir, splitImages);
+    if (t !== opfContent) logFix('OPF', 'manifest updated');
+    out.file(opfPath, t, { compression: 'DEFLATE', compressionOptions: { level: 8 }, createFolders: false });
+  }
+
+  for (const [path, fileObj] of entries) {
+    if (operationCancelled) throw new Error('Cancelled by user');
+    if (fileObj.dir || path === 'mimetype') continue;
+    const low = path.toLowerCase();
+    if (low.match(/\.(png|gif|webp|bmp|jpg|jpeg)$/) || low.match(/\.(xhtml|html|htm)$/) || low.endsWith('.opf')) continue;
+    let data = await fileObj.async('arraybuffer');
+    if (low.endsWith('.css')) { let t = await safeReadText(fileObj); for (const [o, n] of Object.entries(renamed)) { t = t.split(o.split('/').pop()).join(n.split('/').pop()); } data = new TextEncoder().encode(t); }
+    else if (low.endsWith('.ncx')) { let t = await safeReadText(fileObj); for (const [o, n] of Object.entries(renamed)) { t = t.split(o.split('/').pop()).join(n.split('/').pop()); } const oldT = t; t = syncNCXIdentifier(t, mainIdentifier); if (t !== oldT) logFix('NCX identifier', 'Synced with OPF'); data = new TextEncoder().encode(t); }
+    out.file(path, data, { compression: 'DEFLATE', compressionOptions: { level: 8 }, createFolders: false });
+  }
+
+  if (progressCallback) progressCallback(100);
+  const newBlob = await out.generateAsync({ type: 'blob', mimeType: 'application/epub+zip' });
+  const newSize = newBlob.size;
+  const timeElapsed = (Date.now() - startTime) / 1000;
+  log('Conversion complete!', 'success', 'DONE');
+  logSummary(totalImageSize > 0 ? totalImageSize : originalSize, totalNewSize > 0 ? totalNewSize : newSize, timeElapsed);
+  if (!isBatchMode && exportLogCheckbox && exportLogCheckbox.checked) { setTimeout(() => { exportLogToFile(null, false); }, 100); }
+  return newBlob;
+}
 
 // Get WebSocket URL based on current page location
 function getWsUrl() {
@@ -1367,14 +3334,15 @@ function getWsUrl() {
 function uploadFileWebSocket(file, onProgress, onComplete, onError) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(getWsUrl());
+    currentUploadWs = ws;
     let uploadStarted = false;
     let sendingChunks = false;
+    let uploadComplete = false;
 
     ws.binaryType = 'arraybuffer';
 
     ws.onopen = function() {
       console.log('[WS] Connected, starting upload:', file.name);
-      // Send start message: START:<filename>:<size>:<path>
       ws.send(`START:${file.name}:${file.size}:${currentPath}`);
     };
 
@@ -1385,40 +3353,22 @@ function uploadFileWebSocket(file, onProgress, onComplete, onError) {
       if (msg === 'READY') {
         uploadStarted = true;
         sendingChunks = true;
-
-        // Small delay to let connection stabilize
         await new Promise(r => setTimeout(r, 50));
-
         try {
-          // Send file in chunks
           const totalSize = file.size;
           let offset = 0;
-
           while (offset < totalSize && ws.readyState === WebSocket.OPEN) {
             const chunkSize = Math.min(WS_CHUNK_SIZE, totalSize - offset);
             const chunk = file.slice(offset, offset + chunkSize);
             const buffer = await chunk.arrayBuffer();
-
-            // Wait for buffer to clear - more aggressive backpressure
             while (ws.bufferedAmount > WS_CHUNK_SIZE * 2 && ws.readyState === WebSocket.OPEN) {
               await new Promise(r => setTimeout(r, 5));
             }
-
-            if (ws.readyState !== WebSocket.OPEN) {
-              throw new Error('WebSocket closed during upload');
-            }
-
+            if (ws.readyState !== WebSocket.OPEN) throw new Error('WebSocket closed during upload');
             ws.send(buffer);
             offset += chunkSize;
-
-            // Update local progress - cap at 95% since server still needs to write
-            // Final 100% shown when server confirms DONE
-            if (onProgress) {
-              const cappedOffset = Math.min(offset, Math.floor(totalSize * 0.95));
-              onProgress(cappedOffset, totalSize);
-            }
+            if (onProgress) onProgress(offset, totalSize);
           }
-
           sendingChunks = false;
           console.log('[WS] All chunks sent, waiting for DONE');
         } catch (err) {
@@ -1428,12 +3378,11 @@ function uploadFileWebSocket(file, onProgress, onComplete, onError) {
           reject(err);
         }
       } else if (msg.startsWith('PROGRESS:')) {
-        // Server confirmed progress - log for debugging but don't update UI
-        // (local progress is smoother, server progress causes jumping)
         console.log('[WS] Server progress:', msg);
       } else if (msg === 'DONE') {
-        // Show 100% when server confirms completion
         if (onProgress) onProgress(file.size, file.size);
+        uploadComplete = true;
+        currentUploadWs = null;
         ws.close();
         if (onComplete) onComplete();
         resolve();
@@ -1447,18 +3396,14 @@ function uploadFileWebSocket(file, onProgress, onComplete, onError) {
 
     ws.onerror = function(event) {
       console.error('[WS] Error:', event);
-      if (!uploadStarted) {
-        reject(new Error('WebSocket connection failed'));
-      } else if (!sendingChunks) {
-        reject(new Error('WebSocket error during upload'));
-      }
+      currentUploadWs = null;
+      if (!uploadStarted) reject(new Error('WebSocket connection failed'));
+      else reject(new Error('WebSocket error during upload'));
     };
 
     ws.onclose = function(event) {
       console.log('[WS] Connection closed, code:', event.code, 'reason:', event.reason);
-      if (sendingChunks) {
-        reject(new Error('WebSocket closed unexpectedly'));
-      }
+      if (!uploadComplete) reject(new Error('WebSocket closed during upload'));
     };
   });
 }
@@ -1468,33 +3413,13 @@ function uploadFileHTTP(file, onProgress, onComplete, onError) {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append('file', file);
-
     const xhr = new XMLHttpRequest();
+    currentUploadXhr = xhr;
     xhr.open('POST', '/upload?path=' + encodeURIComponent(currentPath), true);
-
-    xhr.upload.onprogress = function(e) {
-      if (e.lengthComputable && onProgress) {
-        onProgress(e.loaded, e.total);
-      }
-    };
-
-    xhr.onload = function() {
-      if (xhr.status === 200) {
-        if (onComplete) onComplete();
-        resolve();
-      } else {
-        const error = xhr.responseText || 'Upload failed';
-        if (onError) onError(error);
-        reject(new Error(error));
-      }
-    };
-
-    xhr.onerror = function() {
-      const error = 'Network error';
-      if (onError) onError(error);
-      reject(new Error(error));
-    };
-
+    xhr.upload.onprogress = function(e) { if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total); };
+    xhr.onload = function() { currentUploadXhr = null; if (xhr.status === 200) { if (onComplete) onComplete(); resolve(); } else { const error = xhr.responseText || 'Upload failed'; if (onError) onError(error); reject(new Error(error)); } };
+    xhr.onerror = function() { currentUploadXhr = null; const error = 'Network error'; if (onError) onError(error); reject(new Error(error)); };
+    xhr.onabort = function() { currentUploadXhr = null; reject(new Error('Upload aborted')); };
     xhr.send(formData);
   });
 }
@@ -1502,11 +3427,14 @@ function uploadFileHTTP(file, onProgress, onComplete, onError) {
 function uploadFile() {
   const fileInput = document.getElementById('fileInput');
   const files = Array.from(fileInput.files);
+  const convertEnabled = document.getElementById('convertBeforeUpload').checked;
 
-  if (files.length === 0) {
-    alert('Please select at least one file!');
-    return;
-  }
+  if (files.length === 0) { alert('Please select at least one file!'); return; }
+
+  isUploadInProgress = true;
+  uploadGeneration++;
+  const myGeneration = uploadGeneration;
+  document.getElementById('uploadModalClose').classList.add('disabled');
 
   const progressContainer = document.getElementById('progress-container');
   const progressFill = document.getElementById('progress-fill');
@@ -1518,80 +3446,116 @@ function uploadFile() {
 
   let currentIndex = 0;
   const failedFiles = [];
-  let useWebSocket = true; // Try WebSocket first
+  let useWebSocket = true;
+
+  const epubFilesToConvert = files.filter(f => f.name.toLowerCase().endsWith('.epub') && convertEnabled);
+  const useBatchLog = epubFilesToConvert.length > 1 && exportLogCheckbox && exportLogCheckbox.checked;
+  if (useBatchLog) { startBatchLog(epubFilesToConvert.length); showLog(); }
 
   async function uploadNextFile() {
     if (currentIndex >= files.length) {
-      // All files processed - show summary
       if (failedFiles.length === 0) {
         progressFill.style.backgroundColor = '#4caf50';
         progressText.textContent = 'All uploads complete!';
-        setTimeout(() => {
-          closeUploadModal();
-          hydrate();
-        }, 1000);
+        if (useBatchLog) { finalizeBatchLog(); setTimeout(() => { window.location.reload(); }, 2000); }
+        else { setTimeout(() => { window.location.reload(); }, 1000); }
       } else {
         progressFill.style.backgroundColor = '#e74c3c';
-        const failedList = failedFiles.map(f => f.name).join(', ');
-        progressText.textContent = `${files.length - failedFiles.length}/${files.length} uploaded. Failed: ${failedList}`;
-        failedUploadsGlobal = failedFiles;
-        setTimeout(() => {
+        progressText.textContent = `${files.length - failedFiles.length}/${files.length} uploaded. Failed: ${failedFiles.map(f => f.name).join(', ')}`;
+        if (useBatchLog) { failedFiles.forEach(ff => logError(`Upload failed for ${ff.name}: ${ff.error}`)); finalizeBatchLog(); }
+        if (failedFiles.length > 0) {
+          failedUploadsGlobal = failedUploadsGlobal.concat(failedFiles);
+          isUploadInProgress = false;
+          document.getElementById('uploadModalClose').classList.remove('disabled');
           closeUploadModal();
           showFailedUploadsBanner();
-          hydrate();
-        }, 2000);
+        }
       }
       return;
     }
 
-    const file = files[currentIndex];
+    let file = files[currentIndex];
+    const originalFile = file;
+    progressFill.classList.add('no-transition');
     progressFill.style.width = '0%';
     progressFill.style.backgroundColor = '#27ae60';
+    setTimeout(() => progressFill.classList.remove('no-transition'), 50);
+
+    const isEpub = file.name.toLowerCase().endsWith('.epub');
+    const needsConversion = isEpub && convertEnabled;
+    let conversionSucceeded = false;
+    let conversionFailed = false;
+
     const methodText = useWebSocket ? ' [WS]' : ' [HTTP]';
-    progressText.textContent = `Uploading ${file.name} (${currentIndex + 1}/${files.length})${methodText}`;
+    progressText.style.color = '';
+    progressText.textContent = `${needsConversion ? 'Converting & uploading' : 'Uploading'} ${file.name} (${currentIndex + 1}/${files.length})${methodText}`;
 
     const onProgress = (loaded, total) => {
-      const percent = Math.round((loaded / total) * 100);
-      progressFill.style.width = percent + '%';
-      const speed = ''; // Could calculate speed here
-      progressText.textContent = `Uploading ${file.name} (${currentIndex + 1}/${files.length})${methodText} — ${percent}%`;
+      const uploadPercent = Math.round((loaded / total) * 100);
+      const displayPercent = conversionSucceeded ? 50 + Math.round(uploadPercent / 2) : uploadPercent;
+      progressFill.style.width = displayPercent + '%';
+      progressText.textContent = `${conversionSucceeded ? 'Converting & uploading' : 'Uploading'} ${file.name} (${currentIndex + 1}/${files.length})${methodText} \u2014 ${uploadPercent}%`;
     };
 
     const onComplete = () => {
+      if (useBatchLog && needsConversion) saveToFileBatchLog(file.name, !conversionFailed && conversionSucceeded);
       currentIndex++;
       uploadNextFile();
     };
 
     const onError = (error) => {
-      failedFiles.push({ name: file.name, error: error, file: file });
+      if (useBatchLog && needsConversion) { logError(`Upload failed: ${error}`); saveToFileBatchLog(file.name, false); }
+      failedFiles.push({ name: file.name, error: error, file: originalFile });
+      if (error.includes('connection failed') || error.includes('Network error') || error.includes('timeout')) {
+        files.slice(currentIndex + 1).forEach(rf => { failedFiles.push({ name: rf.name, error: 'Network error - upload interrupted', file: rf }); });
+        failedUploadsGlobal = failedUploadsGlobal.concat(failedFiles);
+        isUploadInProgress = false;
+        document.getElementById('uploadModalClose').classList.remove('disabled');
+        closeUploadModal();
+        showFailedUploadsBanner();
+        return;
+      }
       currentIndex++;
       uploadNextFile();
     };
 
     try {
-      if (useWebSocket) {
-        await uploadFileWebSocket(file, onProgress, null, null);
-        onComplete();
-      } else {
-        await uploadFileHTTP(file, onProgress, null, null);
-        onComplete();
+      if (needsConversion) {
+        progressFill.style.backgroundColor = '#9b59b6';
+        progressText.textContent = `Converting ${file.name} (${currentIndex + 1}/${files.length})...`;
+        if (!useBatchLog) { clearLog(); showLog(); }
+        try {
+          const convertedBlob = await convertEpubFile(file, (percent) => { progressFill.style.width = (percent * 0.5) + '%'; });
+          file = new File([convertedBlob], file.name, { type: 'application/epub+zip' });
+          progressFill.style.backgroundColor = '#27ae60';
+          conversionSucceeded = true;
+        } catch (convError) {
+          if (operationCancelled) { if (uploadGeneration === myGeneration) restoreAfterCancel(); return; }
+          console.error('Conversion error:', convError);
+          logError(`Conversion failed: ${convError.message}`);
+          log('Uploading original file instead...', 'warning', 'INFO');
+          conversionFailed = true;
+          progressText.textContent = `Conversion failed, uploading original ${file.name}...`;
+          progressFill.style.backgroundColor = '#e67e22';
+          progressFill.style.width = '0%';
+        }
       }
+
+      if (useWebSocket) { await uploadFileWebSocket(file, onProgress, null, null); }
+      else { await uploadFileHTTP(file, onProgress, null, null); }
+      progressFill.style.width = '100%';
+      progressText.textContent = `Upload complete: ${file.name}`;
+      onComplete();
     } catch (error) {
+      if (operationCancelled) { if (uploadGeneration === myGeneration) restoreAfterCancel(); return; }
       console.error('Upload error:', error);
+      if (conversionSucceeded) logError(`Upload failed: ${error.message}`);
       if (useWebSocket && error.message === 'WebSocket connection failed') {
-        // Fall back to HTTP for all subsequent uploads
         console.log('WebSocket failed, falling back to HTTP');
         useWebSocket = false;
-        // Retry this file with HTTP
-        try {
-          await uploadFileHTTP(file, onProgress, null, null);
-          onComplete();
-        } catch (httpError) {
-          onError(httpError.message);
-        }
-      } else {
-        onError(error.message);
-      }
+        try { await uploadFileHTTP(file, onProgress, null, null); onComplete(); }
+        catch (httpError) { onError(httpError.message); }
+      } else { onError(error.message); }
     }
   }
 

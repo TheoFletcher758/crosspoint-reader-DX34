@@ -260,7 +260,6 @@ void GfxRenderer::drawTextSpaced(const int fontId, const int x, const int y,
   }
 
   int yPos = y + getFontAscenderSize(fontId);
-  int xpos = x;
 
   // cannot draw a NULL / empty string
   if (text == nullptr || *text == '\0') {
@@ -279,11 +278,26 @@ void GfxRenderer::drawTextSpaced(const int fontId, const int x, const int y,
     return;
   }
 
+  // Use fixed-point accumulator to eliminate per-glyph rounding drift.
+  // Each glyph advance is accumulated in 12.4 FP and snapped only when
+  // computing the actual pixel position for rendering.
+  int32_t cursorXFP = fp4::fromPixel(x);
+  const int32_t letterSpacingFP = fp4::fromPixel(letterSpacing);
+
   uint32_t cp;
   while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t **>(&text)))) {
+    // Look up glyph advance before rendering
+    const EpdGlyph *glyph = font.getGlyph(cp, style);
+    if (!glyph) glyph = font.getGlyph(REPLACEMENT_GLYPH, style);
+
+    // Snap FP accumulator to pixel for this glyph's render position
+    int xpos = fp4::toPixel(cursorXFP);
     renderChar(font, cp, &xpos, &yPos, black, style);
+
+    // Advance in fixed-point (ignoring the integer advance written by renderChar)
+    if (glyph) cursorXFP += glyph->advanceX;
     if (letterSpacing != 0 && text != nullptr && *text != '\0') {
-      xpos += letterSpacing;
+      cursorXFP += letterSpacingFP;
     }
   }
 }
@@ -983,20 +997,21 @@ int GfxRenderer::getTextAdvanceXSpaced(const int fontId, const char *text,
   }
 
   uint32_t cp;
-  int width = 0;
+  int32_t widthFP = 0;
   const auto &font = fontIt->second;
+  const int32_t letterSpacingFP = fp4::fromPixel(letterSpacing);
   while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t **>(&text)))) {
     const EpdGlyph *glyph = font.getGlyph(cp, style);
     if (!glyph)
       glyph = font.getGlyph(REPLACEMENT_GLYPH, style);
     if (glyph) {
-      width += fp4::toPixel(glyph->advanceX);
+      widthFP += glyph->advanceX;
       if (letterSpacing != 0 && text != nullptr && *text != '\0') {
-        width += letterSpacing;
+        widthFP += letterSpacingFP;
       }
     }
   }
-  return width;
+  return fp4::toPixel(widthFP);
 }
 
 int GfxRenderer::getFontAscenderSize(const int fontId) const {

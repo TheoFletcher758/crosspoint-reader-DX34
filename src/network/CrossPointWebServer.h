@@ -117,6 +117,8 @@ class CrossPointWebServer {
   void handleMove() const;
   void handleDelete() const;
   void handleSearch() const;
+  void handleJszip() const;
+  void abortWsUpload(const char* tag);
 
   // Settings handlers
   void handleSettingsPage() const;

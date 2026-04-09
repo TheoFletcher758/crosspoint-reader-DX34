@@ -443,12 +443,16 @@ void ParsedText::extractLine(
   const int spareSpace = effectivePageWidth - lineWordWidthSum;
 
   int spacing = spaceWidth;
+  int spacingRemainder = 0;
   const bool isLastLine = breakIndex == lineBreakIndices.size() - 1;
 
-  // For justified text, calculate spacing based on actual gap count
+  // For justified text, distribute spare space across gaps.
+  // Use Bresenham-style remainder distribution so no pixels are lost:
+  // each gap gets baseSpacing, and the first `remainder` gaps get +1px.
   if (blockStyle.alignment == CssTextAlign::Justify && !isLastLine &&
       actualGapCount >= 1) {
     spacing = spareSpace / static_cast<int>(actualGapCount);
+    spacingRemainder = spareSpace - spacing * static_cast<int>(actualGapCount);
   }
 
   // Calculate initial x position (first line starts at indent for left/justified text;
@@ -464,6 +468,7 @@ void ParsedText::extractLine(
   // Continuation words attach to the previous word with no space before them
   std::vector<int16_t> lineXPos;
   lineXPos.reserve(lineWordCount);
+  int gapIndex = 0;
 
   for (size_t wordIdx = 0; wordIdx < lineWordCount; wordIdx++) {
     const uint16_t currentWordWidth = wordWidths[lastBreakAt + wordIdx];
@@ -474,7 +479,13 @@ void ParsedText::extractLine(
     const bool nextIsContinuation =
         wordIdx + 1 < lineWordCount && continuesVec[lastBreakAt + wordIdx + 1];
 
-    xpos += currentWordWidth + (nextIsContinuation ? 0 : spacing);
+    if (nextIsContinuation) {
+      xpos += currentWordWidth;
+    } else {
+      const int extra = (gapIndex < spacingRemainder) ? 1 : 0;
+      xpos += currentWordWidth + spacing + extra;
+      gapIndex++;
+    }
   }
 
   // Build line data by moving from the original vectors using index range
