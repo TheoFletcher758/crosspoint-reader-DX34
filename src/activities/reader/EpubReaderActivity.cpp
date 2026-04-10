@@ -956,6 +956,18 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       requestUpdate();
       break;
     }
+    case EpubReaderMenuActivity::MenuAction::TRIAGE_PAUSE_ROTATION: {
+      APP_STATE.wallpaperRotationPaused = !APP_STATE.wallpaperRotationPaused;
+      APP_STATE.saveToFile();
+      StatusPopup::showBlocking(renderer,
+                                APP_STATE.wallpaperRotationPaused ? "Rotation paused"
+                                                                 : "Rotation unpaused");
+      delay(500);
+      exitActivity();
+      pendingMenuOpen = false;
+      requestUpdate();
+      break;
+    }
     case EpubReaderMenuActivity::MenuAction::TRIAGE_MOVE_PAUSE: {
       const std::string lastPath = APP_STATE.lastSleepWallpaperPath;
       if (lastPath.empty()) break;
@@ -989,6 +1001,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
         if (ok) {
           Storage.remove(lastPath.c_str());
           FavoriteBmp::replacePathReferences(lastPath, dstPath);
+          APP_STATE.wallpaperRotationPaused = false;
           APP_STATE.saveToFile();
         } else {
           Storage.remove(dstPath.c_str());
@@ -1011,6 +1024,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       const bool removed = Storage.remove(lastPath.c_str());
       if (removed) {
         FavoriteBmp::removePathReferences(lastPath);
+        APP_STATE.wallpaperRotationPaused = false;
         APP_STATE.saveToFile();
       }
       StatusPopup::showBlocking(renderer, removed ? "Wallpaper deleted" : "Delete failed");

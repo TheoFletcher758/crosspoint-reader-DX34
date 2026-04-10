@@ -352,6 +352,7 @@ bool JsonSettingsIO::saveState(const CrossPointState &s, const char *path) {
   doc["readerActivityLoadCount"] = s.readerActivityLoadCount;
   doc["sessionPagesRead"] = s.sessionPagesRead;
   doc["lastSleepFromReader"] = s.lastSleepFromReader;
+  doc["wallpaperRotationPaused"] = s.wallpaperRotationPaused;
   // Only persist the playlist for small collections. Large collections track
   // position by filename alone to avoid heap exhaustion and huge state files.
   if (s.sleepImagePlaylist.size() <= CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) {
@@ -385,6 +386,7 @@ bool JsonSettingsIO::loadState(CrossPointState &s, const char *json) {
   s.readerActivityLoadCount = doc["readerActivityLoadCount"] | (uint8_t)0;
   s.sessionPagesRead = doc["sessionPagesRead"] | (uint32_t)0;
   s.lastSleepFromReader = doc["lastSleepFromReader"] | false;
+  s.wallpaperRotationPaused = doc["wallpaperRotationPaused"] | false;
   s.sleepImagePlaylist.clear();
   if (doc["sleepImagePlaylist"].is<JsonArray>()) {
     for (const JsonVariant value : doc["sleepImagePlaylist"].as<JsonArray>()) {

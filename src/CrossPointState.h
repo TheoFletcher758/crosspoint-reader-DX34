@@ -34,6 +34,7 @@ class CrossPointState {
   uint8_t readerActivityLoadCount = 0;
   uint32_t sessionPagesRead = 0;
   bool lastSleepFromReader = false;
+  bool wallpaperRotationPaused = false;
   ~CrossPointState() = default;
 
   // Get singleton instance

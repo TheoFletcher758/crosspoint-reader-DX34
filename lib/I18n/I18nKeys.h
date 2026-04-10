@@ -449,6 +449,8 @@ enum class StrId : uint16_t {
   STR_TRIAGE_DELETE,
   STR_FAVORITE,
   STR_UNFAVORITE,
+  STR_TRIAGE_PAUSE,
+  STR_TRIAGE_UNPAUSE,
   // Sentinel - must be last
   _COUNT
 };

@@ -47,6 +47,9 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
     const bool isFav = FavoriteBmp::isFavoritePath(wallpaperPath);
     items.push_back({MenuAction::TRIAGE_FAVORITE,
                      isFav ? StrId::STR_UNFAVORITE : StrId::STR_FAVORITE});
+    items.push_back({MenuAction::TRIAGE_PAUSE_ROTATION,
+                     APP_STATE.wallpaperRotationPaused ? StrId::STR_TRIAGE_UNPAUSE
+                                                      : StrId::STR_TRIAGE_PAUSE});
     items.push_back({MenuAction::TRIAGE_MOVE_PAUSE, StrId::STR_MOVE_TO_SLEEP_PAUSE});
     items.push_back({MenuAction::TRIAGE_DELETE, StrId::STR_TRIAGE_DELETE});
   }
