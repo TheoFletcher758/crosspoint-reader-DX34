@@ -102,6 +102,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   bool pendingGoHome = false;           // Defer go home to avoid race condition with display task
   bool pendingGoLibrary = false;        // Defer go library after destructive actions
   bool pendingMenuOpen = false;
+  bool pendingThemeReload = false;      // Defer settings reload after ReadingThemesActivity exits
   unsigned long lastConfirmReleaseMs = 0;
   bool confirmLongPressHandled = false;
   bool progressDirty = false;

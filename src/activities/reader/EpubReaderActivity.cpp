@@ -502,8 +502,14 @@ void EpubReaderActivity::loop() {
     // use-after-free
     if (pendingSubactivityExit) {
       pendingSubactivityExit = false;
+      const bool shouldReloadTheme = pendingThemeReload;
+      pendingThemeReload = false;
       exitActivity();  // suppressUntilAllReleased() called inside
-      requestUpdate();
+      if (shouldReloadTheme) {
+        reloadCurrentSectionForDisplaySettings();
+      } else {
+        requestUpdate();
+      }
     }
     // Deferred go home: process after subActivity->loop() returns to avoid race
     // condition
@@ -922,14 +928,9 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       exitActivity();
       enterNewActivity(new ReadingThemesActivity(renderer, mappedInput, epub ? epub->getCachePath() : std::string(),
                                                  [this](const bool changed) {
-                                                   exitActivity();
+                                                   pendingSubactivityExit = true;
                                                    pendingMenuOpen = false;
-                                                   // Input suppression handled by exitActivity()
-                                                   if (changed) {
-                                                     reloadCurrentSectionForDisplaySettings();
-                                                   } else {
-                                                     requestUpdate();
-                                                   }
+                                                   pendingThemeReload = changed;
                                                  }));
       break;
     }
