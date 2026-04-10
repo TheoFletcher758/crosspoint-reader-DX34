@@ -460,14 +460,43 @@ void setup() {
 
   LOG_INF("MAIN", "Booting complete, checking initial activity");
 
-  // Determine boot destination: home screen or last open book.
-  const bool goHome = APP_STATE.openEpubPath.empty() || !APP_STATE.lastSleepFromReader ||
-                      mappedInputManager.isPressed(MappedInputManager::Button::Back) ||
-                      APP_STATE.readerActivityLoadCount > 0;
-
   // Always load recents early — reader activities call addBook() which saves
   // to disk, so an unloaded list would overwrite the file with just one entry.
   RECENT_BOOKS.loadFromFile();
+
+  // Safety: skip straight to reader if Back held or crash-loop detected.
+  const bool forcedHome = mappedInputManager.isPressed(MappedInputManager::Button::Back) ||
+                          APP_STATE.readerActivityLoadCount > 0;
+
+  // Build list of .epub books from recents for boot-into-book logic.
+  std::vector<const RecentBook*> recentEpubs;
+  if (!forcedHome) {
+    for (const auto& b : RECENT_BOOKS.getBooks()) {
+      if (b.path.size() > 5 && b.path.rfind(".epub") == b.path.size() - 5) {
+        recentEpubs.push_back(&b);
+      }
+    }
+  }
+
+  // Determine boot destination.
+  // Always open a book when possible: random pick or most-recent epub.
+  // Fall back to home only if forced or no epubs in recents.
+  std::string readerPath;
+  if (!forcedHome && !recentEpubs.empty()) {
+    if (SETTINGS.randomBookOnBoot && recentEpubs.size() > 1) {
+      readerPath = recentEpubs[random(static_cast<long>(recentEpubs.size()))]->path;
+    } else {
+      readerPath = recentEpubs.front()->path;
+    }
+  }
+
+  const bool goHome = readerPath.empty();
+
+  if (!goHome) {
+    APP_STATE.openEpubPath = "";
+    APP_STATE.readerActivityLoadCount++;
+    APP_STATE.saveToFile();
+  }
 
   // Defer sleep cache trimming until home screen is actually needed.
   if (goHome) {
@@ -477,20 +506,11 @@ void setup() {
   }
   bootActivity->setProgress(80, goHome ? "Preparing home" : "Resuming book");
 
-  // Capture reader path before we potentially clear it.
-  std::string readerPath;
-  if (!goHome) {
-    readerPath = APP_STATE.openEpubPath;
-    APP_STATE.openEpubPath = "";
-    APP_STATE.readerActivityLoadCount++;
-    APP_STATE.saveToFile();
-  }
-
   if (goHome) {
     bootActivity->setProgress(100, "Opening home");
     onGoHome();
   } else {
-    bootActivity->setProgress(100, "Opening last book");
+    bootActivity->setProgress(100, "Opening book");
     onGoToReader(readerPath);
   }
 

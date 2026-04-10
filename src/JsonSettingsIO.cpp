@@ -468,6 +468,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["paragraphAlignment"] = s.paragraphAlignment;
   doc["sleepTimeout"] = s.sleepTimeout;
   doc["showHiddenFiles"] = s.showHiddenFiles;
+  doc["randomBookOnBoot"] = s.randomBookOnBoot;
   doc["refreshFrequency"] = s.refreshFrequency;
   doc["screenMargin"] = s.screenMargin;
   doc["uniformMargins"] = s.uniformMargins;
@@ -769,6 +770,7 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
   s.sleepTimeout = clamp(doc["sleepTimeout"] | (uint8_t)S::SLEEP_10_MIN,
                          S::SLEEP_TIMEOUT_COUNT, S::SLEEP_10_MIN);
   s.showHiddenFiles = doc["showHiddenFiles"] | (uint8_t)0;
+  s.randomBookOnBoot = doc["randomBookOnBoot"] | (uint8_t)0;
   s.refreshFrequency = clamp(doc["refreshFrequency"] | (uint8_t)S::REFRESH_15,
                              S::REFRESH_FREQUENCY_COUNT, S::REFRESH_15);
   s.screenMargin = doc["screenMargin"] | (uint8_t)5;

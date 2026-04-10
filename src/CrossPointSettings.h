@@ -315,6 +315,8 @@ public:
   uint8_t sleepTimeout = SLEEP_10_MIN;
   // Show hidden files/directories (starting with '.') in file browser
   uint8_t showHiddenFiles = 0;
+  // Open a random epub from recents on boot instead of the last book
+  uint8_t randomBookOnBoot = 0;
   // E-ink refresh frequency (default 15 pages)
   uint8_t refreshFrequency = REFRESH_15;
   uint8_t hyphenationEnabled = 0;
