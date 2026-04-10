@@ -1417,8 +1417,8 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
     pageLoadFailCount = 0;
     refreshPageCacheWindow(section->currentPage, p);
 
-    // Collect footnotes from the loaded page
-    currentPageFootnotes = std::move(p->footnotes);
+    // Collect footnotes from the loaded page (copy, not move, to preserve cached page data)
+    currentPageFootnotes = p->footnotes;
     const auto start = millis();
     renderContents(*p, orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft,
                    statusBarLayout);
