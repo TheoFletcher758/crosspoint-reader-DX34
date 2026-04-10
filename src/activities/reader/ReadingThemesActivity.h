@@ -30,6 +30,9 @@ class ReadingThemesActivity final : public ActivityWithSubactivity {
   bool messagePopupOpen = false;
   std::string messagePopupText;
   bool settingsDirty = false;
+  bool pendingSubactivityExit = false;  // Defer subactivity exit to avoid use-after-free
+  bool pendingSettingsChanged = false;
+  std::function<void()> pendingPostExitAction;
 
   std::string bookCachePath;
   const std::function<void(bool)> onClose;

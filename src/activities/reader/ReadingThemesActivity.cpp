@@ -82,17 +82,19 @@ void ReadingThemesActivity::openKeyboardForNewTheme() {
       ReadingThemeStore::MAX_THEME_NAME_LENGTH, false,
       [this](const std::string& name) {
         const bool ok = READING_THEMES.addTheme(name);
-        exitActivity();
+        pendingSubactivityExit = true;
         if (!ok) {
-          showMessage(tr(STR_SAVE_THEME_FAILED));
+          pendingPostExitAction = [this]() {
+            showMessage(tr(STR_SAVE_THEME_FAILED));
+          };
           return;
         }
-        selectedRowIndex = rowCount() - 1;
-        requestUpdate();
+        pendingPostExitAction = [this]() {
+          selectedRowIndex = rowCount() - 1;
+        };
       },
       [this]() {
-        exitActivity();
-        requestUpdate();
+        pendingSubactivityExit = true;
       }));
 }
 
@@ -109,19 +111,21 @@ void ReadingThemesActivity::openKeyboardForRename(const int themeIndex) {
       ReadingThemeStore::MAX_THEME_NAME_LENGTH, false,
       [this, themeIndex](const std::string& name) {
         const bool ok = READING_THEMES.renameTheme(themeIndex, name);
-        exitActivity();
-        actionPopupOpen = false;
-        if (!ok) {
-          showMessage(tr(STR_RENAME_THEME_FAILED));
-          return;
-        }
-        selectedRowIndex = clampSelectedRow(kBaseRowCount + themeIndex);
-        requestUpdate();
+        pendingSubactivityExit = true;
+        pendingPostExitAction = [this, themeIndex, ok]() {
+          actionPopupOpen = false;
+          if (!ok) {
+            showMessage(tr(STR_RENAME_THEME_FAILED));
+            return;
+          }
+          selectedRowIndex = clampSelectedRow(kBaseRowCount + themeIndex);
+        };
       },
       [this]() {
-        exitActivity();
-        actionPopupOpen = false;
-        requestUpdate();
+        pendingSubactivityExit = true;
+        pendingPostExitAction = [this]() {
+          actionPopupOpen = false;
+        };
       }));
 }
 
@@ -177,6 +181,19 @@ void ReadingThemesActivity::executeThemeAction() {
 void ReadingThemesActivity::loop() {
   if (subActivity) {
     subActivity->loop();
+    // Deferred exit: process after subActivity->loop() returns to avoid
+    // use-after-free
+    if (pendingSubactivityExit) {
+      pendingSubactivityExit = false;
+      const bool changed = pendingSettingsChanged;
+      pendingSettingsChanged = false;
+      auto postAction = std::move(pendingPostExitAction);
+      pendingPostExitAction = nullptr;
+      exitActivity();
+      settingsDirty = settingsDirty || changed;
+      if (postAction) postAction();
+      requestUpdate();
+    }
     return;
   }
 
@@ -229,9 +246,8 @@ void ReadingThemesActivity::loop() {
       exitActivity();
       enterNewActivity(new ReaderSettingsActivity(
           renderer, mappedInput, bookCachePath, [this](const bool changed) {
-            exitActivity();
-            settingsDirty = settingsDirty || changed;
-            requestUpdate();
+            pendingSubactivityExit = true;
+            pendingSettingsChanged = changed;
           }));
       return;
     }
