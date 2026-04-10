@@ -1001,6 +1001,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
         if (ok) {
           Storage.remove(lastPath.c_str());
           FavoriteBmp::replacePathReferences(lastPath, dstPath);
+          APP_STATE.wallpaperRotationPaused = false;
           APP_STATE.saveToFile();
         } else {
           Storage.remove(dstPath.c_str());
@@ -1023,6 +1024,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       const bool removed = Storage.remove(lastPath.c_str());
       if (removed) {
         FavoriteBmp::removePathReferences(lastPath);
+        APP_STATE.wallpaperRotationPaused = false;
         APP_STATE.saveToFile();
       }
       StatusPopup::showBlocking(renderer, removed ? "Wallpaper deleted" : "Delete failed");
