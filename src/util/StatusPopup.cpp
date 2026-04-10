@@ -5,6 +5,7 @@
 
 #include <algorithm>
 
+#include "TransitionFeedback.h"
 #include "components/UITheme.h"
 
 namespace StatusPopup {
@@ -23,6 +24,7 @@ void showBlockingImpl(GfxRenderer& renderer, const std::string& message) {
   if (message.empty()) {
     return;
   }
+  TransitionFeedback::dismiss(renderer);
   const std::string uppercaseMessage = toUpperAscii(message);
   GUI.drawPopup(renderer, uppercaseMessage.c_str());
 }
