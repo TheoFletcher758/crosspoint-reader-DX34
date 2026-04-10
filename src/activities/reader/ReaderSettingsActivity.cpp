@@ -32,23 +32,37 @@ int readerFontIdFor(const uint8_t family, const uint8_t fontSize) {
   if (CrossPointSettings::normalizeFontFamily(family) ==
       CrossPointSettings::BOOKERLY) {
     switch (normalizedFontSize) {
+    case CrossPointSettings::SIZE_13:
+      return BOOKERLY_13_FONT_ID;
+    case CrossPointSettings::SIZE_14:
+      return BOOKERLY_14_FONT_ID;
     case CrossPointSettings::MEDIUM:
       return BOOKERLY_15_FONT_ID;
+    case CrossPointSettings::SIZE_16:
+      return BOOKERLY_16_FONT_ID;
+    case CrossPointSettings::LARGE:
+      return BOOKERLY_17_FONT_ID;
     case CrossPointSettings::SIZE_18:
-      return BOOKERLY_18_FONT_ID;
     default:
-      return BOOKERLY_13_FONT_ID;
+      return BOOKERLY_18_FONT_ID;
     }
   }
   if (CrossPointSettings::normalizeFontFamily(family) ==
       CrossPointSettings::VOLLKORN) {
     switch (normalizedFontSize) {
+    case CrossPointSettings::SIZE_13:
+      return VOLLKORN_13_FONT_ID;
+    case CrossPointSettings::SIZE_14:
+      return VOLLKORN_14_FONT_ID;
+    case CrossPointSettings::MEDIUM:
+      return VOLLKORN_15_FONT_ID;
+    case CrossPointSettings::SIZE_16:
+      return VOLLKORN_16_FONT_ID;
     case CrossPointSettings::LARGE:
       return VOLLKORN_17_FONT_ID;
     case CrossPointSettings::SIZE_18:
-      return VOLLKORN_18_FONT_ID;
     default:
-      return VOLLKORN_15_FONT_ID;
+      return VOLLKORN_18_FONT_ID;
     }
   }
   switch (normalizedFontSize) {

@@ -249,11 +249,10 @@ ParsedText::computeLineBreaks(const GfxRenderer &renderer, const int fontId,
   }
 
   // Calculate first line indent (only for left/justified text).
-  // Positive text-indent (paragraph indent) is suppressed when extraParagraphSpacing is on.
   // Negative text-indent (hanging indent, e.g. margin-left:3em; text-indent:-1em) always applies —
   // it is structural (positions the bullet/marker), not decorative.
   const int firstLineIndent =
-      blockStyle.textIndentDefined && (blockStyle.textIndent < 0 || !extraParagraphSpacing) &&
+      blockStyle.textIndentDefined &&
               (blockStyle.alignment == CssTextAlign::Justify ||
                blockStyle.alignment == CssTextAlign::Left)
           ? blockStyle.textIndent
@@ -413,11 +412,10 @@ void ParsedText::extractLine(
   const size_t lineWordCount = lineBreak - lastBreakAt;
 
   // Calculate first line indent (only for left/justified text).
-  // Positive text-indent is suppressed when extraParagraphSpacing is on.
   // Negative text-indent (hanging indent) always applies — it is structural.
   const bool isFirstLine = breakIndex == 0;
   const int firstLineIndent =
-      isFirstLine && blockStyle.textIndentDefined && (blockStyle.textIndent < 0 || !extraParagraphSpacing) &&
+      isFirstLine && blockStyle.textIndentDefined &&
               (blockStyle.alignment == CssTextAlign::Justify ||
                blockStyle.alignment == CssTextAlign::Left)
           ? blockStyle.textIndent

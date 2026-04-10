@@ -13,7 +13,7 @@ for size in ${CHAREINK_FONT_SIZES[@]}; do
   done
 done
 
-BOOKERLY_FONT_SIZES=(13 15 18)
+BOOKERLY_FONT_SIZES=(13 14 15 16 18)
 BOOKERLY_STYLES=("Regular:Bookerly.ttf" "Bold:Bookerly Bold.ttf" "Italic:Bookerly Italic.ttf")
 for size in ${BOOKERLY_FONT_SIZES[@]}; do
   for entry in "${BOOKERLY_STYLES[@]}"; do
@@ -39,7 +39,7 @@ for size in ${FREESERIF_FONT_SIZES[@]}; do
 done
 
 # Georgia: only regular, bold, italic (no bold-italic source)
-VOLLKORN_FONT_SIZES=(15 17 18)
+VOLLKORN_FONT_SIZES=(14 15 16 17 18)
 VOLLKORN_STYLES=("Regular:Vollkorn-Regular.ttf" "Bold:Vollkorn-Bold.ttf" "Italic:Vollkorn-Italic.ttf")
 for size in ${VOLLKORN_FONT_SIZES[@]}; do
   for entry in "${VOLLKORN_STYLES[@]}"; do
