@@ -25,6 +25,7 @@ class EpubReaderMenuActivity final : public ActivityWithSubactivity {
     DELETE_BOOK,
     REMOVE_FROM_RECENT,
     TRIAGE_FAVORITE,
+    TRIAGE_PAUSE_ROTATION,
     TRIAGE_MOVE_PAUSE,
     TRIAGE_DELETE,
   };

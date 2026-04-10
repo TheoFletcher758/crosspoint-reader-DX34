@@ -264,6 +264,26 @@ void SleepActivity::onEnter() {
 }
 
 void SleepActivity::renderCustomSleepScreen() const {
+  // When rotation is paused, re-show the same wallpaper without advancing.
+  if (APP_STATE.wallpaperRotationPaused &&
+      !APP_STATE.lastSleepWallpaperPath.empty() &&
+      Storage.exists(APP_STATE.lastSleepWallpaperPath.c_str())) {
+    FsFile file;
+    if (Storage.openFileForRead("SLP", APP_STATE.lastSleepWallpaperPath, file)) {
+      LOG_DBG("SLP", "Paused, re-showing: %s", APP_STATE.lastSleepWallpaperPath.c_str());
+      delay(100);
+      Bitmap bitmap(file, true);
+      if (bitmap.parseHeaders() == BmpReaderError::Ok) {
+        const std::string displayName =
+            FavoriteBmp::displayNameForPath(APP_STATE.lastSleepWallpaperPath);
+        renderBitmapSleepScreen(bitmap, displayName.c_str());
+        file.close();
+        return;
+      }
+      file.close();
+    }
+  }
+
   const auto files = getValidSleepBitmaps();
   if (!files.empty()) {
     std::string selectedImage;

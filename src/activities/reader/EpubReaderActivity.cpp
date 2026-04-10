@@ -956,6 +956,18 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       requestUpdate();
       break;
     }
+    case EpubReaderMenuActivity::MenuAction::TRIAGE_PAUSE_ROTATION: {
+      APP_STATE.wallpaperRotationPaused = !APP_STATE.wallpaperRotationPaused;
+      APP_STATE.saveToFile();
+      StatusPopup::showBlocking(renderer,
+                                APP_STATE.wallpaperRotationPaused ? "Rotation paused"
+                                                                 : "Rotation unpaused");
+      delay(500);
+      exitActivity();
+      pendingMenuOpen = false;
+      requestUpdate();
+      break;
+    }
     case EpubReaderMenuActivity::MenuAction::TRIAGE_MOVE_PAUSE: {
       const std::string lastPath = APP_STATE.lastSleepWallpaperPath;
       if (lastPath.empty()) break;
