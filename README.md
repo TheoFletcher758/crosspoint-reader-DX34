@@ -113,7 +113,7 @@ The EPUB reader is the core of the DX34 firmware. It includes persistent reading
 
 | Crisp mode | Dark mode | Bionic mode |
 |:---:|:---:|:---:|
-| ![Reader Crisp](./docs/images/screenshots/reader-crisp.jpg) | ![Reader Dark](./docs/images/screenshots/reader-dark.jpg) | ![Reader Bionic](./docs/images/screenshots/reader-bionic.jpg) |
+| <img src="./docs/images/screenshots/reader-crisp.jpg" width="250"/> | <img src="./docs/images/screenshots/reader-dark.jpg" width="250"/> | <img src="./docs/images/screenshots/reader-bionic.jpg" width="250"/> |
 
 ### In-book menu
 
