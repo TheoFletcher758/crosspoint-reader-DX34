@@ -111,9 +111,9 @@ EPUB is where the advanced DX34 reading work lives. TXT and XTC are supported bu
 
 The EPUB reader is the core of the DX34 firmware. It includes persistent reading position, chapter navigation, configurable text rendering, and a rich in-book workflow.
 
-| Crisp mode | Dark mode |
-|:---:|:---:|
-| ![Reader Crisp](./docs/images/screenshots/reader-crisp.jpg) | ![Reader Dark](./docs/images/screenshots/reader-dark.jpg) |
+| Crisp mode | Dark mode | Bionic mode |
+|:---:|:---:|:---:|
+| ![Reader Crisp](./docs/images/screenshots/reader-crisp.jpg) | ![Reader Dark](./docs/images/screenshots/reader-dark.jpg) | ![Reader Bionic](./docs/images/screenshots/reader-bionic.jpg) |
 
 ### In-book menu
 
@@ -213,7 +213,7 @@ While reading an EPUB:
 | Action | What It Does |
 |--------|--------------|
 | **Single tap OK** | Open the in-book menu |
-| **Double tap OK** | Toggle text render mode (Crisp / Dark) |
+| **Double tap OK** | Cycle text render mode (Crisp / Dark / Bionic) |
 | **Long press OK (1 second)** | Enter highlight / quote selection mode |
 | **Back** | Return home (or return from footnote) |
 | **Side / front page buttons** | Previous / next page |
@@ -229,8 +229,8 @@ The DX34 firmware ships with **three built-in reader font families**, each with 
 | Font | Style | Sizes Available | Character |
 |------|-------|-----------------|-----------|
 | **ChareInk** | Serif, optimized for e-ink | 14, 15, 16, 17, 18 | DX34-specific, clean and readable |
-| **Bookerly** | Serif | 13, 15, 18 | Amazon's reading font |
-| **Vollkorn** | Serif | 15, 17, 18 | Open-source book font |
+| **Bookerly** | Serif | 13, 14, 15, 16, 17, 18 | Amazon's reading font |
+| **Vollkorn** | Serif | 13, 14, 15, 16, 17, 18 | Open-source book font |
 
 | ChareInk | Bookerly | Vollkorn |
 |:---:|:---:|:---:|
@@ -248,26 +248,32 @@ The DX34 firmware ships with **three built-in reader font families**, each with 
 | 4 | 17 pt |
 | 5 | 18 pt |
 
-**Bookerly** — 3 sizes
+**Bookerly** — 6 sizes
 
 | Size | Point Size |
 |------|-----------|
 | 1 | 13 pt |
-| 2 | 15 pt |
-| 3 | 18 pt |
+| 2 | 14 pt |
+| 3 | 15 pt |
+| 4 | 16 pt |
+| 5 | 17 pt |
+| 6 | 18 pt |
 
-**Vollkorn** — 3 sizes
+**Vollkorn** — 6 sizes
 
 | Size | Point Size |
 |------|-----------|
-| 1 | 15 pt |
-| 2 | 17 pt |
-| 3 | 18 pt |
+| 1 | 13 pt |
+| 2 | 14 pt |
+| 3 | 15 pt |
+| 4 | 16 pt |
+| 5 | 17 pt |
+| 6 | 18 pt |
 
 ### How size switching works
 
 - When you switch font family, the firmware automatically remaps your current size to the nearest valid size for the new family.
-- For example, switching from ChareInk 16pt to Bookerly would land on Bookerly 15pt.
+- For example, switching from ChareInk 14pt to Bookerly would land on Bookerly 14pt. Bookerly and Vollkorn now share the same 13–18pt range, so switching between them preserves the exact size.
 
 ### Additional font notes
 
@@ -293,11 +299,11 @@ The firmware exposes extensive control over how text is rendered. All of these c
 | **First-line indent** | Book (follow CSS), Off, Small, Medium, Large | Book |
 | **Word spacing** | Tight, Normal, Wide, Extra Wide | Normal |
 | **Extra paragraph spacing** | Off, Small, Medium, Large | Off |
-| **Text render mode** | Crisp, Dark (quick toggle: double tap OK) | Crisp |
+| **Text render mode** | Crisp, Dark, Bionic (quick cycle: double tap OK) | Crisp |
 | **Reader style mode** | User (your settings override), Hybrid (blend with book CSS) | User |
 | **Embedded CSS** | On / Off | On |
 | **Hyphenation** | On / Off | — |
-| **Bold swap** | On / Off (double-tap OK shortcut) | Off |
+| **Bold swap** | On / Off | Off |
 
 | Device settings | In-book reader settings |
 |:---:|:---:|
