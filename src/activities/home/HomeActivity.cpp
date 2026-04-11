@@ -386,25 +386,36 @@ void HomeActivity::render(Activity::RenderLock &&) {
 
   const int sessionStatFont = UI_10_FONT_ID;
   const int sessionStatY = warningBottomY;
-  const std::string sessionPagesText =
-      std::string(tr(STR_SESSION_PAGES)) + ": " +
-      std::to_string(APP_STATE.sessionPagesRead);
+  const std::string labelText = tr(STR_SESSION_PAGES);
+  const std::string countText = std::to_string(APP_STATE.sessionPagesRead);
   const bool pagesSelected = selectorIndex == 0;
-  const int pagesTextWidth =
-      renderer.getTextWidth(sessionStatFont, sessionPagesText.c_str());
-  const int pagesTileX = metrics.contentSidePadding;
-  const int pagesTileWidth = pagesTextWidth + 16;
-  const int pagesTileHeight = renderer.getLineHeight(sessionStatFont) + 6;
-  const int pagesTileY = sessionStatY - 3;
+  const int labelTextW = renderer.getTextWidth(sessionStatFont, labelText.c_str());
+  const int countTextW = renderer.getTextWidth(sessionStatFont, countText.c_str());
+  const int tilePad = 8;
+  const int tileGap = 6;
+  const int tileH = renderer.getLineHeight(sessionStatFont) + 6;
+
+  // Label tile: "Pages Read" with border (or filled when selected)
+  const int labelTileX = metrics.contentSidePadding;
+  const int labelTileW = labelTextW + tilePad * 2;
+  const int labelTileY = sessionStatY - 3;
   if (pagesSelected) {
-    renderer.fillRect(pagesTileX, pagesTileY, pagesTileWidth, pagesTileHeight);
+    renderer.fillRect(labelTileX, labelTileY, labelTileW, tileH);
   } else {
-    renderer.drawRect(pagesTileX, pagesTileY, pagesTileWidth, pagesTileHeight, true);
+    renderer.drawRect(labelTileX, labelTileY, labelTileW, tileH, 3, true);
   }
-  renderer.drawText(sessionStatFont, pagesTileX + 8,
-                    pagesTileY + 3, sessionPagesText.c_str(), !pagesSelected);
+  renderer.drawText(sessionStatFont, labelTileX + tilePad,
+                    labelTileY + 3, labelText.c_str(), !pagesSelected);
+
+  // Count tile: black background with white text (like "N more below" indicator)
+  const int countTileX = labelTileX + labelTileW + tileGap;
+  const int countTileW = countTextW + tilePad * 2 + 8;
+  renderer.fillRect(countTileX, labelTileY, countTileW, tileH);
+  const int countTextX = countTileX + (countTileW - countTextW) / 2;
+  renderer.drawText(sessionStatFont, countTextX,
+                    labelTileY + 3, countText.c_str(), false);
   warningBottomY =
-      pagesTileY + pagesTileHeight + 9;
+      labelTileY + tileH + 9;
 
   const auto menuItems = buildHomeMenuItems(hasOpdsUrl);
   const int menuCount = static_cast<int>(menuItems.size());
