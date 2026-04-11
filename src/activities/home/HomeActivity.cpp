@@ -159,6 +159,7 @@ void HomeActivity::onEnter() {
   hasOpdsUrl = strlen(SETTINGS.opdsServerUrl) > 0;
 
   selectorIndex = 1;  // Default focus on first recent book
+  scrollOffset = 0;
 
   auto metrics = UITheme::getInstance().getMetrics();
   loadRecentBooks(metrics.homeRecentBooksCount);
@@ -230,11 +231,43 @@ void HomeActivity::loop() {
 
   buttonNavigator.onNext([this, menuCount] {
     selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
+    // Adjust scroll offset to keep selected book visible
+    constexpr int maxVisibleBooks = 8;
+    const int bookCount = static_cast<int>(recentBooks.size());
+    if (selectorIndex >= 1 && selectorIndex <= bookCount) {
+      const int bookIdx = selectorIndex - 1;
+      if (bookIdx >= scrollOffset + maxVisibleBooks) {
+        scrollOffset = bookIdx - maxVisibleBooks + 1;
+      }
+      if (bookIdx < scrollOffset) {
+        scrollOffset = bookIdx;
+      }
+    } else {
+      scrollOffset = 0;
+    }
     requestUpdate();
   });
 
   buttonNavigator.onPrevious([this, menuCount] {
     selectorIndex = ButtonNavigator::previousIndex(selectorIndex, menuCount);
+    // Adjust scroll offset to keep selected book visible
+    constexpr int maxVisibleBooks = 8;
+    const int bookCount = static_cast<int>(recentBooks.size());
+    if (selectorIndex >= 1 && selectorIndex <= bookCount) {
+      const int bookIdx = selectorIndex - 1;
+      if (bookIdx < scrollOffset) {
+        scrollOffset = bookIdx;
+      }
+      if (bookIdx >= scrollOffset + maxVisibleBooks) {
+        scrollOffset = bookIdx - maxVisibleBooks + 1;
+      }
+    } else if (selectorIndex == 0) {
+      scrollOffset = 0;
+    } else {
+      // Wrapping to bottom (menu items) — show last books
+      const int maxOffset = std::max(0, bookCount - maxVisibleBooks);
+      scrollOffset = maxOffset;
+    }
     requestUpdate();
   });
 
@@ -258,6 +291,12 @@ void HomeActivity::loop() {
               const int menuCount = getMenuItemCount();
               if (selectorIndex >= menuCount) {
                 selectorIndex = std::max(0, menuCount - 1);
+              }
+              // Clamp scroll offset after removal
+              constexpr int maxVisibleBooks = 8;
+              const int maxOffset = std::max(0, static_cast<int>(recentBooks.size()) - maxVisibleBooks);
+              if (scrollOffset > maxOffset) {
+                scrollOffset = maxOffset;
               }
               coverRendered = false;
               freeCoverBuffer();
@@ -382,7 +421,7 @@ void HomeActivity::render(Activity::RenderLock &&) {
   GUI.drawRecentBookCover(
       renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
       selectorIndex - 1, coverRendered, coverBufferStored, bufferRestored,
-      std::bind(&HomeActivity::storeCoverBuffer, this));
+      std::bind(&HomeActivity::storeCoverBuffer, this), scrollOffset);
 
   for (int i = 0; i < menuCount; ++i) {
     const int tileY =

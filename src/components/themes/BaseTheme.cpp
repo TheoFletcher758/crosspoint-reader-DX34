@@ -485,7 +485,8 @@ void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const s
 // Draw the "Recent Book" cover card on the home screen
 void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
                                     const int selectorIndex, bool& coverRendered, bool& coverBufferStored,
-                                    bool& bufferRestored, std::function<bool()> storeCoverBuffer) const {
+                                    bool& bufferRestored, std::function<bool()> storeCoverBuffer,
+                                    int scrollOffset) const {
   (void)coverRendered;
   (void)coverBufferStored;
   (void)bufferRestored;
@@ -517,7 +518,12 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   const int maxRowsCap = std::max(1, UITheme::getInstance().getMetrics().homeRecentBooksCount);
   constexpr const char* placeholderLabel = "Open another book...";
   const int count = std::min(static_cast<int>(recentBooks.size()), maxRowsCap);
-  const int visibleRows = std::max(1, count);
+  constexpr int maxVisibleBooks = 8;
+  // Clamp scrollOffset to valid range
+  const int clampedOffset = std::max(0, std::min(scrollOffset, std::max(0, count - 1)));
+  const int windowEnd = std::min(clampedOffset + maxVisibleBooks, count);
+  const int visibleRows = std::max(1, windowEnd - clampedOffset);
+  const bool hasMoreBelow = windowEnd < count;
   constexpr int rowGap = 4;
   const int rowLineHeight = renderer.getLineHeight(UI_10_FONT_ID);
   constexpr int rowsTopInset = 18;
@@ -598,19 +604,27 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   };
 
   for (int i = 0; i < visibleRows; i++) {
-    const bool hasBook = i < count;
+    const int bookIdx = clampedOffset + i;
+    const bool hasBook = bookIdx < count;
     if (!hasBook) {
       rowLines[i].push_back(renderer.truncatedText(UI_10_FONT_ID, placeholderLabel, contentW));
       continue;
     }
 
-    const std::string initials = buildAuthorInitials(recentBooks[i].author);
-    const std::string rowText = initials.empty() ? recentBooks[i].title : (recentBooks[i].title + " by " + initials);
+    const std::string initials = buildAuthorInitials(recentBooks[bookIdx].author);
+    const std::string rowText = initials.empty() ? recentBooks[bookIdx].title : (recentBooks[bookIdx].title + " by " + initials);
     rowLines[i] = wrapText(rowText, contentW);
     rowHeights[i] = static_cast<int>(rowLines[i].size()) * rowLineHeight + 6;
   }
 
   if (rowsAvailableHeight > 0) {
+    const bool hasMoreAbove = clampedOffset > 0;
+    const int indicatorH = rowLineHeight + 8;
+
+    // Reserve space for above/below indicators
+    const int aboveIndicatorH = hasMoreAbove ? indicatorH : 0;
+    const int belowIndicatorH = hasMoreBelow ? indicatorH : 0;
+
     int totalRowsHeight = 0;
     for (int i = 0; i < visibleRows; i++) {
       totalRowsHeight += rowHeights[i];
@@ -619,17 +633,34 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
       totalRowsHeight += (visibleRows - 1) * rowGap;
     }
 
-    int rowY = rowsTopMinY;
-    if (totalRowsHeight < rowsAvailableHeight) {
-      rowY += (rowsAvailableHeight - totalRowsHeight) / 2;
+    const int effectiveTopY = rowsTopMinY + aboveIndicatorH;
+    const int effectiveBottomY = rowsBottomY - belowIndicatorH;
+
+    int rowY = effectiveTopY;
+    if (totalRowsHeight < (effectiveBottomY - effectiveTopY)) {
+      rowY += ((effectiveBottomY - effectiveTopY) - totalRowsHeight) / 2;
+    }
+
+    // Draw "N more above" indicator
+    if (hasMoreAbove) {
+      const std::string aboveText = std::to_string(clampedOffset) + " more above";
+      const int aboveTextW = renderer.getTextWidth(UI_10_FONT_ID, aboveText.c_str());
+      const int aboveW = aboveTextW + 24;
+      const int aboveH = rowLineHeight + 6;
+      const int aboveX = rowX + (rowW - aboveW) / 2;
+      const int aboveY = rowsTopMinY;
+      renderer.fillRect(aboveX, aboveY, aboveW, aboveH);  // Black filled rect
+      const int aboveTextX = aboveX + (aboveW - aboveTextW) / 2;
+      renderer.drawText(UI_10_FONT_ID, aboveTextX, aboveY + 3, aboveText.c_str(), false);  // White text
     }
 
     for (int i = 0; i < visibleRows; i++) {
       const int rowHeight = rowHeights[i];
-      if (rowY + rowHeight > rowsBottomY) {
+      if (rowY + rowHeight > effectiveBottomY) {
         break;
       }
-      const bool selected = (selectorIndex == i);
+      const int bookIdx = clampedOffset + i;
+      const bool selected = (selectorIndex == bookIdx);
       const bool textBlack = !selected;
 
       if (selected) {
@@ -643,6 +674,20 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
       }
 
       rowY += rowHeight + rowGap;
+    }
+
+    // Draw "N more below" overflow indicator
+    if (hasMoreBelow) {
+      const int remaining = count - windowEnd;
+      const std::string belowText = std::to_string(remaining) + " more below";
+      const int belowTextW = renderer.getTextWidth(UI_10_FONT_ID, belowText.c_str());
+      const int belowW = belowTextW + 24;
+      const int belowH = rowLineHeight + 6;
+      const int belowX = rowX + (rowW - belowW) / 2;
+      const int belowY = rowY + 2;
+      renderer.fillRect(belowX, belowY, belowW, belowH);  // Black filled rect
+      const int belowTextX = belowX + (belowW - belowTextW) / 2;
+      renderer.drawText(UI_10_FONT_ID, belowTextX, belowY + 3, belowText.c_str(), false);  // White text
     }
   }
 }

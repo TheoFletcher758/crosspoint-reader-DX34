@@ -13,6 +13,7 @@ struct Rect;
 class HomeActivity final : public ActivityWithSubactivity {
   ButtonNavigator buttonNavigator;
   int selectorIndex = 0;
+  int scrollOffset = 0;  // First visible book index in recents list
   bool recentsLoading = false;
   bool recentsLoaded = false;
   bool firstRenderDone = false;
