@@ -182,16 +182,17 @@ bool HomeActivity::storeCoverBuffer() {
     return false;
   }
 
-  // Free any existing buffer first
-  freeCoverBuffer();
-
   const size_t bufferSize = GfxRenderer::getBufferSize();
-  coverBuffer = static_cast<uint8_t *>(malloc(bufferSize));
-  if (!coverBuffer) {
+  auto *newBuffer = static_cast<uint8_t *>(malloc(bufferSize));
+  if (!newBuffer) {
     return false;
   }
 
-  memcpy(coverBuffer, frameBuffer, bufferSize);
+  memcpy(newBuffer, frameBuffer, bufferSize);
+
+  // Free old buffer only after new one is ready
+  freeCoverBuffer();
+  coverBuffer = newBuffer;
   return true;
 }
 

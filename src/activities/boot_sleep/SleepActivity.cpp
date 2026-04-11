@@ -53,7 +53,7 @@ std::vector<std::string> getValidSleepBitmaps() {
     return files;
   }
 
-  char name[500];
+  char name[256];
   for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
     if (file.isDirectory()) {
       file.close();
@@ -71,7 +71,7 @@ std::vector<std::string> getValidSleepBitmaps() {
       files.emplace_back(std::move(filename));
     }
     file.close();
-    if (files.size() > CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) break;
+    if (files.size() >= CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST) break;
   }
   dir.close();
 

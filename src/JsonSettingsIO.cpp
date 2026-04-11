@@ -63,20 +63,33 @@ void writeReadingThemeObject(JsonObject obj, const ReadingTheme& theme) {
 
 void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
   theme.name = ReadingThemeStore::sanitizeName(obj["name"] | "Theme");
-  theme.fontFamily =
-      obj["fontFamily"] | (uint8_t)CrossPointSettings::CHAREINK;
-  theme.fontSize = obj["fontSize"] | (uint8_t)CrossPointSettings::SIZE_16;
+  {
+    const uint8_t raw = obj["fontFamily"] | (uint8_t)CrossPointSettings::CHAREINK;
+    theme.fontFamily = (raw < CrossPointSettings::FONT_FAMILY_COUNT)
+                           ? raw : (uint8_t)CrossPointSettings::CHAREINK;
+  }
+  {
+    const uint8_t raw = obj["fontSize"] | (uint8_t)CrossPointSettings::SIZE_16;
+    theme.fontSize = (raw < CrossPointSettings::FONT_SIZE_COUNT)
+                         ? raw : (uint8_t)CrossPointSettings::SIZE_16;
+  }
   theme.lineSpacingPercent = obj["lineSpacingPercent"] | (uint8_t)110;
   theme.uniformMargins = obj["uniformMargins"] | (uint8_t)0;
   if (theme.uniformMargins > 1) theme.uniformMargins = 0;
   theme.screenMarginHorizontal = obj["screenMarginHorizontal"] | (uint8_t)20;
   theme.screenMarginTop = obj["screenMarginTop"] | (uint8_t)20;
   theme.screenMarginBottom = obj["screenMarginBottom"] | (uint8_t)20;
-  theme.paragraphAlignment =
-      obj["paragraphAlignment"] | (uint8_t)CrossPointSettings::JUSTIFIED;
-  theme.extraParagraphSpacingLevel =
-      obj["extraParagraphSpacingLevel"] |
-      (uint8_t)CrossPointSettings::EXTRA_SPACING_M;
+  {
+    const uint8_t raw = obj["paragraphAlignment"] | (uint8_t)CrossPointSettings::JUSTIFIED;
+    theme.paragraphAlignment = (raw < CrossPointSettings::PARAGRAPH_ALIGNMENT_COUNT)
+                                   ? raw : (uint8_t)CrossPointSettings::JUSTIFIED;
+  }
+  {
+    const uint8_t raw = obj["extraParagraphSpacingLevel"] |
+        (uint8_t)CrossPointSettings::EXTRA_SPACING_M;
+    theme.extraParagraphSpacingLevel = (raw < CrossPointSettings::EXTRA_PARAGRAPH_SPACING_COUNT)
+                                           ? raw : (uint8_t)CrossPointSettings::EXTRA_SPACING_M;
+  }
   {
     const uint8_t raw =
         obj["wordSpacingPercent"] | (uint8_t)CrossPointSettings::WORD_SPACING_NORMAL;
@@ -84,15 +97,21 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
                                    ? raw
                                    : (uint8_t)CrossPointSettings::WORD_SPACING_NORMAL;
   }
-  theme.firstLineIndentMode =
-      obj["firstLineIndentMode"] | (uint8_t)CrossPointSettings::INDENT_BOOK;
-  theme.readerStyleMode =
-      obj["readerStyleMode"] |
-      (obj["embeddedStyle"].isNull()
-           ? (uint8_t)CrossPointSettings::READER_STYLE_USER
-           : ((obj["embeddedStyle"] | (uint8_t)0)
-                  ? (uint8_t)CrossPointSettings::READER_STYLE_HYBRID
-                  : (uint8_t)CrossPointSettings::READER_STYLE_USER));
+  {
+    const uint8_t raw = obj["firstLineIndentMode"] | (uint8_t)CrossPointSettings::INDENT_BOOK;
+    theme.firstLineIndentMode = (raw < CrossPointSettings::FIRST_LINE_INDENT_MODE_COUNT)
+                                    ? raw : (uint8_t)CrossPointSettings::INDENT_BOOK;
+  }
+  {
+    const uint8_t raw = obj["readerStyleMode"] |
+        (obj["embeddedStyle"].isNull()
+             ? (uint8_t)CrossPointSettings::READER_STYLE_USER
+             : ((obj["embeddedStyle"] | (uint8_t)0)
+                    ? (uint8_t)CrossPointSettings::READER_STYLE_HYBRID
+                    : (uint8_t)CrossPointSettings::READER_STYLE_USER));
+    theme.readerStyleMode = (raw < CrossPointSettings::READER_STYLE_MODE_COUNT)
+                                ? raw : (uint8_t)CrossPointSettings::READER_STYLE_USER;
+  }
   {
     const uint8_t raw =
         obj["textRenderMode"] | (uint8_t)CrossPointSettings::TEXT_RENDER_CRISP;

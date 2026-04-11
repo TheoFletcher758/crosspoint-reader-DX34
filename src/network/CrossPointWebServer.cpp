@@ -1314,6 +1314,7 @@ void CrossPointWebServer::handleDelete() const {
   // Iterate over paths and delete each item
   bool allSuccess = true;
   String failedItems;
+  failedItems.reserve(256);
 
   for (const auto& p : paths) {
     auto itemPath = p.as<String>();

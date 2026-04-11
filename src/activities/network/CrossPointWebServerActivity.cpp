@@ -9,6 +9,7 @@
 #include <qrcode.h>
 
 #include <cstddef>
+#include <memory>
 
 #include "MappedInputManager.h"
 #include "NetworkModeSelectionActivity.h"
@@ -26,7 +27,7 @@ constexpr uint8_t AP_CHANNEL = 1;
 constexpr uint8_t AP_MAX_CONNECTIONS = 4;
 
 // DNS server for captive portal (redirects all DNS queries to our IP)
-DNSServer* dnsServer = nullptr;
+std::unique_ptr<DNSServer> dnsServer;
 constexpr uint16_t DNS_PORT = 53;
 }  // namespace
 
@@ -69,8 +70,7 @@ void CrossPointWebServerActivity::onExit() {
   if (dnsServer) {
     LOG_DBG("WEBACT", "Stopping DNS server...");
     dnsServer->stop();
-    delete dnsServer;
-    dnsServer = nullptr;
+    dnsServer.reset();
   }
 
   // Brief wait for LWIP stack to flush pending packets
@@ -210,7 +210,7 @@ void CrossPointWebServerActivity::startAccessPoint() {
 
   // Start DNS server for captive portal behavior
   // This redirects all DNS queries to our IP, making any domain typed resolve to us
-  dnsServer = new DNSServer();
+  dnsServer.reset(new DNSServer());
   dnsServer->setErrorReplyCode(DNSReplyCode::NoError);
   dnsServer->start(DNS_PORT, "*", apIP);
   LOG_DBG("WEBACT", "DNS server started for captive portal");

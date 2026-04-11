@@ -176,7 +176,16 @@ void CrossPointSettings::validateFrontButtonMapping(
   const uint8_t mapping[] = {
       settings.frontButtonBack, settings.frontButtonConfirm,
       settings.frontButtonLeft, settings.frontButtonRight};
+  // Check range validity and duplicates
   for (size_t i = 0; i < 4; i++) {
+    if (mapping[i] > FRONT_HW_RIGHT) {
+      // Out of range — reset all to defaults
+      settings.frontButtonBack = FRONT_HW_BACK;
+      settings.frontButtonConfirm = FRONT_HW_CONFIRM;
+      settings.frontButtonLeft = FRONT_HW_LEFT;
+      settings.frontButtonRight = FRONT_HW_RIGHT;
+      return;
+    }
     for (size_t j = i + 1; j < 4; j++) {
       if (mapping[i] == mapping[j]) {
         settings.frontButtonBack = FRONT_HW_BACK;

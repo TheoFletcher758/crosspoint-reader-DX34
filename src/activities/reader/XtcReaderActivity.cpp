@@ -13,6 +13,7 @@
 #include <HalStorage.h>
 #include <I18n.h>
 #include <Logging.h>
+#include <memory>
 #include <esp_task_wdt.h>
 
 #include "CrossPointSettings.h"
@@ -379,7 +380,7 @@ void XtcReaderActivity::renderPage() {
   }
 
   // Allocate page buffer
-  uint8_t *pageBuffer = static_cast<uint8_t *>(malloc(pageBufferSize));
+  auto pageBuffer = std::unique_ptr<uint8_t[]>(new(std::nothrow) uint8_t[pageBufferSize]);
   if (!pageBuffer) {
     LOG_ERR("XTR", "Failed to allocate page buffer (%lu bytes)",
             pageBufferSize);
@@ -391,10 +392,9 @@ void XtcReaderActivity::renderPage() {
   }
 
   // Load page data
-  size_t bytesRead = xtc->loadPage(currentPage, pageBuffer, pageBufferSize);
+  size_t bytesRead = xtc->loadPage(currentPage, pageBuffer.get(), pageBufferSize);
   if (bytesRead == 0) {
     LOG_ERR("XTR", "Failed to load page %lu", currentPage);
-    free(pageBuffer);
     renderer.clearScreen();
     renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_PAGE_LOAD_ERROR), true,
                               EpdFontFamily::REGULAR);
@@ -420,8 +420,8 @@ void XtcReaderActivity::renderPage() {
 
     const size_t planeSize =
         (static_cast<size_t>(pageWidth) * pageHeight + 7) / 8;
-    const uint8_t *plane1 = pageBuffer;             // Bit1 plane
-    const uint8_t *plane2 = pageBuffer + planeSize; // Bit2 plane
+    const uint8_t *plane1 = pageBuffer.get();             // Bit1 plane
+    const uint8_t *plane2 = pageBuffer.get() + planeSize; // Bit2 plane
     const size_t colBytes =
         (pageHeight + 7) / 8; // Bytes per column (100 for 800 height)
 
@@ -504,8 +504,6 @@ void XtcReaderActivity::renderPage() {
     // Cleanup grayscale buffers with current frame buffer
     renderer.cleanupGrayscaleWithFrameBuffer();
 
-    free(pageBuffer);
-
     LOG_DBG("XTR", "Rendered page %lu/%lu (2-bit grayscale)", currentPage + 1,
             xtc->getPageCount());
     return;
@@ -530,8 +528,6 @@ void XtcReaderActivity::renderPage() {
     }
   }
   // White pixels are already cleared by clearScreen()
-
-  free(pageBuffer);
 
   // XTC pages already have status bar pre-rendered, no need to add our own
 

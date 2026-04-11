@@ -10,6 +10,7 @@
 #include <Utf8.h>
 #include <algorithm>
 #include <esp_task_wdt.h>
+#include <memory>
 #include <vector>
 
 #include "CrossPointSettings.h"
@@ -835,14 +836,13 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset,
     chunkSize = std::min(chunkSize, std::max(static_cast<size_t>(1024), freeHeap / 4));
     LOG_DBG("TRS", "Reduced chunk to %zu bytes (free heap: %zu)", chunkSize, freeHeap);
   }
-  auto *buffer = static_cast<uint8_t *>(malloc(chunkSize + 1));
+  auto buffer = std::unique_ptr<uint8_t[]>(new(std::nothrow) uint8_t[chunkSize + 1]);
   if (!buffer) {
     LOG_ERR("TRS", "Failed to allocate %zu bytes (free heap: %zu)", chunkSize, freeHeap);
     return false;
   }
 
-  if (!txt->readContent(buffer, offset, chunkSize)) {
-    free(buffer);
+  if (!txt->readContent(buffer.get(), offset, chunkSize)) {
     return false;
   }
   buffer[chunkSize] = '\0';
@@ -875,7 +875,7 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset,
     size_t displayLen = hasCR ? lineContentLen - 1 : lineContentLen;
 
     // Extract line content for display (without CR/LF)
-    std::string line(reinterpret_cast<char *>(buffer + pos), displayLen);
+    std::string line(reinterpret_cast<char *>(buffer.get() + pos), displayLen);
 
     // Track position within this source line (in bytes from pos)
     size_t lineBytePos = 0;
@@ -976,8 +976,6 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset,
   if (nextOffset > fileSize) {
     nextOffset = fileSize;
   }
-
-  free(buffer);
 
   return !outLines.empty();
 }

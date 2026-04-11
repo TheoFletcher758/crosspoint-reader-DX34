@@ -151,14 +151,21 @@ HttpDownloader::downloadToFile(const std::string &url,
   uint8_t buffer[DOWNLOAD_CHUNK_SIZE];
   size_t downloaded = 0;
   const size_t total = contentLength > 0 ? contentLength : 0;
+  constexpr unsigned long STREAM_TIMEOUT_MS = 30000;
+  unsigned long lastDataTime = millis();
 
   while (http.connected() &&
          (contentLength == 0 || downloaded < contentLength)) {
     const size_t available = stream->available();
     if (available == 0) {
+      if (millis() - lastDataTime > STREAM_TIMEOUT_MS) {
+        LOG_ERR("HTTP", "Stream timeout after %zu bytes", downloaded);
+        break;
+      }
       delay(1);
       continue;
     }
+    lastDataTime = millis();
 
     const size_t toRead =
         available < DOWNLOAD_CHUNK_SIZE ? available : DOWNLOAD_CHUNK_SIZE;
@@ -190,10 +197,15 @@ HttpDownloader::downloadToFile(const std::string &url,
 
   LOG_DBG("HTTP", "Downloaded %zu bytes", downloaded);
 
-  // Verify download size if known
+  // Verify download size if known, or reject empty downloads
   if (contentLength > 0 && downloaded != contentLength) {
     LOG_ERR("HTTP", "Size mismatch: got %zu, expected %zu", downloaded,
             contentLength);
+    Storage.remove(destPath.c_str());
+    return HTTP_ERROR;
+  }
+  if (downloaded == 0) {
+    LOG_ERR("HTTP", "Empty download (0 bytes received)");
     Storage.remove(destPath.c_str());
     return HTTP_ERROR;
   }
