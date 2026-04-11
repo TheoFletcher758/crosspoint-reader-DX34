@@ -55,6 +55,8 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
     items.push_back({MenuAction::TRIAGE_DELETE, StrId::STR_TRIAGE_DELETE});
   }
 
+  // Extras section
+  items.push_back({MenuAction::NONE, StrId::STR_EXTRAS, nullptr, true});
   items.push_back({MenuAction::TOGGLE_RANDOM_BOOK_ON_BOOT, StrId::STR_RANDOM_BOOK_ON_BOOT});
 
   return items;
