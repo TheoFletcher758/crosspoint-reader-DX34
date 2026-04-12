@@ -339,7 +339,7 @@ The status bar is highly configurable. Each element can be independently shown/h
 | Element | Options |
 |---------|---------|
 | **Status bar** | Show / Hide |
-| **Battery** | Show / Hide, position (Top / Bottom) |
+| **Battery** | Show / Hide, position (6 positions: top/bottom + left/center/right) |
 | **Page counter** | Show / Hide, mode (Current/Total or Left in Chapter), position |
 | **Book percentage** | Show / Hide, position (6 positions: top/bottom + left/center/right) |
 | **Chapter percentage** | Show / Hide, position |

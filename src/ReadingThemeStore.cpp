@@ -211,8 +211,8 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
       theme.statusBarNoTitleTruncation ? 1 : 0;
   settings.statusBarBatteryPosition = clampRange(
       theme.statusBarBatteryPosition, 0,
-      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
-      CrossPointSettings::STATUS_AT_BOTTOM);
+      CrossPointSettings::STATUS_BAR_TEXT_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_TEXT_BOTTOM_LEFT);
   settings.statusBarProgressTextPosition = clampRange(
       theme.statusBarProgressTextPosition, 0,
       CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
@@ -571,8 +571,8 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
       theme.statusBarNoTitleTruncation ? 1 : 0;
   normalized.statusBarBatteryPosition = clampRange(
       theme.statusBarBatteryPosition, 0,
-      CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,
-      CrossPointSettings::STATUS_AT_BOTTOM);
+      CrossPointSettings::STATUS_BAR_TEXT_POSITION_COUNT - 1,
+      CrossPointSettings::STATUS_TEXT_BOTTOM_LEFT);
   normalized.statusBarProgressTextPosition = clampRange(
       theme.statusBarProgressTextPosition, 0,
       CrossPointSettings::STATUS_BAR_ITEM_POSITION_COUNT - 1,

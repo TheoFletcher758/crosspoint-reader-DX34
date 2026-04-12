@@ -34,7 +34,7 @@ struct ReadingTheme {
   uint8_t statusBarShowChapterBar = 0;
   uint8_t statusBarShowChapterTitle = 1;
   uint8_t statusBarNoTitleTruncation = 0;
-  uint8_t statusBarBatteryPosition = CrossPointSettings::STATUS_AT_BOTTOM;
+  uint8_t statusBarBatteryPosition = CrossPointSettings::STATUS_TEXT_BOTTOM_LEFT;
   uint8_t statusBarProgressTextPosition = CrossPointSettings::STATUS_AT_BOTTOM;
   uint8_t statusBarPageCounterPosition =
       CrossPointSettings::STATUS_TEXT_BOTTOM_CENTER;

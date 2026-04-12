@@ -1263,13 +1263,13 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
   int resolvedTitleLineCount = SETTINGS.statusBarShowChapterTitle ? 1 : 0;
   if (SETTINGS.statusBarEnabled) {
     const bool showTopStatusTextRow =
-        (SETTINGS.statusBarShowBattery && statusBarItemIsTop(SETTINGS.statusBarBatteryPosition)) ||
+        (SETTINGS.statusBarShowBattery && statusTextPositionIsTop(SETTINGS.statusBarBatteryPosition)) ||
         (SETTINGS.statusBarShowPageCounter && statusTextPositionIsTop(SETTINGS.statusBarPageCounterPosition)) ||
         (SETTINGS.statusBarShowBookPercentage && statusTextPositionIsTop(SETTINGS.statusBarBookPercentagePosition)) ||
         (SETTINGS.statusBarShowChapterPercentage &&
          statusTextPositionIsTop(SETTINGS.statusBarChapterPercentagePosition));
     const bool showBottomStatusTextRow =
-        (SETTINGS.statusBarShowBattery && !statusBarItemIsTop(SETTINGS.statusBarBatteryPosition)) ||
+        (SETTINGS.statusBarShowBattery && !statusTextPositionIsTop(SETTINGS.statusBarBatteryPosition)) ||
         (SETTINGS.statusBarShowPageCounter && !statusTextPositionIsTop(SETTINGS.statusBarPageCounterPosition)) ||
         (SETTINGS.statusBarShowBookPercentage && !statusTextPositionIsTop(SETTINGS.statusBarBookPercentagePosition)) ||
         (SETTINGS.statusBarShowChapterPercentage &&
@@ -2134,7 +2134,7 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
     }
 
     const bool showBandBattery = showBattery && showBatteryPercentage &&
-                                 (statusBarItemIsTop(SETTINGS.statusBarBatteryPosition) == renderTopBand);
+                                 (statusTextPositionIsTop(SETTINGS.statusBarBatteryPosition) == renderTopBand);
     const bool showBandPageCounter = !statusBarLayout.pageCounterText.empty() &&
                                      (statusTextPositionIsTop(SETTINGS.statusBarPageCounterPosition) == renderTopBand);
     const bool showBandBookPercentage =
@@ -2211,27 +2211,20 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
     }
 
     const int batteryWidth = showBandBattery ? renderer.getTextWidth(SMALL_FONT_ID, "100%") : 0;
-    int currentX = orientedMarginLeft + std::max(0, (usableWidth - batteryWidth) / 2);
 
-    if (showBandBattery) {
-      GUI.drawBatteryLeft(renderer, Rect{currentX, statusTextY, metrics.batteryWidth, metrics.batteryHeight},
-                          showBatteryPercentage);
-      currentX += batteryWidth + statusItemGap;
-    }
-
-    if (showBandProgressText) {
+    if (showBandBattery || showBandProgressText) {
       struct TextEntry {
-        const std::string* text;
+        const std::string* text;  // nullptr = battery item
         int width;
       };
       std::vector<TextEntry> leftItems;
       std::vector<TextEntry> centerItems;
       std::vector<TextEntry> rightItems;
-      const auto addItem = [&](const bool enabled, const std::string& text, const int width, const uint8_t position) {
+      const auto addItem = [&](const bool enabled, const std::string* text, const int width, const uint8_t position) {
         if (!enabled) {
           return;
         }
-        TextEntry entry{&text, width};
+        TextEntry entry{text, width};
         switch (statusTextPositionHorizontalSlot(position)) {
           case 0:
             leftItems.push_back(entry);
@@ -2245,11 +2238,13 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
             break;
         }
       };
-      addItem(showBandPageCounter, statusBarLayout.pageCounterText, statusBarLayout.pageCounterTextWidth,
+      addItem(showBandBattery, nullptr, batteryWidth,
+              SETTINGS.statusBarBatteryPosition);
+      addItem(showBandPageCounter, &statusBarLayout.pageCounterText, statusBarLayout.pageCounterTextWidth,
               SETTINGS.statusBarPageCounterPosition);
-      addItem(showBandBookPercentage, statusBarLayout.bookPercentageText, statusBarLayout.bookPercentageTextWidth,
+      addItem(showBandBookPercentage, &statusBarLayout.bookPercentageText, statusBarLayout.bookPercentageTextWidth,
               SETTINGS.statusBarBookPercentagePosition);
-      addItem(showBandChapterPercentage, statusBarLayout.chapterPercentageText,
+      addItem(showBandChapterPercentage, &statusBarLayout.chapterPercentageText,
               statusBarLayout.chapterPercentageTextWidth, SETTINGS.statusBarChapterPercentagePosition);
 
       const auto drawGroup = [&](const std::vector<TextEntry>& items, const int startX) {
@@ -2258,7 +2253,12 @@ void EpubReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
           if (i > 0) {
             x += statusItemGap;
           }
-          renderer.drawText(SMALL_FONT_ID, x, statusTextY, items[i].text->c_str());
+          if (items[i].text == nullptr) {
+            GUI.drawBatteryLeft(renderer, Rect{x, statusTextY, metrics.batteryWidth, metrics.batteryHeight},
+                                showBatteryPercentage);
+          } else {
+            renderer.drawText(SMALL_FONT_ID, x, statusTextY, items[i].text->c_str());
+          }
           x += items[i].width;
         }
       };
