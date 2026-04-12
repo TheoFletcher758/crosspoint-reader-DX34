@@ -91,7 +91,7 @@ pio run -t upload
 - [Sleep screen and wallpaper system](#sleep-screen-and-wallpaper-system) — managed wallpaper folder with favorites
 - [Home screen and library](#home-screen-and-library) — recents, file browser, search, QR sharing
 - [Wireless features](#wireless-features) — Wi-Fi transfer, OPDS, Calibre, KOReader sync, OTA
-- [Device and system controls](#device-and-system-controls) — buttons, sleep, refresh, orientation
+- [Device and system controls](#device-and-system-controls) — buttons, sleep, refresh, orientation, random book on boot
 
 ---
 
@@ -99,11 +99,11 @@ pio run -t upload
 
 | Format | Description | Theme Support |
 |--------|-------------|---------------|
-| **EPUB** | Primary reading format — all advanced DX34 features live here | Yes |
+| **EPUB** | Primary reading format (EPUB 2 and EPUB 3) — all advanced DX34 features live here | Yes |
 | **TXT / MD** | Plain-text reader with progress tracking | No |
 | **XTC / XTCH** | Pre-rendered page format with chapter selection | No |
 
-EPUB is where the advanced DX34 reading work lives. TXT and XTC are supported but they do not share the full EPUB in-book settings and theme workflow.
+EPUB is where the advanced DX34 reading work lives. The EPUB reader supports inline images (JPEG and PNG), partial CSS styling, and HTML entity decoding. TXT and XTC are supported but they do not share the full EPUB in-book settings and theme workflow.
 
 ---
 
@@ -122,16 +122,20 @@ Pressing **OK** while reading an EPUB opens the in-book menu:
 | Menu Item | What It Does |
 |-----------|--------------|
 | Select Chapter | Jump to any chapter in the book |
+| Footnotes | Jump to the footnote index (only shown for books with footnotes/endnotes) |
 | Reading Orientation | Switch between portrait and landscape modes |
 | Reading Themes | Open the theme manager (save, apply, rename, delete themes) |
 | Sync Progress | Sync reading position with a KOReader server |
 | Clean Cache + Progress | Clear cached data and reading position for this book |
 | Delete Book | Remove the book file from the device |
 | Remove from Recents | Remove the book from the recent books list |
-| **Wallpaper Triage** | |
-| Favorite | Mark/unmark the last sleep wallpaper as a favorite |
+| **Wallpaper Triage** | *(only shown when a last sleep wallpaper exists)* |
+| Favorite / Unfavorite | Mark/unmark the last sleep wallpaper as a favorite |
+| Pause / Unpause Rotation | Pause or resume wallpaper rotation |
 | Move to sleep pause | Move the last wallpaper out of the active rotation |
 | Delete Wallpaper | Delete the last sleep wallpaper |
+| **Extras** | |
+| Random Book on Boot | Toggle opening a random book from recents on device boot |
 
 | In-book menu | Chapter selection |
 |:---:|:---:|
@@ -297,13 +301,14 @@ The firmware exposes extensive control over how text is rendered. All of these c
 | **Line spacing** | 65% to 150% | 90% |
 | **Paragraph alignment** | Justified, Left, Center, Right, Book Style | Justified |
 | **First-line indent** | Book (follow CSS), Off, Small, Medium, Large | Book |
-| **Word spacing** | Tight, Normal, Wide, Extra Wide | Normal |
+| **Word spacing** | -30%, 0% (Normal), +80%, +150%, +240% | 0% (Normal) |
 | **Extra paragraph spacing** | Off, Small, Medium, Large | Off |
 | **Text render mode** | Crisp, Dark, Bionic (quick cycle: double tap OK) | Crisp |
 | **Reader style mode** | User (your settings override), Hybrid (blend with book CSS) | User |
 | **Embedded CSS** | On / Off | On |
 | **Hyphenation** | On / Off | — |
 | **Bold swap** | On / Off | Off |
+| **Debug borders** | On / Off | Off |
 
 | Device settings | In-book reader settings |
 |:---:|:---:|
@@ -424,6 +429,7 @@ The Settings UI includes tools for managing sleep wallpapers:
 
 - Randomize sleep images
 - Inspect the last sleep wallpaper
+- Pause / unpause wallpaper rotation
 - Move the last wallpaper to `/sleep pause`
 - Favorite / unfavorite a wallpaper
 - Delete a wallpaper
@@ -470,6 +476,7 @@ The built-in file browser lets you manage files on the SD card:
 | **Rename files** | Rename files with on-device keyboard |
 | **Delete files** | Delete files with confirmation |
 | **View BMPs** | Preview BMP images directly on the e-ink screen |
+| **Show hidden files** | Toggle visibility of files and directories starting with `.` |
 | **Load more** | Pagination for large folders (200 files at a time, 1000 for `/sleep`) |
 
 ### QR code file sharing
@@ -500,7 +507,7 @@ The Wi-Fi file-transfer mode starts a web server accessible from any browser on 
 | **Settings page** | View and change device settings from the browser |
 | **Status page** | Firmware version, IP address, free space |
 
-The web server supports both STA mode (join existing network) and AP mode (device creates its own hotspot).
+The web server supports both STA mode (join existing network) and AP mode (device creates its own hotspot). A WebSocket server (port 81) handles binary chunked transfers for faster upload and download speeds. UDP auto-discovery broadcasts let the web UI detect the device on the network automatically.
 
 See [docs/webserver.md](./docs/webserver.md) and [docs/webserver-endpoints.md](./docs/webserver-endpoints.md) for details.
 
@@ -519,12 +526,12 @@ Configure an OPDS server URL, username, and password in settings, then browse an
 Sync your reading position across devices using a KOReader-compatible server:
 
 - Stored credentials (server URL, username, password)
-- Document matching by filename or binary hash
+- Configurable document matching method: by filename or by binary content hash
 - In-book sync action: compare local and remote progress, then apply or upload
 
 ### OTA updates
 
-The firmware can check for and install updates over Wi-Fi directly from GitHub releases. Version comparison prevents accidental downgrades.
+The firmware can check for and install updates over Wi-Fi directly from GitHub releases. Version comparison prevents accidental downgrades. The device uses dual OTA partitions, so a failed update can safely roll back to the previous firmware.
 
 ---
 
@@ -549,6 +556,8 @@ Front button remapping uses an interactive step-by-step flow where you press the
 | **E-ink refresh frequency** | Full refresh every 1, 5, 10, 15, or 30 pages |
 | **Sunlight fading compensation** | On / Off |
 | **Custom boot image** | Place `/boot.bmp` on the SD card |
+| **Show hidden files** | Show files/folders starting with `.` in the file browser |
+| **Random book on boot** | Open a random book from recents instead of the last book |
 
 ### Orientation
 
@@ -572,7 +581,7 @@ This includes:
 - Recent books list
 - Wi-Fi credentials
 
-The device aggressively caches parsed content to reduce RAM pressure and make repeated opens faster.
+The device aggressively caches parsed content to reduce RAM pressure and make repeated opens faster. Books are identified by a content-based fingerprint, so cached data (reading position, page index, themes) survives file moves and renames.
 
 Useful internals docs:
 - [docs/file-formats.md](./docs/file-formats.md)
