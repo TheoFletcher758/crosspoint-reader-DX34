@@ -40,16 +40,13 @@ std::string bookReaderSettingsPath(const std::string& cachePath) {
 }
 
 bool persistAppliedSettings(const std::string& cachePath) {
-  if (!SETTINGS.saveToFile()) {
-    return false;
+  if (cachePath.empty()) {
+    // No book context — save to global settings only
+    return SETTINGS.saveToFile();
   }
 
-  if (!cachePath.empty() &&
-      !ReadingThemeStore::saveCurrentBookSettings(cachePath)) {
-    return false;
-  }
-
-  return true;
+  // In-book context — save per-book only, keep global as new-book defaults
+  return ReadingThemeStore::saveCurrentBookSettings(cachePath);
 }
 }  // namespace
 

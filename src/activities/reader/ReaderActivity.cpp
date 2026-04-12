@@ -126,6 +126,12 @@ void ReaderActivity::openBookPath(const std::string& bookPath) {
     return;
   }
 
+  // Restore global reader settings before loading book.
+  // Per-book overrides (if any) are applied later in onGoTo*Reader.
+  // This ensures new books always start with the user's global defaults,
+  // not stale settings from whatever book was open previously.
+  SETTINGS.loadFromFile();
+
   if (!TransitionFeedback::isActive()) {
     TransitionFeedback::show(renderer, tr(STR_LOADING));
   }

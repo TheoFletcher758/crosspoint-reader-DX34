@@ -86,16 +86,21 @@ bool ReaderSettingsActivity::isTxtContext() const {
 }
 
 void ReaderSettingsActivity::persistSettings(const char* context) {
-  if (!SETTINGS.saveToFile()) {
-    LOG_ERR("RSET", "Failed to save settings (%s)", context);
-    return;
+  if (bookCachePath.empty()) {
+    // No book context — save to global settings
+    if (!SETTINGS.saveToFile()) {
+      LOG_ERR("RSET", "Failed to save settings (%s)", context);
+      return;
+    }
+  } else {
+    // In-book context — save per-book only, keep global as new-book defaults
+    if (!READING_THEMES.saveCurrentBookSettings(bookCachePath)) {
+      LOG_ERR("RSET", "Failed to save book settings (%s)", context);
+      return;
+    }
   }
 
   dirty = true;
-  if (!bookCachePath.empty() &&
-      !READING_THEMES.saveCurrentBookSettings(bookCachePath)) {
-    LOG_ERR("RSET", "Failed to save book settings (%s)", context);
-  }
 }
 
 const std::vector<SettingInfo>* ReaderSettingsActivity::settingsForCategory(
