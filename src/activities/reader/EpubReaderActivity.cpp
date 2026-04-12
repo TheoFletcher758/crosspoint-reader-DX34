@@ -26,6 +26,7 @@
 #include "ReadingThemesActivity.h"
 #include "RecentBooksStore.h"
 #include "activities/util/ConfirmDialogActivity.h"
+#include "activities/network/QRShareActivity.h"
 #include "util/FavoriteBmp.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -1138,6 +1139,14 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
         }
       }
       pendingGoHome = true;
+      break;
+    }
+    case EpubReaderMenuActivity::MenuAction::SHARE_QR: {
+      if (epub) {
+        exitActivity();
+        enterNewActivity(new QRShareActivity(renderer, mappedInput,
+            [this] { exitActivity(); requestUpdate(); }, epub->getPath()));
+      }
       break;
     }
     default:
