@@ -305,7 +305,7 @@ void CrossPointWebServerActivity::loop() {
 
       // Process HTTP requests in tight loop for maximum throughput
       // More iterations = more data processed per main loop cycle
-      constexpr int MAX_ITERATIONS = 500;
+      constexpr int MAX_ITERATIONS = 150;
       for (int i = 0; i < MAX_ITERATIONS && webServer->isRunning(); i++) {
         webServer->handleClient();
         // Reset watchdog every 32 iterations

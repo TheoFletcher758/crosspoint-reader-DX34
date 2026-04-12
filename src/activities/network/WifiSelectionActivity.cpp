@@ -80,9 +80,13 @@ void WifiSelectionActivity::onExit() {
   WiFi.scanDelete();
   LOG_DBG("WIFI", "Free heap after scanDelete: %d bytes", ESP.getFreeHeap());
 
-  // Note: We do NOT disconnect WiFi here - the parent activity
-  // (CrossPointWebServerActivity) manages WiFi connection state. We just clean
-  // up the scan and task.
+  // Parent activity manages connected WiFi state. But if WiFi is active
+  // without a successful connection (e.g. failed attempt), turn it off as a
+  // safety net to avoid leaving the radio on with no parent expecting it.
+  if (WiFi.status() != WL_CONNECTED && WiFi.getMode() != WIFI_MODE_NULL) {
+    LOG_DBG("WIFI", "Safety: turning off WiFi (not connected, mode=%d)", WiFi.getMode());
+    WiFi.mode(WIFI_OFF);
+  }
 
   LOG_DBG("WIFI", "Free heap at onExit end: %d bytes", ESP.getFreeHeap());
 }
