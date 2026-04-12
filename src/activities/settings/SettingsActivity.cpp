@@ -319,7 +319,10 @@ void SettingsActivity::loop() {
   }
 
   if (homeStatsPopupOpen) {
-    dismissPopupOnAnyPress(homeStatsPopupOpen);
+    if (dismissPopupOnAnyPress(homeStatsPopupOpen)) {
+      BaseTheme::invalidateHomeInfoStats();
+      renderer.requestFullRefresh();
+    }
     return;
   }
 

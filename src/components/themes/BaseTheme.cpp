@@ -17,7 +17,6 @@ extern HalGPIO gpio;
 
 #include "Battery.h"
 #include "CrossPointSettings.h"
-#include "util/FavoriteBmp.h"
 #include "I18n.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
@@ -61,6 +60,7 @@ void countFilesIterative(FsFile& root, uint32_t& bookCount, uint32_t& bmpCount, 
   char name[256];
   uint32_t entryCount = 0;
   std::vector<FsFile> dirStack;
+  dirStack.reserve(8);  // typical SD nesting depth; avoids realloc fragmentation
   dirStack.push_back(std::move(root));
 
   while (!dirStack.empty()) {
@@ -162,7 +162,8 @@ void scanHomeInfoStats(HomeInfoStats& stats) {
     // root closed by countFilesIterative
   }
 
-  // Count sleep BMPs + favorites in /sleep (flat scan)
+  // Count sleep BMPs + favorites in /sleep (flat scan).
+  // Favorite detection uses suffix-only check ("_F.bmp") — zero heap allocations.
   {
     auto dir = Storage.open("/sleep");
     if (dir && dir.isDirectory()) {
@@ -172,7 +173,7 @@ void scanHomeInfoStats(HomeInfoStats& stats) {
         entry.getName(name, sizeof(name));
         if (!entry.isDirectory() && isBmpFile(name)) {
           ++stats.sleepBmpCount;
-          if (FavoriteBmp::isFavoritePath(std::string("/sleep/") + name)) {
+          if (endsWithIgnoreCase(name, "_F.bmp")) {
             ++stats.sleepFavoriteCount;
           }
         }
