@@ -58,7 +58,7 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
   // Extras section
   items.push_back({MenuAction::NONE, StrId::STR_EXTRAS, nullptr, true});
   items.push_back({MenuAction::TOGGLE_RANDOM_BOOK_ON_BOOT, StrId::STR_RANDOM_BOOK_ON_BOOT});
-  items.push_back({MenuAction::SHARE_QR, StrId::STR_CROSSPOINT, "Share via QR"});
+  items.push_back({MenuAction::SHARE_QR, StrId::STR_SHARE_VIA_QR});
 
   return items;
 }

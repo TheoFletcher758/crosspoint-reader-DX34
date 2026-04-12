@@ -453,6 +453,7 @@ enum class StrId : uint16_t {
   STR_TRIAGE_PAUSE,
   STR_TRIAGE_UNPAUSE,
   STR_EXTRAS,
+  STR_SHARE_VIA_QR,
   // Sentinel - must be last
   _COUNT
 };
