@@ -16,6 +16,7 @@
 #include <string>
 
 #include "EpubReaderMenuActivity.h"
+#include "ReaderStatusBar.h"
 #include "activities/ActivityWithSubactivity.h"
 
 class EpubReaderActivity final : public ActivityWithSubactivity {
@@ -64,21 +65,7 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   std::string extractQuoteText();
   void saveQuoteToFile(const std::string& quote);
   std::string getChapterTitle() const;
-  struct StatusBarLayout {
-    int topReservedHeight = 0;
-    int bottomReservedHeight = 0;
-    int usableWidth = 0;
-    std::string pageCounterText;
-    int pageCounterTextWidth = 0;
-    std::string bookPercentageText;
-    int bookPercentageTextWidth = 0;
-    std::string chapterPercentageText;
-    int chapterPercentageTextWidth = 0;
-    std::vector<std::string> titleLines;
-    std::vector<int> titleLineWidths;
-    float bookProgress = 0.0f;
-    float chapterProgress = 0.0f;
-  };
+  using StatusBarLayout = ReaderStatusBar::StatusBarLayout;
 
   struct PageCacheEntry {
     int pageIndex = -1;

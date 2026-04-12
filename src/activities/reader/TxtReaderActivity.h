@@ -14,24 +14,13 @@
 #include <vector>
 
 #include "CrossPointSettings.h"
+#include "ReaderStatusBar.h"
 #include "activities/ActivityWithSubactivity.h"
 
 struct RecentBook;
 
 class TxtReaderActivity final : public ActivityWithSubactivity {
-  struct StatusBarLayout {
-    int topReservedHeight = 0;
-    int bottomReservedHeight = 0;
-    int usableWidth = 0;
-    std::string pageCounterText;
-    int pageCounterTextWidth = 0;
-    std::string bookPercentageText;
-    int bookPercentageTextWidth = 0;
-    std::string chapterPercentageText;
-    int chapterPercentageTextWidth = 0;
-    std::vector<std::string> titleLines;
-    float progress = 0.0f;
-  };
+  using StatusBarLayout = ReaderStatusBar::StatusBarLayout;
   struct FlowLine {
     std::string text;
     bool firstInParagraph = false;
