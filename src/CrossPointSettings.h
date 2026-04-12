@@ -76,6 +76,11 @@ public:
     STATUS_PAGE_LEFT_TEXT = 1,
     STATUS_BAR_PAGE_COUNTER_MODE_COUNT
   };
+  enum STATUS_BAR_FONT_SIZE {
+    STATUS_FONT_SMALL = 0,
+    STATUS_FONT_MEDIUM = 1,
+    STATUS_BAR_FONT_SIZE_COUNT
+  };
   enum STATUS_BAR_ITEM_POSITION {
     STATUS_AT_TOP = 0,
     STATUS_AT_BOTTOM = 1,
@@ -275,6 +280,7 @@ public:
   uint8_t statusBarTitlePosition = STATUS_AT_BOTTOM;
   uint8_t statusBarTextAlignment = STATUS_TEXT_RIGHT;
   uint8_t statusBarProgressStyle = STATUS_BAR_THICK;
+  uint8_t statusBarFontSize = STATUS_FONT_SMALL;
   // Text rendering settings
   uint8_t extraParagraphSpacingLevel = EXTRA_SPACING_M;
   // Legacy field name retained for storage compatibility; value stores a
@@ -367,6 +373,7 @@ public:
   static int wordSpacingSettingToPixelDelta(uint8_t mode, int baseSpaceWidth);
   int getReaderFontId() const;
   int getStatusBarProgressBarHeight() const;
+  int getStatusBarFontId() const;
 
   bool saveToFile() const;
   bool loadFromFile();

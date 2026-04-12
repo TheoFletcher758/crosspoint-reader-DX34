@@ -166,7 +166,7 @@ const std::vector<std::string>& TxtReaderActivity::getStatusBarTitleLines(
   }
 
   cachedTitleLines = ReaderLayoutSafety::buildTitleLines(
-      renderer, SMALL_FONT_ID, titleText, usableWidth, noTitleTruncation,
+      renderer, SETTINGS.getStatusBarFontId(), titleText, usableWidth, noTitleTruncation,
       maxTitleLineCount);
 
   cachedTitleUsableWidth = usableWidth;
@@ -203,7 +203,7 @@ TxtReaderActivity::StatusBarLayout TxtReaderActivity::buildStatusBarLayout(
     layout.pageCounterText = formatPageCounterText(
         SETTINGS.statusBarPageCounterMode, currentPage, totalPages);
     layout.pageCounterTextWidth =
-        renderer.getTextWidth(SMALL_FONT_ID, layout.pageCounterText.c_str());
+        renderer.getTextWidth(SETTINGS.getStatusBarFontId(), layout.pageCounterText.c_str());
   }
   if (SETTINGS.statusBarShowBookPercentage) {
     char bookPercentageStr[16] = {0};
@@ -211,7 +211,7 @@ TxtReaderActivity::StatusBarLayout TxtReaderActivity::buildStatusBarLayout(
              layout.bookProgress);
     layout.bookPercentageText = bookPercentageStr;
     layout.bookPercentageTextWidth = renderer.getTextWidth(
-        SMALL_FONT_ID, layout.bookPercentageText.c_str());
+        SETTINGS.getStatusBarFontId(), layout.bookPercentageText.c_str());
   }
   if (SETTINGS.statusBarShowChapterPercentage) {
     char chapterPercentageStr[16] = {0};
@@ -219,7 +219,7 @@ TxtReaderActivity::StatusBarLayout TxtReaderActivity::buildStatusBarLayout(
              layout.chapterProgress);
     layout.chapterPercentageText = chapterPercentageStr;
     layout.chapterPercentageTextWidth = renderer.getTextWidth(
-        SMALL_FONT_ID, layout.chapterPercentageText.c_str());
+        SETTINGS.getStatusBarFontId(), layout.chapterPercentageText.c_str());
   }
 
   if (SETTINGS.statusBarShowChapterTitle) {
@@ -597,7 +597,7 @@ void TxtReaderActivity::initializeReader() {
             ? titleLineCount
             : 0;
     const auto budget = ReaderLayoutSafety::resolveStatusBarBudget(
-        renderer, "TRS", renderer.getScreenHeight(), getStatusTopInset(renderer),
+        renderer, SETTINGS.getStatusBarFontId(), "TRS", renderer.getScreenHeight(), getStatusTopInset(renderer),
         getStatusBottomInset(renderer), cachedScreenMarginTop,
         cachedScreenMarginBottom, minContentHeight,
         SETTINGS.getStatusBarProgressBarHeight(),
@@ -1058,7 +1058,7 @@ void TxtReaderActivity::renderPage() {
             ? titleLineCount
             : 0;
     const auto budget = ReaderLayoutSafety::resolveStatusBarBudget(
-        renderer, "TRS", renderer.getScreenHeight(), getStatusTopInset(renderer),
+        renderer, SETTINGS.getStatusBarFontId(), "TRS", renderer.getScreenHeight(), getStatusTopInset(renderer),
         getStatusBottomInset(renderer), cachedScreenMarginTop,
         cachedScreenMarginBottom, minContentHeight,
         SETTINGS.getStatusBarProgressBarHeight(),

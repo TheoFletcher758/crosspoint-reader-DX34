@@ -41,10 +41,10 @@ int getStatusTopInset(const GfxRenderer& renderer);
 bool statusBarItemIsTop(uint8_t position);
 bool statusTextPositionIsTop(uint8_t position);
 int statusTextPositionHorizontalSlot(uint8_t position);
-int computeStatusTextBlockHeight(const GfxRenderer& renderer, bool showStatusTextRow, int titleLineCount);
+int computeStatusTextBlockHeight(const GfxRenderer& renderer, int fontId, bool showStatusTextRow, int titleLineCount);
 int computeStatusBarsHeight(bool showBookProgressBar, bool showChapterProgressBar,
                             int statusBarProgressHeight, bool includeTopMargin);
-int computeStatusBarReservedHeight(const GfxRenderer& renderer, bool showStatusTextRow,
+int computeStatusBarReservedHeight(const GfxRenderer& renderer, int fontId, bool showStatusTextRow,
                                    bool showBookProgressBar, bool showChapterProgressBar, int titleLineCount);
 std::vector<std::string> wrapStatusText(const GfxRenderer& renderer, int fontId,
                                         const std::string& text, int maxWidth);

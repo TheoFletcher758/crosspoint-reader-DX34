@@ -835,3 +835,7 @@ int CrossPointSettings::getReaderFontId() const {
 }
 
 int CrossPointSettings::getStatusBarProgressBarHeight() const { return 6; }
+
+int CrossPointSettings::getStatusBarFontId() const {
+  return statusBarFontSize == STATUS_FONT_MEDIUM ? UI_10_FONT_ID : SMALL_FONT_ID;
+}

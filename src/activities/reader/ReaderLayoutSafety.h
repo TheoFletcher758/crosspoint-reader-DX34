@@ -35,18 +35,19 @@ std::vector<std::string> buildTitleLines(const GfxRenderer& renderer,
                                          int maxWidth,
                                          bool noTitleTruncation,
                                          int maxLineCount);
-int computeStatusTextBlockHeight(const GfxRenderer& renderer,
+int computeStatusTextBlockHeight(const GfxRenderer& renderer, int fontId,
                                  bool showStatusTextRow, int titleLineCount);
 int computeStatusBarsHeight(bool showBookProgressBar,
                             bool showChapterProgressBar,
                             int statusBarProgressHeight,
                             bool includeTopMargin);
-int computeReservedHeight(const GfxRenderer& renderer, bool showStatusTextRow,
+int computeReservedHeight(const GfxRenderer& renderer, int fontId,
+                          bool showStatusTextRow,
                           bool showBookProgressBar,
                           bool showChapterProgressBar, int titleLineCount,
                           int statusBarProgressHeight);
 StatusBarBudgetResult resolveStatusBarBudget(
-    const GfxRenderer& renderer, const char* logTag, int screenHeight,
+    const GfxRenderer& renderer, int fontId, const char* logTag, int screenHeight,
     int statusTopInset, int statusBottomInset, int marginTop, int marginBottom,
     int minContentHeight, int statusBarProgressHeight,
     const StatusBarBandConfig& topConfig, const StatusBarBandConfig& bottomConfig);

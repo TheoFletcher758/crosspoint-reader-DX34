@@ -64,8 +64,8 @@ int statusTextPositionHorizontalSlot(const uint8_t position) {
   }
 }
 
-int computeStatusTextBlockHeight(const GfxRenderer& renderer, const bool showStatusTextRow, const int titleLineCount) {
-  return ReaderLayoutSafety::computeStatusTextBlockHeight(renderer, showStatusTextRow, titleLineCount);
+int computeStatusTextBlockHeight(const GfxRenderer& renderer, const int fontId, const bool showStatusTextRow, const int titleLineCount) {
+  return ReaderLayoutSafety::computeStatusTextBlockHeight(renderer, fontId, showStatusTextRow, titleLineCount);
 }
 
 int computeStatusBarsHeight(const bool showBookProgressBar, const bool showChapterProgressBar,
@@ -79,10 +79,11 @@ std::vector<std::string> wrapStatusText(const GfxRenderer& renderer, const int f
   return ReaderLayoutSafety::wrapText(renderer, fontId, text, maxWidth);
 }
 
-int computeStatusBarReservedHeight(const GfxRenderer& renderer, const bool showStatusTextRow,
+int computeStatusBarReservedHeight(const GfxRenderer& renderer, const int fontId,
+                                   const bool showStatusTextRow,
                                    const bool showBookProgressBar, const bool showChapterProgressBar,
                                    const int titleLineCount) {
-  return ReaderLayoutSafety::computeReservedHeight(renderer, showStatusTextRow, showBookProgressBar,
+  return ReaderLayoutSafety::computeReservedHeight(renderer, fontId, showStatusTextRow, showBookProgressBar,
                                                    showChapterProgressBar, titleLineCount,
                                                    SETTINGS.getStatusBarProgressBarHeight());
 }
@@ -100,11 +101,12 @@ void renderStatusBar(GfxRenderer& renderer, const StatusBarLayout& statusBarLayo
   const bool showBattery = SETTINGS.statusBarShowBattery;
   const bool showBatteryPercentage =
       SETTINGS.hideBatteryPercentage == CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_NEVER;
+  const int statusFontId = SETTINGS.getStatusBarFontId();
   const auto screenHeight = renderer.getScreenHeight();
   const int usableWidth = statusBarLayout.usableWidth;
   const int statusTopInset = getStatusTopInset(renderer);
   const int statusBottomInset = getStatusBottomInset(renderer);
-  const int textHeight = renderer.getTextHeight(SMALL_FONT_ID);
+  const int textHeight = renderer.getTextHeight(statusFontId);
   const int progressBarHeight = SETTINGS.getStatusBarProgressBarHeight();
 
   const auto renderBand = [&](const int bandTopY, const int reservedHeight, const bool renderTopBand) {
@@ -131,7 +133,7 @@ void renderStatusBar(GfxRenderer& renderer, const StatusBarLayout& statusBarLayo
         SETTINGS.statusBarShowChapterBar && (statusBarItemIsTop(SETTINGS.statusBarChapterBarPosition) == renderTopBand);
     const bool showStatusTextRow = showBandBattery || showBandProgressText;
     const int titleLineCount = showBandTitle ? static_cast<int>(statusBarLayout.titleLines.size()) : 0;
-    const int textBlockHeight = computeStatusTextBlockHeight(renderer, showStatusTextRow, titleLineCount);
+    const int textBlockHeight = computeStatusTextBlockHeight(renderer, statusFontId, showStatusTextRow, titleLineCount);
     const int activeBars = (showBandBookBar ? 1 : 0) + (showBandChapterBar ? 1 : 0);
     const int barsHeight =
         computeStatusBarsHeight(showBandBookBar, showBandChapterBar, progressBarHeight, textBlockHeight > 0);
@@ -175,18 +177,18 @@ void renderStatusBar(GfxRenderer& renderer, const StatusBarLayout& statusBarLayo
         std::string lineText = statusBarLayout.titleLines[i];
         int titleWidth = (i < statusBarLayout.titleLineWidths.size())
                              ? statusBarLayout.titleLineWidths[i]
-                             : renderer.getTextWidth(SMALL_FONT_ID, lineText.c_str());
+                             : renderer.getTextWidth(statusFontId, lineText.c_str());
         int titleX;
         if (titleWidth <= paddedWidth) {
           titleX = titlePadding + (paddedWidth - titleWidth) / 2;
         } else if (titleWidth <= screenWidth) {
           titleX = (screenWidth - titleWidth) / 2;
         } else {
-          lineText = renderer.truncatedText(SMALL_FONT_ID, lineText.c_str(), screenWidth);
-          titleWidth = renderer.getTextWidth(SMALL_FONT_ID, lineText.c_str());
+          lineText = renderer.truncatedText(statusFontId, lineText.c_str(), screenWidth);
+          titleWidth = renderer.getTextWidth(statusFontId, lineText.c_str());
           titleX = (screenWidth - titleWidth) / 2;
         }
-        renderer.drawText(SMALL_FONT_ID, titleX, titleY + static_cast<int>(i) * titleLineStep,
+        renderer.drawText(statusFontId, titleX, titleY + static_cast<int>(i) * titleLineStep,
                           lineText.c_str());
       }
     };
@@ -195,7 +197,7 @@ void renderStatusBar(GfxRenderer& renderer, const StatusBarLayout& statusBarLayo
       drawTitle();
     }
 
-    const int batteryWidth = showBandBattery ? renderer.getTextWidth(SMALL_FONT_ID, "100%") : 0;
+    const int batteryWidth = showBandBattery ? renderer.getTextWidth(statusFontId, "100%") : 0;
 
     if (showBandBattery || showBandProgressText) {
       struct TextEntry {
@@ -242,7 +244,7 @@ void renderStatusBar(GfxRenderer& renderer, const StatusBarLayout& statusBarLayo
             GUI.drawBatteryLeft(renderer, Rect{x, statusTextY, metrics.batteryWidth, metrics.batteryHeight},
                                 showBatteryPercentage);
           } else {
-            renderer.drawText(SMALL_FONT_ID, x, statusTextY, items[i].text->c_str());
+            renderer.drawText(statusFontId, x, statusTextY, items[i].text->c_str());
           }
           x += items[i].width;
         }

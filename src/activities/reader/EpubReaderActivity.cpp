@@ -335,7 +335,7 @@ int EpubReaderActivity::getWrappedStatusBarReserveLineCount(const int usableWidt
     if (title.empty()) {
       continue;
     }
-    const int lineCount = static_cast<int>(wrapStatusText(renderer, SMALL_FONT_ID, title, usableWidth).size());
+    const int lineCount = static_cast<int>(wrapStatusText(renderer, SETTINGS.getStatusBarFontId(), title, usableWidth).size());
     if (lineCount > maxLines) {
       maxLines = lineCount;
     }
@@ -364,7 +364,7 @@ const std::vector<std::string>& EpubReaderActivity::getStatusBarTitleLines(const
     }
   }
 
-  cachedTitleLines = ReaderLayoutSafety::buildTitleLines(renderer, SMALL_FONT_ID, titleText, usableWidth,
+  cachedTitleLines = ReaderLayoutSafety::buildTitleLines(renderer, SETTINGS.getStatusBarFontId(), titleText, usableWidth,
                                                          noTitleTruncation, maxTitleLineCount);
 
   cachedTitleTocIndex = tocIndex;
@@ -396,19 +396,19 @@ EpubReaderActivity::StatusBarLayout EpubReaderActivity::buildStatusBarLayout(con
   if (SETTINGS.statusBarShowPageCounter) {
     layout.pageCounterText = formatPageCounterText(SETTINGS.statusBarPageCounterMode, section->currentPage,
                                                    section->pageCount, layout.bookProgress);
-    layout.pageCounterTextWidth = renderer.getTextWidth(SMALL_FONT_ID, layout.pageCounterText.c_str());
+    layout.pageCounterTextWidth = renderer.getTextWidth(SETTINGS.getStatusBarFontId(), layout.pageCounterText.c_str());
   }
   if (SETTINGS.statusBarShowBookPercentage) {
     char bookPercentageStr[16] = {0};
     snprintf(bookPercentageStr, sizeof(bookPercentageStr), "B:%.0f%%", layout.bookProgress);
     layout.bookPercentageText = bookPercentageStr;
-    layout.bookPercentageTextWidth = renderer.getTextWidth(SMALL_FONT_ID, layout.bookPercentageText.c_str());
+    layout.bookPercentageTextWidth = renderer.getTextWidth(SETTINGS.getStatusBarFontId(), layout.bookPercentageText.c_str());
   }
   if (SETTINGS.statusBarShowChapterPercentage) {
     char chapterPercentageStr[16] = {0};
     snprintf(chapterPercentageStr, sizeof(chapterPercentageStr), "C:%.0f%%", layout.chapterProgress);
     layout.chapterPercentageText = chapterPercentageStr;
-    layout.chapterPercentageTextWidth = renderer.getTextWidth(SMALL_FONT_ID, layout.chapterPercentageText.c_str());
+    layout.chapterPercentageTextWidth = renderer.getTextWidth(SETTINGS.getStatusBarFontId(), layout.chapterPercentageText.c_str());
   }
 
   if (SETTINGS.statusBarShowChapterTitle) {
@@ -419,7 +419,7 @@ EpubReaderActivity::StatusBarLayout EpubReaderActivity::buildStatusBarLayout(con
         getStatusBarTitleLines(tocIndex, titleWrapWidth, SETTINGS.statusBarNoTitleTruncation, maxTitleLineCount);
     layout.titleLineWidths.reserve(layout.titleLines.size());
     for (const auto& line : layout.titleLines) {
-      layout.titleLineWidths.push_back(renderer.getTextWidth(SMALL_FONT_ID, line.c_str()));
+      layout.titleLineWidths.push_back(renderer.getTextWidth(SETTINGS.getStatusBarFontId(), line.c_str()));
     }
   }
 
@@ -1220,7 +1220,7 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
         (SETTINGS.statusBarShowChapterTitle && !statusBarItemIsTop(SETTINGS.statusBarTitlePosition)) ? titleLineCount
                                                                                                      : 0;
     const auto budget = ReaderLayoutSafety::resolveStatusBarBudget(
-        renderer, "ERS", renderer.getScreenHeight(), getStatusTopInset(renderer), getStatusBottomInset(renderer),
+        renderer, SETTINGS.getStatusBarFontId(), "ERS", renderer.getScreenHeight(), getStatusTopInset(renderer), getStatusBottomInset(renderer),
         SETTINGS.screenMarginTop, SETTINGS.screenMarginBottom, minContentHeight,
         SETTINGS.getStatusBarProgressBarHeight(),
         ReaderLayoutSafety::StatusBarBandConfig{

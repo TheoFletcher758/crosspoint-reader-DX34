@@ -16,13 +16,14 @@ constexpr int kStatusTextLineGap = 1;
 constexpr int kStatusTextToBarsGap = 0;
 
 StatusBarBandBudget makeBandBudget(const GfxRenderer& renderer,
+                                   const int fontId,
                                    const StatusBarBandConfig& config,
                                    const int titleLineCount,
                                    const int statusBarProgressHeight) {
   StatusBarBandBudget budget;
   budget.titleLineCount = std::max(0, titleLineCount);
   budget.reservedHeight =
-      computeReservedHeight(renderer, config.showStatusTextRow,
+      computeReservedHeight(renderer, fontId, config.showStatusTextRow,
                             config.showBookProgressBar,
                             config.showChapterProgressBar, budget.titleLineCount,
                             statusBarProgressHeight);
@@ -132,9 +133,10 @@ std::vector<std::string> buildTitleLines(const GfxRenderer& renderer,
 }
 
 int computeStatusTextBlockHeight(const GfxRenderer& renderer,
+                                 const int fontId,
                                  const bool showStatusTextRow,
                                  const int titleLineCount) {
-  const int statusTextHeight = renderer.getTextHeight(SMALL_FONT_ID);
+  const int statusTextHeight = renderer.getTextHeight(fontId);
   int textBlockHeight = 0;
   if (showStatusTextRow) {
     textBlockHeight += statusTextHeight;
@@ -164,13 +166,14 @@ int computeStatusBarsHeight(const bool showBookProgressBar,
 }
 
 int computeReservedHeight(const GfxRenderer& renderer,
+                          const int fontId,
                           const bool showStatusTextRow,
                           const bool showBookProgressBar,
                           const bool showChapterProgressBar,
                           const int titleLineCount,
                           const int statusBarProgressHeight) {
   const int textBlockHeight = computeStatusTextBlockHeight(
-      renderer, showStatusTextRow, titleLineCount);
+      renderer, fontId, showStatusTextRow, titleLineCount);
   const int barsHeight =
       computeStatusBarsHeight(showBookProgressBar, showChapterProgressBar,
                               statusBarProgressHeight, textBlockHeight > 0);
@@ -191,16 +194,17 @@ int computeReservedHeight(const GfxRenderer& renderer,
 }
 
 StatusBarBudgetResult resolveStatusBarBudget(
-    const GfxRenderer& renderer, const char* logTag, const int screenHeight,
+    const GfxRenderer& renderer, const int fontId, const char* logTag,
+    const int screenHeight,
     const int statusTopInset, const int statusBottomInset, const int marginTop,
     const int marginBottom, const int minContentHeight,
     const int statusBarProgressHeight, const StatusBarBandConfig& topConfig,
     const StatusBarBandConfig& bottomConfig) {
   StatusBarBudgetResult result;
-  result.top = makeBandBudget(renderer, topConfig, topConfig.desiredTitleLineCount,
+  result.top = makeBandBudget(renderer, fontId, topConfig, topConfig.desiredTitleLineCount,
                               statusBarProgressHeight);
   result.bottom =
-      makeBandBudget(renderer, bottomConfig, bottomConfig.desiredTitleLineCount,
+      makeBandBudget(renderer, fontId, bottomConfig, bottomConfig.desiredTitleLineCount,
                      statusBarProgressHeight);
 
   const int availableStatusHeight =
@@ -216,15 +220,15 @@ StatusBarBudgetResult resolveStatusBarBudget(
          result.top.reservedHeight >= result.bottom.reservedHeight);
     if (reduceTop && result.top.titleLineCount > 0) {
       result.top =
-          makeBandBudget(renderer, topConfig, result.top.titleLineCount - 1,
+          makeBandBudget(renderer, fontId, topConfig, result.top.titleLineCount - 1,
                          statusBarProgressHeight);
     } else if (result.bottom.titleLineCount > 0) {
-      result.bottom = makeBandBudget(renderer, bottomConfig,
+      result.bottom = makeBandBudget(renderer, fontId, bottomConfig,
                                      result.bottom.titleLineCount - 1,
                                      statusBarProgressHeight);
     } else if (result.top.titleLineCount > 0) {
       result.top =
-          makeBandBudget(renderer, topConfig, result.top.titleLineCount - 1,
+          makeBandBudget(renderer, fontId, topConfig, result.top.titleLineCount - 1,
                          statusBarProgressHeight);
     }
     totalReserved = result.top.reservedHeight + result.bottom.reservedHeight;
