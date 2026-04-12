@@ -48,6 +48,7 @@ struct ReadingTheme {
   uint8_t statusBarTextAlignment = CrossPointSettings::STATUS_TEXT_RIGHT;
   uint8_t statusBarProgressStyle = CrossPointSettings::STATUS_BAR_THICK;
   uint8_t statusBarFontSize = CrossPointSettings::STATUS_FONT_SMALL;
+  uint8_t statusBarBarThickness = CrossPointSettings::STATUS_BAR_THICKNESS_NORMAL;
 };
 
 class ReadingThemeStore;

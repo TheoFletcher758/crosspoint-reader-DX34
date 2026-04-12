@@ -61,6 +61,7 @@ void writeReadingThemeObject(JsonObject obj, const ReadingTheme& theme) {
   obj["statusBarTextAlignment"] = theme.statusBarTextAlignment;
   obj["statusBarProgressStyle"] = theme.statusBarProgressStyle;
   obj["statusBarFontSize"] = theme.statusBarFontSize;
+  obj["statusBarBarThickness"] = theme.statusBarBarThickness;
 }
 
 void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
@@ -194,6 +195,9 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
   theme.statusBarFontSize =
       obj["statusBarFontSize"] |
       (uint8_t)CrossPointSettings::STATUS_FONT_SMALL;
+  theme.statusBarBarThickness =
+      obj["statusBarBarThickness"] |
+      (uint8_t)CrossPointSettings::STATUS_BAR_THICKNESS_NORMAL;
   theme = ReadingThemeStore::normalizeTheme(theme);
 }
 } // namespace
@@ -482,6 +486,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["statusBarTextAlignment"] = s.statusBarTextAlignment;
   doc["statusBarProgressStyle"] = s.statusBarProgressStyle;
   doc["statusBarFontSize"] = s.statusBarFontSize;
+  doc["statusBarBarThickness"] = s.statusBarBarThickness;
   doc["extraParagraphSpacingLevel"] = s.extraParagraphSpacingLevel;
   // Legacy compatibility key for older builds that still expect a toggle.
   doc["extraParagraphSpacing"] =
@@ -693,6 +698,9 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
     s.statusBarFontSize =
         clamp(doc["statusBarFontSize"] | (uint8_t)S::STATUS_FONT_SMALL,
               S::STATUS_BAR_FONT_SIZE_COUNT, S::STATUS_FONT_SMALL);
+    s.statusBarBarThickness =
+        clamp(doc["statusBarBarThickness"] | (uint8_t)S::STATUS_BAR_THICKNESS_NORMAL,
+              S::STATUS_BAR_BAR_THICKNESS_COUNT, S::STATUS_BAR_THICKNESS_NORMAL);
   } else {
     migrateLegacyStatusBarMode(s);
     if (needsResave)

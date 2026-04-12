@@ -136,6 +136,8 @@ inline std::vector<SettingInfo> getSettingsList() {
                           "statusBarNoTitleTruncation", StrId::STR_STATUS_BAR),
       SettingInfo::Enum(StrId::STR_STATUS_FONT_SIZE, &CrossPointSettings::statusBarFontSize,
                         {StrId::STR_STATUS_FONT_MIN, StrId::STR_STATUS_FONT_MAX}, "statusBarFontSize", StrId::STR_STATUS_BAR),
+      SettingInfo::Enum(StrId::STR_STATUS_BAR_THICKNESS, &CrossPointSettings::statusBarBarThickness,
+                        {StrId::STR_STATUS_BAR_THICKNESS_NORMAL, StrId::STR_STATUS_BAR_THICKNESS_DOUBLE}, "statusBarBarThickness", StrId::STR_STATUS_BAR),
 
       // --- Controls ---
       SettingInfo::Enum(StrId::STR_SIDE_BTN_LAYOUT, &CrossPointSettings::sideButtonLayout,

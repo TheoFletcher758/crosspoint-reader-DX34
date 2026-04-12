@@ -146,6 +146,7 @@ ReadingTheme ReadingThemeStore::fromSettings(const std::string& name,
   theme.statusBarTextAlignment = settings.statusBarTextAlignment;
   theme.statusBarProgressStyle = settings.statusBarProgressStyle;
   theme.statusBarFontSize = settings.statusBarFontSize;
+  theme.statusBarBarThickness = settings.statusBarBarThickness;
   return theme;
 }
 
@@ -254,6 +255,10 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
       theme.statusBarFontSize, 0,
       CrossPointSettings::STATUS_BAR_FONT_SIZE_COUNT - 1,
       CrossPointSettings::STATUS_FONT_SMALL);
+  settings.statusBarBarThickness = clampRange(
+      theme.statusBarBarThickness, 0,
+      CrossPointSettings::STATUS_BAR_BAR_THICKNESS_COUNT - 1,
+      CrossPointSettings::STATUS_BAR_THICKNESS_NORMAL);
 }
 
 bool ReadingThemeStore::matchesCurrent(const ReadingTheme& theme) const {
@@ -303,7 +308,8 @@ bool ReadingThemeStore::matchesCurrent(const ReadingTheme& theme) const {
          current.statusBarTitlePosition == theme.statusBarTitlePosition &&
          current.statusBarTextAlignment == theme.statusBarTextAlignment &&
          current.statusBarProgressStyle == theme.statusBarProgressStyle &&
-         current.statusBarFontSize == theme.statusBarFontSize;
+         current.statusBarFontSize == theme.statusBarFontSize &&
+         current.statusBarBarThickness == theme.statusBarBarThickness;
 }
 
 int ReadingThemeStore::findMatchingTheme() const {
@@ -619,5 +625,9 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
       theme.statusBarFontSize, 0,
       CrossPointSettings::STATUS_BAR_FONT_SIZE_COUNT - 1,
       CrossPointSettings::STATUS_FONT_SMALL);
+  normalized.statusBarBarThickness = clampRange(
+      theme.statusBarBarThickness, 0,
+      CrossPointSettings::STATUS_BAR_BAR_THICKNESS_COUNT - 1,
+      CrossPointSettings::STATUS_BAR_THICKNESS_NORMAL);
   return normalized;
 }

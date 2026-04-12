@@ -300,11 +300,21 @@ void renderStatusBar(GfxRenderer& renderer, const StatusBarLayout& statusBarLayo
       barIndex++;
     };
 
-    if (showBandBookBar) {
-      drawBandBar(static_cast<size_t>(statusBarLayout.bookProgress));
-    }
-    if (showBandChapterBar) {
-      drawBandBar(static_cast<size_t>(statusBarLayout.chapterProgress));
+    // Book bar is always at the outermost edge: first when top, last when bottom.
+    if (renderTopBand) {
+      if (showBandBookBar) {
+        drawBandBar(static_cast<size_t>(statusBarLayout.bookProgress));
+      }
+      if (showBandChapterBar) {
+        drawBandBar(static_cast<size_t>(statusBarLayout.chapterProgress));
+      }
+    } else {
+      if (showBandChapterBar) {
+        drawBandBar(static_cast<size_t>(statusBarLayout.chapterProgress));
+      }
+      if (showBandBookBar) {
+        drawBandBar(static_cast<size_t>(statusBarLayout.bookProgress));
+      }
     }
   };
 

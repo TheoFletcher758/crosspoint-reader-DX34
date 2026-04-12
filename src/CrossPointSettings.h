@@ -81,6 +81,11 @@ public:
     STATUS_FONT_MEDIUM = 1,
     STATUS_BAR_FONT_SIZE_COUNT
   };
+  enum STATUS_BAR_BAR_THICKNESS {
+    STATUS_BAR_THICKNESS_NORMAL = 0,
+    STATUS_BAR_THICKNESS_DOUBLE = 1,
+    STATUS_BAR_BAR_THICKNESS_COUNT
+  };
   enum STATUS_BAR_ITEM_POSITION {
     STATUS_AT_TOP = 0,
     STATUS_AT_BOTTOM = 1,
@@ -281,6 +286,7 @@ public:
   uint8_t statusBarTextAlignment = STATUS_TEXT_RIGHT;
   uint8_t statusBarProgressStyle = STATUS_BAR_THICK;
   uint8_t statusBarFontSize = STATUS_FONT_SMALL;
+  uint8_t statusBarBarThickness = STATUS_BAR_THICKNESS_NORMAL;
   // Text rendering settings
   uint8_t extraParagraphSpacingLevel = EXTRA_SPACING_M;
   // Legacy field name retained for storage compatibility; value stores a
