@@ -6,14 +6,18 @@
 #include <Logging.h>
 #include <Utf8.h>
 
+#include <esp_task_wdt.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 extern HalGPIO gpio;
 
 #include "Battery.h"
 #include "CrossPointSettings.h"
+#include "util/FavoriteBmp.h"
 #include "I18n.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
@@ -51,15 +55,30 @@ bool isBookFile(const char* name) {
 
 bool isBmpFile(const char* name) { return endsWithIgnoreCase(name, ".bmp"); }
 
-void countFilesRecursive(FsFile& dir, uint32_t& bookCount, uint32_t& bmpCount, bool countBooks, bool countBmps) {
+// Iterative directory scan — avoids deep recursion on ESP32 stack.
+// Feeds watchdog every 32 entries to prevent WDT reset on large SD cards.
+void countFilesIterative(FsFile& root, uint32_t& bookCount, uint32_t& bmpCount, bool countBooks, bool countBmps) {
   char name[256];
-  for (auto entry = dir.openNextFile(); entry; entry = dir.openNextFile()) {
+  uint32_t entryCount = 0;
+  std::vector<FsFile> dirStack;
+  dirStack.push_back(std::move(root));
+
+  while (!dirStack.empty()) {
+    FsFile& dir = dirStack.back();
+    auto entry = dir.openNextFile();
+    if (!entry) {
+      dir.close();
+      dirStack.pop_back();
+      continue;
+    }
+
     entry.getName(name, sizeof(name));
     if (entry.isDirectory()) {
       if (name[0] != '.') {
-        countFilesRecursive(entry, bookCount, bmpCount, countBooks, countBmps);
+        dirStack.push_back(std::move(entry));
+      } else {
+        entry.close();
       }
-      entry.close();
       continue;
     }
 
@@ -70,7 +89,33 @@ void countFilesRecursive(FsFile& dir, uint32_t& bookCount, uint32_t& bmpCount, b
       ++bmpCount;
     }
     entry.close();
+
+    if ((++entryCount & 0x1F) == 0) {
+      esp_task_wdt_reset();
+    }
   }
+}
+
+// Flat scan of a single directory (no recursion). Counts BMP files only.
+uint32_t countBmpsInDir(const char* path) {
+  auto dir = Storage.open(path);
+  if (!dir || !dir.isDirectory()) return 0;
+
+  uint32_t count = 0;
+  uint32_t entryCount = 0;
+  char name[256];
+  for (auto entry = dir.openNextFile(); entry; entry = dir.openNextFile()) {
+    entry.getName(name, sizeof(name));
+    if (!entry.isDirectory() && isBmpFile(name)) {
+      ++count;
+    }
+    entry.close();
+    if ((++entryCount & 0x1F) == 0) {
+      esp_task_wdt_reset();
+    }
+  }
+  dir.close();
+  return count;
 }
 
 void drawDashedRect(const GfxRenderer& renderer, int x, int y, int w, int h) {
@@ -95,6 +140,8 @@ void drawDashedRect(const GfxRenderer& renderer, int x, int y, int w, int h) {
 struct HomeInfoStats {
   uint32_t bookCount = 0;
   uint32_t sleepBmpCount = 0;
+  uint32_t sleepFavoriteCount = 0;
+  uint32_t sleepPauseCount = 0;
   uint64_t freeBytes = 0;
   bool valid = false;
 };
@@ -104,19 +151,42 @@ HomeInfoStats gHomeInfoStats;
 void scanHomeInfoStats(HomeInfoStats& stats) {
   stats.bookCount = 0;
   stats.sleepBmpCount = 0;
+  stats.sleepFavoriteCount = 0;
+  stats.sleepPauseCount = 0;
   stats.freeBytes = Storage.freeBytes();
 
+  // Count books recursively from root (skip hidden dirs)
   auto root = Storage.open("/");
   if (root && root.isDirectory()) {
-    countFilesRecursive(root, stats.bookCount, stats.sleepBmpCount, true, false);
-    root.close();
+    countFilesIterative(root, stats.bookCount, stats.sleepBmpCount, true, false);
+    // root closed by countFilesIterative
   }
 
-  auto sleepDir = Storage.open("/sleep");
-  if (sleepDir && sleepDir.isDirectory()) {
-    countFilesRecursive(sleepDir, stats.bookCount, stats.sleepBmpCount, false, true);
-    sleepDir.close();
+  // Count sleep BMPs + favorites in /sleep (flat scan)
+  {
+    auto dir = Storage.open("/sleep");
+    if (dir && dir.isDirectory()) {
+      uint32_t entryCount = 0;
+      char name[256];
+      for (auto entry = dir.openNextFile(); entry; entry = dir.openNextFile()) {
+        entry.getName(name, sizeof(name));
+        if (!entry.isDirectory() && isBmpFile(name)) {
+          ++stats.sleepBmpCount;
+          if (FavoriteBmp::isFavoritePath(std::string("/sleep/") + name)) {
+            ++stats.sleepFavoriteCount;
+          }
+        }
+        entry.close();
+        if ((++entryCount & 0x1F) == 0) {
+          esp_task_wdt_reset();
+        }
+      }
+      dir.close();
+    }
   }
+
+  // Count BMPs in /sleep pause
+  stats.sleepPauseCount = countBmpsInDir("/sleep pause");
 
   stats.valid = true;
 }
@@ -693,18 +763,18 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
 }
 
 void BaseTheme::drawHomeInfoStatsPopup(const GfxRenderer& renderer) const {
-  refreshHomeInfoStats();
   const auto& stats = getHomeInfoStats();
 
   const int popupW = std::min(renderer.getScreenWidth() - 20, 460);
-  const int popupH = 165;
-  const int popupX = (renderer.getScreenWidth() - popupW) / 2;
-  const int popupY = (renderer.getScreenHeight() - popupH) / 2;
-  const int textX = popupX + 12;
   constexpr int textPadY = 10;
   constexpr int lineGap = 6;
   const int lineHeight = renderer.getLineHeight(UI_12_FONT_ID);
   const int lineStep = lineHeight + lineGap;
+  constexpr int statLines = 5;
+  const int popupH = textPadY * 2 + lineStep * statLines;
+  const int popupX = (renderer.getScreenWidth() - popupW) / 2;
+  const int popupY = (renderer.getScreenHeight() - popupH) / 2;
+  const int textX = popupX + 12;
   const int textMaxWidth = popupW - 24;
 
   renderer.fillRect(popupX - 2, popupY - 2, popupW + 4, popupH + 4, true);
@@ -713,9 +783,6 @@ void BaseTheme::drawHomeInfoStatsPopup(const GfxRenderer& renderer) const {
 
   const uint64_t gbScale = 1024ull * 1024ull * 1024ull;
   const uint64_t freeTenthsGb = (stats.freeBytes * 10ull) / gbScale;
-  const std::string line1Value = std::to_string(stats.bookCount);
-  const std::string line2Value = std::to_string(stats.sleepBmpCount);
-  const std::string line3Value = std::to_string(freeTenthsGb / 10ull) + "." + std::to_string(freeTenthsGb % 10ull) + " GB";
 
   auto drawStatLine = [&](const int y, const char* labelText, const std::string& valueRegular) {
     const std::string labelWithSeparator = std::string(labelText) + "   ";
@@ -734,9 +801,12 @@ void BaseTheme::drawHomeInfoStatsPopup(const GfxRenderer& renderer) const {
   };
 
   const int textY = popupY + textPadY;
-  drawStatLine(textY, "NUMBER OF BOOKS", line1Value);
-  drawStatLine(textY + lineStep, "NUMBER OF WALLPAPERS", line2Value);
-  drawStatLine(textY + lineStep * 2, "FREE SPACE IN SD CARD", line3Value);
+  drawStatLine(textY,                  "BOOKS",              std::to_string(stats.bookCount));
+  drawStatLine(textY + lineStep,       "SLEEP IMAGES",       std::to_string(stats.sleepBmpCount));
+  drawStatLine(textY + lineStep * 2,   "SLEEP FAVORITES",    std::to_string(stats.sleepFavoriteCount));
+  drawStatLine(textY + lineStep * 3,   "SLEEP PAUSE IMAGES", std::to_string(stats.sleepPauseCount));
+  drawStatLine(textY + lineStep * 4,   "FREE SD SPACE",      std::to_string(freeTenthsGb / 10ull) + "." +
+                                                              std::to_string(freeTenthsGb % 10ull) + " GB");
 }
 
 void BaseTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,

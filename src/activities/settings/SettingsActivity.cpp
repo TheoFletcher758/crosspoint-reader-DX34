@@ -309,6 +309,15 @@ void SettingsActivity::loop() {
     return;
   }
 
+  if (homeStatsScanning) {
+    // "Scanning..." was rendered on previous frame. Now do the actual scan.
+    BaseTheme::refreshHomeInfoStats();
+    homeStatsScanning = false;
+    homeStatsPopupOpen = true;
+    requestUpdate();
+    return;
+  }
+
   if (homeStatsPopupOpen) {
     dismissPopupOnAnyPress(homeStatsPopupOpen);
     return;
@@ -532,7 +541,7 @@ void SettingsActivity::toggleCurrentSetting() {
         requestUpdate();
         break;
       case SettingAction::RefreshHomeStats: {
-        homeStatsPopupOpen = true;
+        homeStatsScanning = true;
         requestUpdate();
         break;
       }
@@ -640,6 +649,10 @@ void SettingsActivity::render(Activity::RenderLock&&) {
   const char* confirmLabel = valueEditMode ? tr(STR_CONFIRM) : tr(STR_TOGGLE);
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), confirmLabel, tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+
+  if (homeStatsScanning) {
+    GUI.drawPopup(renderer, "Scanning SD card...");
+  }
 
   if (homeStatsPopupOpen) {
     GUI.drawHomeInfoStatsPopup(renderer);
