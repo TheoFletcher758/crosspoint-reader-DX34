@@ -382,15 +382,25 @@ bool SleepActivity::randomizeSleepImagePlaylist() {
   return true;
 }
 
+static size_t s_cachedSleepFavoriteCount = 0;
+
+size_t SleepActivity::cachedSleepFavoriteCount() {
+  return s_cachedSleepFavoriteCount;
+}
+
 void SleepActivity::trimSleepFolderToLimit(GfxRenderer* popupRenderer) {
   const size_t kLimit = CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST;
   const size_t kScanCap = kLimit + 500; // Hard cap on scanning to avoid OOM
 
   // Count .bmp files in /sleep first to avoid allocating the vector if not needed.
+  // Also count favorites so callers can use cachedSleepFavoriteCount() without
+  // a separate directory scan.
   size_t count = 0;
+  size_t scannedFavorites = 0;
   auto dir = Storage.open("/sleep");
   if (!dir || !dir.isDirectory()) {
     if (dir) dir.close();
+    s_cachedSleepFavoriteCount = 0;
     return;
   }
   char name[256]; // Reduced from 500 to save stack
@@ -401,6 +411,9 @@ void SleepActivity::trimSleepFolderToLimit(GfxRenderer* popupRenderer) {
     if (!filename.empty() && filename[0] != '.' &&
         filename.size() >= 4 && filename.substr(filename.size() - 4) == ".bmp") {
       count++;
+      if (FavoriteBmp::isFavoritePath("/sleep/" + filename)) {
+        scannedFavorites++;
+      }
       if (count > kScanCap) break; // Optimization: we already know we're over limit
     }
     file.close();
@@ -408,6 +421,7 @@ void SleepActivity::trimSleepFolderToLimit(GfxRenderer* popupRenderer) {
   dir.rewindDirectory();
 
   if (count <= kLimit) {
+    s_cachedSleepFavoriteCount = scannedFavorites;
     dir.close();
     return; // Under limit — nothing to do.
   }
@@ -447,6 +461,7 @@ void SleepActivity::trimSleepFolderToLimit(GfxRenderer* popupRenderer) {
                     [](const std::string& filename) {
                       return FavoriteBmp::isFavoritePath("/sleep/" + filename);
                     });
+  s_cachedSleepFavoriteCount = favoriteCount;
   if (favoriteCount > kLimit) {
     LOG_ERR("SLP", "Trim: %zu favorites in /sleep exceed limit %zu", favoriteCount, kLimit);
     return;

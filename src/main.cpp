@@ -233,6 +233,12 @@ void enterDeepSleep() {
 void onGoHome();
 void onGoToMyLibraryWithPath(const std::string& path);
 void onGoToRecentBooks();
+
+// When true the /sleep folder may have changed since the last trim, so
+// onGoHome() will re-scan.  Set to false after a successful trim and to true
+// before entering activities that can modify /sleep (e.g. file transfer).
+static bool sleepFolderDirty = true;
+
 void onGoToReader(const std::string& initialEpubPath) {
   const std::string bookPath = initialEpubPath;  // Copy before exitActivity() invalidates the reference
   TransitionFeedback::show(renderer, "Opening book...");
@@ -242,6 +248,7 @@ void onGoToReader(const std::string& initialEpubPath) {
 
 void onGoToFileTransfer() {
   TransitionFeedback::show(renderer, "Starting server...");
+  sleepFolderDirty = true;  // Files may be uploaded to /sleep during transfer
   exitActivity();
   enterNewActivity(new CrossPointWebServerActivity(renderer, mappedInputManager, onGoHome));
 }
@@ -279,19 +286,12 @@ void onGoToBrowser() {
   enterNewActivity(new OpdsBookBrowserActivity(renderer, mappedInputManager, onGoHome));
 }
 
-// Track whether home-screen data was loaded (deferred when booting to a book)
-static bool homeDataLoaded = false;
-
-void ensureHomeDataLoaded() {
-  if (!homeDataLoaded) {
-    SleepActivity::trimSleepFolderToLimit();
-    homeDataLoaded = true;
-  }
-}
-
 void onGoHome() {
   TransitionFeedback::show(renderer, "Loading home...");
-  ensureHomeDataLoaded();
+  if (sleepFolderDirty) {
+    SleepActivity::trimSleepFolderToLimit();
+    sleepFolderDirty = false;
+  }
   persistAppState("go home");
   exitActivity();
   enterNewActivity(new HomeActivity(renderer, mappedInputManager, onGoToReader, onGoToMyLibrary, onGoToRecentBooks,
@@ -502,7 +502,7 @@ void setup() {
   if (goHome) {
     bootActivity->setProgress(60, "Refreshing sleep cache");
     SleepActivity::trimSleepFolderToLimit();
-    homeDataLoaded = true;
+    sleepFolderDirty = false;
   }
   bootActivity->setProgress(80, goHome ? "Preparing home" : "Resuming book");
 

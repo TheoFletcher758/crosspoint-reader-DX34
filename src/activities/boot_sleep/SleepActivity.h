@@ -20,7 +20,10 @@ class SleepActivity final : public Activity {
   void onEnter() override;
   static bool randomizeSleepImagePlaylist();
   // Called once on boot: moves overflow images beyond the playlist limit to /sleep pause.
+  // Also caches the number of protected sleep favorites for fast access.
   static void trimSleepFolderToLimit(GfxRenderer* renderer = nullptr);
+  // Return the favorite count cached by the last trimSleepFolderToLimit() call.
+  static size_t cachedSleepFavoriteCount();
 
  private:
   void renderDefaultSleepScreen() const;

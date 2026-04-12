@@ -84,7 +84,9 @@ int HomeActivity::getRecentSlotCount() const {
 }
 
 void HomeActivity::refreshSleepFavoriteWarning() {
-  protectedSleepFavoriteCount = FavoriteBmp::countProtectedSleepFavorites();
+  // Use the count cached by trimSleepFolderToLimit() (called in onGoHome)
+  // instead of re-scanning the /sleep directory.
+  protectedSleepFavoriteCount = SleepActivity::cachedSleepFavoriteCount();
   sleepFavoritesFull =
       protectedSleepFavoriteCount >= CrossPointState::SLEEP_PLAYLIST_MAX_PERSIST;
 }
@@ -151,8 +153,8 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
 void HomeActivity::onEnter() {
   Activity::onEnter();
 
-  // Trim sleep folder once we reach home to avoid delays during boot/sleep entry
-  SleepActivity::trimSleepFolderToLimit(&renderer);
+  // Sleep folder trimming is handled by onGoHome() before this activity is
+  // created, so we only need to read the cached favorite count here.
   refreshSleepFavoriteWarning();
 
   // Check if OPDS browser URL is configured
