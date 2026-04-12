@@ -540,7 +540,7 @@ std::string MyLibraryActivity::getFileActionLabel(const int index) const {
       case 3:
         return FavoriteBmp::isFavoritePath(selectedFilePath) ? "Unfavorite" : "Favorite";
       case 4:
-        return "Share via QR";
+        return tr(STR_DOWNLOAD_IMAGE_VIA_QR);
       case 5:
         return "Delete File";
       default:
@@ -554,7 +554,7 @@ std::string MyLibraryActivity::getFileActionLabel(const int index) const {
     case 1:
       return "Move File";
     case 2:
-      return "Share via QR";
+      return tr(STR_DOWNLOAD_BOOK_VIA_QR);
     case 3:
       return "Delete File";
     default:
