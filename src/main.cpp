@@ -233,6 +233,12 @@ void enterDeepSleep() {
 void onGoHome();
 void onGoToMyLibraryWithPath(const std::string& path);
 void onGoToRecentBooks();
+
+// When true the /sleep folder may have changed since the last trim, so
+// onGoHome() will re-scan.  Set to false after a successful trim and to true
+// before entering activities that can modify /sleep (e.g. file transfer).
+static bool sleepFolderDirty = true;
+
 void onGoToReader(const std::string& initialEpubPath) {
   const std::string bookPath = initialEpubPath;  // Copy before exitActivity() invalidates the reference
   TransitionFeedback::show(renderer, "Opening book...");
@@ -279,11 +285,6 @@ void onGoToBrowser() {
   exitActivity();
   enterNewActivity(new OpdsBookBrowserActivity(renderer, mappedInputManager, onGoHome));
 }
-
-// When true the /sleep folder may have changed since the last trim, so
-// onGoHome() will re-scan.  Set to false after a successful trim and to true
-// before entering activities that can modify /sleep (e.g. file transfer).
-static bool sleepFolderDirty = true;
 
 void onGoHome() {
   TransitionFeedback::show(renderer, "Loading home...");
