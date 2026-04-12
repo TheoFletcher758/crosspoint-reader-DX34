@@ -98,7 +98,7 @@ void migrateLegacyStatusBarMode(CrossPointSettings &settings) {
   settings.statusBarShowChapterTitle = 1;
   settings.statusBarNoTitleTruncation = 0;
   settings.statusBarTopLine = 0;
-  settings.statusBarBatteryPosition = CrossPointSettings::STATUS_AT_BOTTOM;
+  settings.statusBarBatteryPosition = CrossPointSettings::STATUS_TEXT_BOTTOM_LEFT;
   settings.statusBarProgressTextPosition =
       CrossPointSettings::STATUS_AT_BOTTOM;
   settings.statusBarPageCounterPosition =

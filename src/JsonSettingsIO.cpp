@@ -48,6 +48,7 @@ void writeReadingThemeObject(JsonObject obj, const ReadingTheme& theme) {
   obj["statusBarShowChapterTitle"] = theme.statusBarShowChapterTitle;
   obj["statusBarNoTitleTruncation"] = theme.statusBarNoTitleTruncation;
   obj["statusBarBatteryPosition"] = theme.statusBarBatteryPosition;
+  obj["batteryPositionV2"] = true;
   obj["statusBarProgressTextPosition"] = theme.statusBarProgressTextPosition;
   obj["statusBarPageCounterPosition"] = theme.statusBarPageCounterPosition;
   obj["statusBarBookPercentagePosition"] =
@@ -147,9 +148,20 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
       obj["statusBarShowChapterTitle"] | (uint8_t)1;
   theme.statusBarNoTitleTruncation =
       obj["statusBarNoTitleTruncation"] | (uint8_t)0;
-  theme.statusBarBatteryPosition =
-      obj["statusBarBatteryPosition"] |
-      (uint8_t)CrossPointSettings::STATUS_AT_BOTTOM;
+  if (obj["batteryPositionV2"].isNull()) {
+    // Migrate old 2-value position (Top/Bottom) to 6-value text position
+    const uint8_t old =
+        obj["statusBarBatteryPosition"] |
+        (uint8_t)CrossPointSettings::STATUS_AT_BOTTOM;
+    theme.statusBarBatteryPosition =
+        (old == CrossPointSettings::STATUS_AT_TOP)
+            ? (uint8_t)CrossPointSettings::STATUS_TEXT_TOP_LEFT
+            : (uint8_t)CrossPointSettings::STATUS_TEXT_BOTTOM_LEFT;
+  } else {
+    theme.statusBarBatteryPosition =
+        obj["statusBarBatteryPosition"] |
+        (uint8_t)CrossPointSettings::STATUS_TEXT_BOTTOM_LEFT;
+  }
   theme.statusBarProgressTextPosition =
       obj["statusBarProgressTextPosition"] |
       (uint8_t)CrossPointSettings::STATUS_AT_BOTTOM;
@@ -454,6 +466,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["statusBarNoTitleTruncation"] = s.statusBarNoTitleTruncation;
   doc["statusBarTopLine"] = s.statusBarTopLine;
   doc["statusBarBatteryPosition"] = s.statusBarBatteryPosition;
+  doc["batteryPositionV2"] = true;
   doc["statusBarProgressTextPosition"] = s.statusBarProgressTextPosition;
   doc["statusBarPageCounterPosition"] = s.statusBarPageCounterPosition;
   doc["statusBarBookPercentagePosition"] = s.statusBarBookPercentagePosition;
@@ -573,15 +586,21 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
     s.statusBarNoTitleTruncation =
         doc["statusBarNoTitleTruncation"] | (uint8_t)0;
     s.statusBarTopLine = doc["statusBarTopLine"] | (uint8_t)0;
-    if (doc["statusBarBatteryPosition"].isNull()) {
-      s.statusBarBatteryPosition = (uint8_t)S::STATUS_AT_BOTTOM;
+    if (doc["batteryPositionV2"].isNull()) {
+      // Migrate old 2-value position (Top/Bottom) to 6-value text position
+      const uint8_t old =
+          doc["statusBarBatteryPosition"] | (uint8_t)S::STATUS_AT_BOTTOM;
+      s.statusBarBatteryPosition =
+          (old == S::STATUS_AT_TOP)
+              ? (uint8_t)S::STATUS_TEXT_TOP_LEFT
+              : (uint8_t)S::STATUS_TEXT_BOTTOM_LEFT;
       if (needsResave) {
         *needsResave = true;
       }
     } else {
       s.statusBarBatteryPosition = clamp(
-          doc["statusBarBatteryPosition"] | (uint8_t)S::STATUS_AT_BOTTOM,
-          S::STATUS_BAR_ITEM_POSITION_COUNT, S::STATUS_AT_BOTTOM);
+          doc["statusBarBatteryPosition"] | (uint8_t)S::STATUS_TEXT_BOTTOM_LEFT,
+          S::STATUS_BAR_TEXT_POSITION_COUNT, S::STATUS_TEXT_BOTTOM_LEFT);
     }
     if (doc["statusBarProgressTextPosition"].isNull()) {
       s.statusBarProgressTextPosition = (uint8_t)S::STATUS_AT_BOTTOM;

@@ -648,7 +648,7 @@ void TxtReaderActivity::initializeReader() {
             ReaderLayoutSafety::kMinViewportWidth, "TRS", "usable width");
     const bool showTopStatusTextRow =
         (SETTINGS.statusBarShowBattery &&
-         statusBarItemIsTop(SETTINGS.statusBarBatteryPosition)) ||
+         statusTextPositionIsTop(SETTINGS.statusBarBatteryPosition)) ||
         (SETTINGS.statusBarShowPageCounter &&
          statusTextPositionIsTop(SETTINGS.statusBarPageCounterPosition)) ||
         (SETTINGS.statusBarShowBookPercentage &&
@@ -658,7 +658,7 @@ void TxtReaderActivity::initializeReader() {
              SETTINGS.statusBarChapterPercentagePosition));
     const bool showBottomStatusTextRow =
         (SETTINGS.statusBarShowBattery &&
-         !statusBarItemIsTop(SETTINGS.statusBarBatteryPosition)) ||
+         !statusTextPositionIsTop(SETTINGS.statusBarBatteryPosition)) ||
         (SETTINGS.statusBarShowPageCounter &&
          !statusTextPositionIsTop(SETTINGS.statusBarPageCounterPosition)) ||
         (SETTINGS.statusBarShowBookPercentage &&
@@ -1109,7 +1109,7 @@ void TxtReaderActivity::renderPage() {
   if (SETTINGS.statusBarEnabled) {
     const bool showTopStatusTextRow =
         (SETTINGS.statusBarShowBattery &&
-         statusBarItemIsTop(SETTINGS.statusBarBatteryPosition)) ||
+         statusTextPositionIsTop(SETTINGS.statusBarBatteryPosition)) ||
         (SETTINGS.statusBarShowPageCounter &&
          statusTextPositionIsTop(SETTINGS.statusBarPageCounterPosition)) ||
         (SETTINGS.statusBarShowBookPercentage &&
@@ -1119,7 +1119,7 @@ void TxtReaderActivity::renderPage() {
              SETTINGS.statusBarChapterPercentagePosition));
     const bool showBottomStatusTextRow =
         (SETTINGS.statusBarShowBattery &&
-         !statusBarItemIsTop(SETTINGS.statusBarBatteryPosition)) ||
+         !statusTextPositionIsTop(SETTINGS.statusBarBatteryPosition)) ||
         (SETTINGS.statusBarShowPageCounter &&
          !statusTextPositionIsTop(SETTINGS.statusBarPageCounterPosition)) ||
         (SETTINGS.statusBarShowBookPercentage &&
@@ -1260,7 +1260,7 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
     const bool showBandBattery =
         showBattery &&
         showBatteryPercentage &&
-        (statusBarItemIsTop(SETTINGS.statusBarBatteryPosition) ==
+        (statusTextPositionIsTop(SETTINGS.statusBarBatteryPosition) ==
          renderTopBand);
     const bool showBandPageCounter =
         !statusBarLayout.pageCounterText.empty() &&
@@ -1351,32 +1351,21 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
         showBandBattery
             ? renderer.getTextWidth(SMALL_FONT_ID, "100%")
             : 0;
-    int currentX =
-        orientedMarginLeft + std::max(0, (usableWidth - batteryWidth) / 2);
 
-    if (showBandBattery) {
-      GUI.drawBatteryLeft(
-          renderer,
-          Rect{currentX, statusTextY, metrics.batteryWidth,
-               metrics.batteryHeight},
-          showBatteryPercentage);
-      currentX += batteryWidth + statusItemGap;
-    }
-
-    if (showBandProgressText) {
+    if (showBandBattery || showBandProgressText) {
       struct TextEntry {
-        const std::string* text;
+        const std::string* text;  // nullptr = battery item
         int width;
       };
       std::vector<TextEntry> leftItems;
       std::vector<TextEntry> centerItems;
       std::vector<TextEntry> rightItems;
-      const auto addItem = [&](const bool enabled, const std::string& text,
+      const auto addItem = [&](const bool enabled, const std::string* text,
                                const int width, const uint8_t position) {
         if (!enabled) {
           return;
         }
-        TextEntry entry{&text, width};
+        TextEntry entry{text, width};
         switch (statusTextPositionHorizontalSlot(position)) {
           case 0:
             leftItems.push_back(entry);
@@ -1390,13 +1379,15 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
             break;
         }
       };
-      addItem(showBandPageCounter, statusBarLayout.pageCounterText,
+      addItem(showBandBattery, nullptr, batteryWidth,
+              SETTINGS.statusBarBatteryPosition);
+      addItem(showBandPageCounter, &statusBarLayout.pageCounterText,
               statusBarLayout.pageCounterTextWidth,
               SETTINGS.statusBarPageCounterPosition);
-      addItem(showBandBookPercentage, statusBarLayout.bookPercentageText,
+      addItem(showBandBookPercentage, &statusBarLayout.bookPercentageText,
               statusBarLayout.bookPercentageTextWidth,
               SETTINGS.statusBarBookPercentagePosition);
-      addItem(showBandChapterPercentage, statusBarLayout.chapterPercentageText,
+      addItem(showBandChapterPercentage, &statusBarLayout.chapterPercentageText,
               statusBarLayout.chapterPercentageTextWidth,
               SETTINGS.statusBarChapterPercentagePosition);
 
@@ -1407,8 +1398,16 @@ void TxtReaderActivity::renderStatusBar(const StatusBarLayout& statusBarLayout,
           if (i > 0) {
             x += statusItemGap;
           }
-          renderer.drawText(SMALL_FONT_ID, x, statusTextY,
-                            items[i].text->c_str());
+          if (items[i].text == nullptr) {
+            GUI.drawBatteryLeft(
+                renderer,
+                Rect{x, statusTextY, metrics.batteryWidth,
+                     metrics.batteryHeight},
+                showBatteryPercentage);
+          } else {
+            renderer.drawText(SMALL_FONT_ID, x, statusTextY,
+                              items[i].text->c_str());
+          }
           x += items[i].width;
         }
       };

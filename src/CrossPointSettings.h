@@ -265,7 +265,7 @@ public:
   uint8_t statusBarShowChapterTitle = 1;
   uint8_t statusBarNoTitleTruncation = 0;
   uint8_t statusBarTopLine = 0;
-  uint8_t statusBarBatteryPosition = STATUS_AT_BOTTOM;
+  uint8_t statusBarBatteryPosition = STATUS_TEXT_BOTTOM_LEFT;
   uint8_t statusBarProgressTextPosition = STATUS_AT_BOTTOM;
   uint8_t statusBarPageCounterPosition = STATUS_TEXT_BOTTOM_CENTER;
   uint8_t statusBarBookPercentagePosition = STATUS_TEXT_BOTTOM_CENTER;

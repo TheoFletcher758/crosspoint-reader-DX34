@@ -302,7 +302,8 @@ void ReaderSettingsActivity::buildSettingsList() {
   statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_BAR, &CrossPointSettings::statusBarEnabled));
   statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_BATTERY, &CrossPointSettings::statusBarShowBattery));
   statusBarSettings.push_back(SettingInfo::Enum(StrId::STR_STATUS_BATTERY_POSITION, &CrossPointSettings::statusBarBatteryPosition,
-      {StrId::STR_STATUS_POSITION_TOP, StrId::STR_STATUS_POSITION_BOTTOM}));
+      {StrId::STR_STATUS_POS_TOP_LEFT, StrId::STR_STATUS_POS_TOP_CENTER, StrId::STR_STATUS_POS_TOP_RIGHT,
+       StrId::STR_STATUS_POS_BOTTOM_LEFT, StrId::STR_STATUS_POS_BOTTOM_CENTER, StrId::STR_STATUS_POS_BOTTOM_RIGHT}));
   statusBarSettings.push_back(SettingInfo::Toggle(StrId::STR_STATUS_PAGE_COUNTER, &CrossPointSettings::statusBarShowPageCounter));
   statusBarSettings.push_back(SettingInfo::Enum(StrId::STR_STATUS_PAGE_COUNTER_MODE, &CrossPointSettings::statusBarPageCounterMode,
       {StrId::STR_STATUS_PAGE_MODE_CURRENT_TOTAL, StrId::STR_STATUS_PAGE_MODE_LEFT_CHAPTER}));
