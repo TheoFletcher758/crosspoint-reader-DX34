@@ -188,6 +188,8 @@ void EpubReaderActivity::onEnter() {
   APP_STATE.openEpubPath = epub->getPath();
   APP_STATE.saveToFile();
   RECENT_BOOKS.addBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), epub->getThumbBmpPath());
+  // Generate cover thumbnail for home screen cover layouts
+  epub->generateThumbBmp(400);
 
   // Move book to /recents/ folder on first open from another location
   {

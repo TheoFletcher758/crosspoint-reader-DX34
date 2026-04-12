@@ -1,5 +1,6 @@
 #include "BaseTheme.h"
 
+#include <Bitmap.h>
 #include <GfxRenderer.h>
 #include <HalGPIO.h>
 #include <HalStorage.h>
@@ -21,12 +22,48 @@ extern HalGPIO gpio;
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/BookProgress.h"
 
 // Internal constants
 namespace {
 constexpr int batteryPercentSpacing = 4;
 constexpr int homeMenuMargin = 20;
 constexpr int homeMarginTop = 30;
+
+// Try to open a cover BMP for a book. Attempts the [HEIGHT]-templated thumb path
+// at the requested height first, then at common pre-generated heights, then falls
+// back to the full-size cover.bmp (replacing "thumb_[HEIGHT].bmp" with "cover.bmp").
+// Returns true if file was opened successfully (caller must close it).
+bool tryOpenCoverBmp(const std::string& coverBmpPath, int desiredHeight, FsFile& outFile) {
+  if (coverBmpPath.empty()) return false;
+
+  // 1. Try exact height thumb
+  const std::string exactPath = UITheme::getCoverThumbPath(coverBmpPath, desiredHeight);
+  if (Storage.exists(exactPath.c_str()) && Storage.openFileForRead("HOME", exactPath, outFile)) {
+    return true;
+  }
+
+  // 2. Try common pre-generated thumb heights
+  static const int commonHeights[] = {400, 300, 200, 600, 800};
+  for (int h : commonHeights) {
+    if (h == desiredHeight) continue;
+    const std::string path = UITheme::getCoverThumbPath(coverBmpPath, h);
+    if (Storage.exists(path.c_str()) && Storage.openFileForRead("HOME", path, outFile)) {
+      return true;
+    }
+  }
+
+  // 3. Try full-size cover.bmp (coverBmpPath has "/thumb_[HEIGHT].bmp", replace with "/cover.bmp")
+  const size_t thumbPos = coverBmpPath.find("/thumb_[HEIGHT]");
+  if (thumbPos != std::string::npos) {
+    const std::string fullCoverPath = coverBmpPath.substr(0, thumbPos) + "/cover.bmp";
+    if (Storage.exists(fullCoverPath.c_str()) && Storage.openFileForRead("HOME", fullCoverPath, outFile)) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 bool endsWithIgnoreCase(const char* text, const char* suffix) {
   if (!text || !suffix) return false;
@@ -760,6 +797,158 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
       const int belowTextX = belowX + (belowW - belowTextW) / 2;
       renderer.drawText(UI_10_FONT_ID, belowTextX, belowY + 3, belowText.c_str(), false);  // White text
     }
+  }
+}
+
+void BaseTheme::drawRecentBookSingleCover(GfxRenderer& renderer, Rect rect,
+                                          const std::vector<RecentBook>& recentBooks, int selectorIndex,
+                                          int scrollOffset) const {
+  const int count = static_cast<int>(recentBooks.size());
+  if (count == 0) return;
+
+  const int clampedIdx = std::max(0, std::min(scrollOffset, count - 1));
+  const int rowLineHeight = renderer.getLineHeight(UI_10_FONT_ID);
+  const int indicatorH = rowLineHeight + 8;
+  const bool hasMoreAbove = clampedIdx > 0;
+  const bool hasMoreBelow = clampedIdx < count - 1;
+
+  // Reserve space for indicators
+  const int aboveH = hasMoreAbove ? indicatorH : 0;
+  const int belowH = hasMoreBelow ? indicatorH : 0;
+
+  // Layout: indicators at top/bottom, cover + text info in between
+  const int contentTop = rect.y + aboveH + 2;
+  const int contentBottom = rect.y + rect.height - belowH - 2;
+  const int contentH = contentBottom - contentTop;
+
+  // Space for title + author text below cover
+  const int titleLineH = rowLineHeight;
+  const int authorLineH = renderer.getLineHeight(SMALL_FONT_ID);
+  const int textBlockH = titleLineH + authorLineH + 6;
+
+  const RecentBook& book = recentBooks[clampedIdx];
+
+  // Determine cover size from actual image dimensions (or default 2:3 if no cover)
+  const int coverMaxH = std::max(20, contentH - textBlockH - 4);
+  const int coverMaxW = rect.width - 40;
+  int imgW = 2, imgH = 3;  // default aspect ratio for placeholder
+
+  // Try to open cover to get real dimensions
+  FsFile coverFile;
+  bool hasCoverFile = tryOpenCoverBmp(book.coverBmpPath, 400, coverFile);
+  Bitmap* coverBitmap = nullptr;
+  Bitmap bitmapStorage(coverFile, true);
+  if (hasCoverFile) {
+    if (bitmapStorage.parseHeaders() == BmpReaderError::Ok) {
+      imgW = bitmapStorage.getWidth();
+      imgH = bitmapStorage.getHeight();
+      coverBitmap = &bitmapStorage;
+    } else {
+      coverFile.close();
+      hasCoverFile = false;
+    }
+  }
+
+  // Fit cover within available space preserving aspect ratio
+  int coverW, coverH;
+  const float imgRatio = static_cast<float>(imgW) / static_cast<float>(imgH);
+  if (static_cast<int>(coverMaxH * imgRatio) <= coverMaxW) {
+    // Height-constrained
+    coverH = coverMaxH;
+    coverW = static_cast<int>(coverH * imgRatio);
+  } else {
+    // Width-constrained
+    coverW = coverMaxW;
+    coverH = static_cast<int>(coverW / imgRatio);
+  }
+  const int coverX = rect.x + (rect.width - coverW) / 2;
+  const int coverY = contentTop + (coverMaxH - coverH) / 2;
+
+  // Draw cover
+  bool coverDrawn = false;
+  if (coverBitmap) {
+    renderer.drawBitmap(bitmapStorage, coverX, coverY, coverW, coverH);
+    coverDrawn = true;
+  }
+  if (hasCoverFile) {
+    coverFile.close();
+  }
+
+  // Fallback: plain gray rectangle with "no cover found" badge
+  if (!coverDrawn) {
+    renderer.fillRectDither(coverX, coverY, coverW, coverH, Color::LightGray);
+    // "no cover found" badge centered in cover (same style as percentage badge)
+    const char* noCoverText = "no cover found.";
+    const int ncTextW = renderer.getTextWidth(UI_10_FONT_ID, noCoverText);
+    const int ncBadgeW = ncTextW + 12;
+    const int ncBadgeH = rowLineHeight + 4;
+    const int ncBadgeX = coverX + (coverW - ncBadgeW) / 2;
+    const int ncBadgeY = coverY + (coverH - ncBadgeH) / 2;
+    renderer.fillRect(ncBadgeX, ncBadgeY, ncBadgeW, ncBadgeH);
+    const int ncTextX = ncBadgeX + (ncBadgeW - ncTextW) / 2;
+    renderer.drawText(UI_10_FONT_ID, ncTextX, ncBadgeY + 2, noCoverText, false);
+  }
+
+  // Draw cover border
+  renderer.drawRect(coverX, coverY, coverW, coverH);
+
+  // Draw percentage badge at bottom center of cover (black bg, white text)
+  {
+    const auto percent = BookProgress::getPercent(book.path);
+    const std::string pctText = "[" + (percent.has_value() ? std::to_string(percent.value()) : "0") + "%]";
+    const int pctTextW = renderer.getTextWidth(UI_10_FONT_ID, pctText.c_str());
+    const int badgeW = pctTextW + 12;
+    const int badgeH = rowLineHeight + 4;
+    const int badgeX = coverX + (coverW - badgeW) / 2;
+    const int badgeY = coverY + coverH - badgeH - 4;
+    renderer.fillRect(badgeX, badgeY, badgeW, badgeH);
+    const int pctTextX = badgeX + (badgeW - pctTextW) / 2;
+    renderer.drawText(UI_10_FONT_ID, pctTextX, badgeY + 2, pctText.c_str(), false);
+  }
+
+  // Title below cover (bold, centered)
+  const int textY = coverY + coverH + 4;
+  const int textMaxW = rect.width - BaseMetrics::values.contentSidePadding * 2;
+  {
+    const std::string truncTitle = renderer.truncatedText(UI_10_FONT_ID, book.title.c_str(), textMaxW, EpdFontFamily::BOLD);
+    const int titleW = renderer.getTextWidth(UI_10_FONT_ID, truncTitle.c_str(), EpdFontFamily::BOLD);
+    const int titleX = rect.x + (rect.width - titleW) / 2;
+    renderer.drawText(UI_10_FONT_ID, titleX, textY, truncTitle.c_str(), true, EpdFontFamily::BOLD);
+  }
+
+  // Author below title (smaller font, centered)
+  if (!book.author.empty()) {
+    const int authorY = textY + titleLineH + 2;
+    const std::string truncAuthor = renderer.truncatedText(SMALL_FONT_ID, book.author.c_str(), textMaxW);
+    const int authorW = renderer.getTextWidth(SMALL_FONT_ID, truncAuthor.c_str());
+    const int authorX = rect.x + (rect.width - authorW) / 2;
+    renderer.drawText(SMALL_FONT_ID, authorX, authorY, truncAuthor.c_str());
+  }
+
+  // "N more above" indicator
+  if (hasMoreAbove) {
+    const std::string aboveText = std::to_string(clampedIdx) + " more above";
+    const int aboveTextW = renderer.getTextWidth(UI_10_FONT_ID, aboveText.c_str());
+    const int aboveW = aboveTextW + 24;
+    const int aboveBarH = rowLineHeight + 6;
+    const int aboveX = rect.x + (rect.width - aboveW) / 2;
+    renderer.fillRect(aboveX, rect.y + 2, aboveW, aboveBarH);
+    const int aboveTextX = aboveX + (aboveW - aboveTextW) / 2;
+    renderer.drawText(UI_10_FONT_ID, aboveTextX, rect.y + 5, aboveText.c_str(), false);
+  }
+
+  // "N more below" indicator
+  if (hasMoreBelow) {
+    const int remaining = count - clampedIdx - 1;
+    const std::string belowText = std::to_string(remaining) + " more below";
+    const int belowTextW = renderer.getTextWidth(UI_10_FONT_ID, belowText.c_str());
+    const int belowW = belowTextW + 24;
+    const int belowBarH = rowLineHeight + 6;
+    const int belowX = rect.x + (rect.width - belowW) / 2;
+    const int belowY = rect.y + rect.height - belowBarH - 2;
+    renderer.fillRect(belowX, belowY, belowW, belowBarH);
+    const int belowTextX = belowX + (belowW - belowTextW) / 2;
+    renderer.drawText(UI_10_FONT_ID, belowTextX, belowY + 3, belowText.c_str(), false);
   }
 }
 

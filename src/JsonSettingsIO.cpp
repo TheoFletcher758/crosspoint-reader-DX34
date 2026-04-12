@@ -457,6 +457,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
                                   const char *path) {
   JsonDocument doc;
 
+  doc["homeLayout"] = s.homeLayout;
   doc["sleepScreen"] = s.sleepScreen;
   doc["sleepScreenCoverMode"] = s.sleepScreenCoverMode;
   doc["sleepScreenCoverFilter"] = s.sleepScreenCoverFilter;
@@ -551,6 +552,8 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
     return val < maxVal ? val : def;
   };
 
+  s.homeLayout = clamp(doc["homeLayout"] | (uint8_t)S::HOME_LAYOUT_CLASSIC,
+                       S::HOME_LAYOUT_COUNT, S::HOME_LAYOUT_CLASSIC);
   s.sleepScreen = clamp(doc["sleepScreen"] | (uint8_t)S::DARK,
                         S::SLEEP_SCREEN_MODE_COUNT, S::DARK);
   s.sleepScreenCoverMode = clamp(doc["sleepScreenCoverMode"] | (uint8_t)S::FIT,

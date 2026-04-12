@@ -101,6 +101,7 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
   recentBooks.reserve(maxBooks);
   size_t eligibleCount = 0;
   const size_t maxVisibleBooks = static_cast<size_t>(maxBooks);
+  const bool isClassic = SETTINGS.homeLayout == CrossPointSettings::HOME_LAYOUT_CLASSIC;
   std::unordered_set<std::string> seenPaths;
   seenPaths.reserve(books.size());
 
@@ -125,15 +126,16 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
     }
 
     eligibleCount++;
-    const auto percent = BookProgress::getPercent(book.path);
-
-    RecentBook bookWithoutCover = book;
-    bookWithoutCover.title =
-        "[" + (percent.has_value() ? std::to_string(percent.value()) : "0") +
-        "%]  " + book.title;
-    // Home screen should never attempt to load/render cover images.
-    bookWithoutCover.coverBmpPath.clear();
-    recentBooks.push_back(bookWithoutCover);
+    RecentBook entry = book;
+    if (isClassic) {
+      const auto percent = BookProgress::getPercent(book.path);
+      entry.title =
+          "[" + (percent.has_value() ? std::to_string(percent.value()) : "0") +
+          "%]  " + book.title;
+      // Classic mode should never attempt to load/render cover images.
+      entry.coverBmpPath.clear();
+    }
+    recentBooks.push_back(entry);
   }
 
   if (eligibleCount > maxVisibleBooks && !recentBooks.empty()) {
@@ -232,10 +234,12 @@ void HomeActivity::loop() {
   const auto menuItems = buildHomeMenuItems(hasOpdsUrl);
   const int menuCount = getMenuItemCount();
 
-  buttonNavigator.onNext([this, menuCount] {
+  // Max visible books depends on home layout mode
+  const int maxVisibleBooks = (SETTINGS.homeLayout == CrossPointSettings::HOME_LAYOUT_SINGLE_COVER) ? 1 : 8;
+
+  buttonNavigator.onNext([this, menuCount, maxVisibleBooks] {
     selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
     // Adjust scroll offset to keep selected book visible
-    constexpr int maxVisibleBooks = 8;
     const int bookCount = static_cast<int>(recentBooks.size());
     if (selectorIndex >= 1 && selectorIndex <= bookCount) {
       const int bookIdx = selectorIndex - 1;
@@ -245,16 +249,17 @@ void HomeActivity::loop() {
       if (bookIdx < scrollOffset) {
         scrollOffset = bookIdx;
       }
-    } else {
+    } else if (selectorIndex == 0) {
+      // Wrapped around to top (Pages Read) — reset scroll
       scrollOffset = 0;
     }
+    // Otherwise keep scrollOffset as-is (moving into menu items below recents)
     requestUpdate();
   });
 
-  buttonNavigator.onPrevious([this, menuCount] {
+  buttonNavigator.onPrevious([this, menuCount, maxVisibleBooks] {
     selectorIndex = ButtonNavigator::previousIndex(selectorIndex, menuCount);
     // Adjust scroll offset to keep selected book visible
-    constexpr int maxVisibleBooks = 8;
     const int bookCount = static_cast<int>(recentBooks.size());
     if (selectorIndex >= 1 && selectorIndex <= bookCount) {
       const int bookIdx = selectorIndex - 1;
@@ -296,8 +301,8 @@ void HomeActivity::loop() {
                 selectorIndex = std::max(0, menuCount - 1);
               }
               // Clamp scroll offset after removal
-              constexpr int maxVisibleBooks = 8;
-              const int maxOffset = std::max(0, static_cast<int>(recentBooks.size()) - maxVisibleBooks);
+              const int mvb = (SETTINGS.homeLayout == CrossPointSettings::HOME_LAYOUT_SINGLE_COVER) ? 1 : 8;
+              const int maxOffset = std::max(0, static_cast<int>(recentBooks.size()) - mvb);
               if (scrollOffset > maxOffset) {
                 scrollOffset = maxOffset;
               }
@@ -432,10 +437,19 @@ void HomeActivity::render(Activity::RenderLock &&) {
   const int recentAreaY = warningBottomY;
   const int recentAreaHeight =
       std::max(0, menuY - recentAreaBottomGap - recentAreaY);
-  GUI.drawRecentBookCover(
-      renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
-      selectorIndex - 1, coverRendered, coverBufferStored, bufferRestored,
-      std::bind(&HomeActivity::storeCoverBuffer, this), scrollOffset);
+  switch (SETTINGS.homeLayout) {
+    case CrossPointSettings::HOME_LAYOUT_SINGLE_COVER:
+      GUI.drawRecentBookSingleCover(
+          renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
+          selectorIndex - 1, scrollOffset);
+      break;
+    default:
+      GUI.drawRecentBookCover(
+          renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
+          selectorIndex - 1, coverRendered, coverBufferStored, bufferRestored,
+          std::bind(&HomeActivity::storeCoverBuffer, this), scrollOffset);
+      break;
+  }
 
   for (int i = 0; i < menuCount; ++i) {
     const int tileY =

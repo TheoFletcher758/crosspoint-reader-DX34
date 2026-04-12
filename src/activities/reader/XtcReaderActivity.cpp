@@ -50,6 +50,8 @@ void XtcReaderActivity::onEnter() {
   APP_STATE.saveToFile();
   RECENT_BOOKS.addBook(xtc->getPath(), xtc->getTitle(), xtc->getAuthor(),
                        xtc->getThumbBmpPath());
+  // Generate cover thumbnail for home screen cover layouts
+  xtc->generateThumbBmp(400);
 
   // Move book to /recents/ folder on first open from another location
   {

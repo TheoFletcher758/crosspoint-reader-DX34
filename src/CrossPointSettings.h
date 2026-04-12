@@ -86,6 +86,13 @@ public:
     STATUS_BAR_THICKNESS_DOUBLE = 1,
     STATUS_BAR_BAR_THICKNESS_COUNT
   };
+  // Home screen layout modes
+  enum HOME_LAYOUT {
+    HOME_LAYOUT_CLASSIC = 0,
+    HOME_LAYOUT_SINGLE_COVER = 1,
+    HOME_LAYOUT_COUNT
+  };
+
   enum STATUS_BAR_ITEM_POSITION {
     STATUS_AT_TOP = 0,
     STATUS_AT_BOTTOM = 1,
@@ -254,6 +261,8 @@ public:
     HIDE_BATTERY_PERCENTAGE_COUNT
   };
 
+  // Home screen layout
+  uint8_t homeLayout = HOME_LAYOUT_CLASSIC;
   // Sleep screen settings
   uint8_t sleepScreen = DARK;
   // Sleep screen cover mode settings
