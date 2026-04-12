@@ -29,6 +29,7 @@ class EpubReaderMenuActivity final : public ActivityWithSubactivity {
     TRIAGE_MOVE_PAUSE,
     TRIAGE_DELETE,
     TOGGLE_RANDOM_BOOK_ON_BOOT,
+    SHARE_QR,
   };
 
   explicit EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& title,
