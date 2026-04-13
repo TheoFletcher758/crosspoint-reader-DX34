@@ -572,7 +572,7 @@ void EpubReaderActivity::loop() {
   const bool skipChapter = SETTINGS.longPressChapterSkip && mappedInput.getHeldTime() > skipChapterMs;
 
   // Don't skip chapter after screenshot
-  if (gpio.wasReleased(HalGPIO::BTN_POWER) && gpio.wasReleased(HalGPIO::BTN_DOWN)) {
+  if (mappedInput.wasReleased(MappedInputManager::Button::Power) && mappedInput.wasReleased(MappedInputManager::Button::Down)) {
     return;
   }
 
