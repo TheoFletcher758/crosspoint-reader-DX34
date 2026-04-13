@@ -346,6 +346,8 @@ The status bar is highly configurable. Each element can be independently shown/h
 | **Book progress bar** | Show / Hide, position, style (Thin / Thick / Dotted) |
 | **Chapter progress bar** | Show / Hide, position, style |
 | **Chapter title** | Show / Hide, position, truncation control |
+| **Font size** | Small or Medium |
+| **Bar thickness** | Normal or Double |
 | **Text alignment** | Right, Center, Left |
 | **Hide battery %** | Never, In Reader, Always |
 
@@ -452,6 +454,7 @@ The home screen is DX34-specific and includes:
 - Menu entries: My Library, Recents, File Transfer, Settings
 - Optional OPDS browser entry (when an OPDS server is configured)
 - Sleep favorites capacity warning when the protected wallpaper list is full
+- **Home layout** setting: **Classic** (list of recent books) or **Single Cover** (large cover art display)
 
 ![Home screen](./docs/images/screenshots/home-screen.jpg)
 
@@ -543,7 +546,7 @@ The firmware can check for and install updates over Wi-Fi directly from GitHub r
 |---------|---------|
 | **Side button layout** | Previous/Next or Next/Previous |
 | **Long-press chapter skip** | Toggle long-press on side buttons to skip chapters |
-| **Short power button action** | Ignore, Sleep, or Page Turn |
+| **Short power button action** | Ignore, Sleep, Page Turn, or Refresh Screen |
 | **Front button remapping** | Remap Back, Confirm, Left, Right to any physical front button |
 
 Front button remapping uses an interactive step-by-step flow where you press the physical button you want for each logical role.
