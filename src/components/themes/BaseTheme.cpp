@@ -591,10 +591,10 @@ void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const s
 }
 
 // Draw the "Recent Book" cover card on the home screen
-void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                    const int selectorIndex, bool& coverRendered, bool& coverBufferStored,
-                                    bool& bufferRestored, std::function<bool()> storeCoverBuffer,
-                                    int scrollOffset) const {
+BookListVisibility BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect,
+                                                   const std::vector<RecentBook>& recentBooks, int selectorIndex,
+                                                   bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
+                                                   std::function<bool()> storeCoverBuffer, int scrollOffset) const {
   (void)coverRendered;
   (void)coverBufferStored;
   (void)bufferRestored;
@@ -624,14 +624,10 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   };
 
   const int maxRowsCap = std::max(1, UITheme::getInstance().getMetrics().homeRecentBooksCount);
-  constexpr const char* placeholderLabel = "Open another book...";
   const int count = std::min(static_cast<int>(recentBooks.size()), maxRowsCap);
   constexpr int maxVisibleBooks = 8;
   // Clamp scrollOffset to valid range
   const int clampedOffset = std::max(0, std::min(scrollOffset, std::max(0, count - 1)));
-  const int windowEnd = std::min(clampedOffset + maxVisibleBooks, count);
-  const int visibleRows = std::max(1, windowEnd - clampedOffset);
-  const bool hasMoreBelow = windowEnd < count;
   constexpr int rowGap = 4;
   const int rowLineHeight = renderer.getLineHeight(UI_10_FONT_ID);
   constexpr int rowsTopInset = 18;
@@ -645,9 +641,6 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
   const int rowX = rect.x + (rect.width - rowW) / 2;
   const int contentX = rowX + 12;
   const int contentW = std::max(1, rowW - 24);
-
-  std::vector<std::vector<std::string>> rowLines(visibleRows);
-  std::vector<int> rowHeights(visibleRows, rowLineHeight + 6);
 
   auto wrapText = [&](const std::string& input, const int maxWidth) {
     std::vector<std::string> lines;
@@ -711,93 +704,146 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     return lines;
   };
 
-  for (int i = 0; i < visibleRows; i++) {
-    const int bookIdx = clampedOffset + i;
-    const bool hasBook = bookIdx < count;
-    if (!hasBook) {
-      rowLines[i].push_back(renderer.truncatedText(UI_10_FONT_ID, placeholderLabel, contentW));
-      continue;
-    }
+  // Indicator zone height (always reserved when list can scroll)
+  const int indicatorH = rowLineHeight + 8;
+  const bool reserveIndicators = count > 1;
+  const int aboveIndicatorH = reserveIndicators ? indicatorH : 0;
+  const int belowIndicatorH = reserveIndicators ? indicatorH : 0;
 
-    const std::string initials = buildAuthorInitials(recentBooks[bookIdx].author);
-    const std::string rowText = initials.empty() ? recentBooks[bookIdx].title : (recentBooks[bookIdx].title + " by " + initials);
-    rowLines[i] = wrapText(rowText, contentW);
-    rowHeights[i] = static_cast<int>(rowLines[i].size()) * rowLineHeight + 6;
+  // Content zone: fixed area between the two indicator zones
+  const int effectiveTopY = rowsTopMinY + aboveIndicatorH;
+  const int effectiveBottomY = rowsBottomY - belowIndicatorH;
+  const int contentHeight = effectiveBottomY - effectiveTopY;
+
+  if (rowsAvailableHeight <= 0 || contentHeight <= 0 || count == 0) {
+    return {0, 0, count};
   }
 
-  if (rowsAvailableHeight > 0) {
-    const bool hasMoreAbove = clampedOffset > 0;
-    const int indicatorH = rowLineHeight + 8;
+  // Helper: measure a book's wrapped text and height
+  struct BookEntry {
+    int bookIdx;
+    std::vector<std::string> lines;
+    int height;
+  };
+  auto measureBook = [&](int idx) -> BookEntry {
+    const std::string initials = buildAuthorInitials(recentBooks[idx].author);
+    const std::string rowText = initials.empty() ? recentBooks[idx].title
+                                                 : (recentBooks[idx].title + " by " + initials);
+    auto lines = wrapText(rowText, contentW);
+    const int h = static_cast<int>(lines.size()) * rowLineHeight + 6;
+    return {idx, std::move(lines), h};
+  };
 
-    // Reserve space for above/below indicators
-    const int aboveIndicatorH = hasMoreAbove ? indicatorH : 0;
-    const int belowIndicatorH = hasMoreBelow ? indicatorH : 0;
-
-    int totalRowsHeight = 0;
-    for (int i = 0; i < visibleRows; i++) {
-      totalRowsHeight += rowHeights[i];
+  // Helper: build visible entries from a start offset
+  auto buildVisibleEntries = [&](int startIdx) {
+    std::vector<BookEntry> entries;
+    int accumulated = 0;
+    for (int i = startIdx; i < count && static_cast<int>(entries.size()) < maxVisibleBooks; i++) {
+      auto entry = measureBook(i);
+      const int needed = accumulated + (entries.empty() ? 0 : rowGap) + entry.height;
+      if (needed > contentHeight) break;
+      accumulated = needed;
+      entries.push_back(std::move(entry));
     }
-    if (visibleRows > 1) {
-      totalRowsHeight += (visibleRows - 1) * rowGap;
-    }
+    return entries;
+  };
 
-    const int effectiveTopY = rowsTopMinY + aboveIndicatorH;
-    const int effectiveBottomY = rowsBottomY - belowIndicatorH;
+  // Phase 1: Build visible entries from scrollOffset
+  std::vector<BookEntry> visibleEntries = buildVisibleEntries(clampedOffset);
 
-    int rowY = effectiveTopY;
-    if (totalRowsHeight < (effectiveBottomY - effectiveTopY)) {
-      rowY += ((effectiveBottomY - effectiveTopY) - totalRowsHeight) / 2;
-    }
-
-    // Draw "N more above" indicator
-    if (hasMoreAbove) {
-      const std::string aboveText = std::to_string(clampedOffset) + " more above";
-      const int aboveTextW = renderer.getTextWidth(UI_10_FONT_ID, aboveText.c_str());
-      const int aboveW = aboveTextW + 24;
-      const int aboveH = rowLineHeight + 6;
-      const int aboveX = rowX + (rowW - aboveW) / 2;
-      const int aboveY = rowsTopMinY;
-      renderer.fillRect(aboveX, aboveY, aboveW, aboveH);  // Black filled rect
-      const int aboveTextX = aboveX + (aboveW - aboveTextW) / 2;
-      renderer.drawText(UI_10_FONT_ID, aboveTextX, aboveY + 3, aboveText.c_str(), false);  // White text
-    }
-
-    for (int i = 0; i < visibleRows; i++) {
-      const int rowHeight = rowHeights[i];
-      if (rowY + rowHeight > effectiveBottomY) {
-        break;
+  // Phase 2: If the selected book isn't visible, adjust scroll offset
+  // This handles the case where the next book is taller than the space
+  // freed by scrolling one book off the top.
+  if (selectorIndex >= 0 && selectorIndex < count && !visibleEntries.empty()) {
+    const int lastVisible = visibleEntries.back().bookIdx;
+    if (selectorIndex > lastVisible) {
+      // Selected book is below visible range.
+      // Work backwards from the selected book to find the best start offset
+      // so the selected book appears at the bottom with as many above as fit.
+      auto selectedEntry = measureBook(selectorIndex);
+      int totalH = selectedEntry.height;
+      int newOffset = selectorIndex;
+      for (int i = selectorIndex - 1; i >= 0; i--) {
+        const int h = measureBook(i).height;
+        if (totalH + rowGap + h > contentHeight) break;
+        totalH += rowGap + h;
+        newOffset = i;
       }
-      const int bookIdx = clampedOffset + i;
-      const bool selected = (selectorIndex == bookIdx);
-      const bool textBlack = !selected;
-
-      if (selected) {
-        renderer.fillRect(rowX, rowY, rowW, rowHeight, true);
-      }
-
-      int baselineY = rowY + 3;
-      for (const auto& line : rowLines[i]) {
-        renderer.drawText(UI_10_FONT_ID, contentX, baselineY, line.c_str(), textBlack);
-        baselineY += rowLineHeight;
-      }
-
-      rowY += rowHeight + rowGap;
-    }
-
-    // Draw "N more below" overflow indicator
-    if (hasMoreBelow) {
-      const int remaining = count - windowEnd;
-      const std::string belowText = std::to_string(remaining) + " more below";
-      const int belowTextW = renderer.getTextWidth(UI_10_FONT_ID, belowText.c_str());
-      const int belowW = belowTextW + 24;
-      const int belowH = rowLineHeight + 6;
-      const int belowX = rowX + (rowW - belowW) / 2;
-      const int belowY = rowY + 2;
-      renderer.fillRect(belowX, belowY, belowW, belowH);  // Black filled rect
-      const int belowTextX = belowX + (belowW - belowTextW) / 2;
-      renderer.drawText(UI_10_FONT_ID, belowTextX, belowY + 3, belowText.c_str(), false);  // White text
+      visibleEntries = buildVisibleEntries(newOffset);
     }
   }
+
+  // Edge case: if zero books fit (very tall title), force-include the first one
+  if (visibleEntries.empty() && clampedOffset < count) {
+    visibleEntries.push_back(measureBook(clampedOffset));
+  }
+
+  const int firstVisible = visibleEntries.front().bookIdx;
+  const int lastVisible = visibleEntries.back().bookIdx;
+  const bool hasMoreAbove = firstVisible > 0;
+  const bool hasMoreBelow = lastVisible < count - 1;
+
+  // Phase 3: Draw
+
+  // Compute total height of visible entries for centering
+  int totalVisibleHeight = 0;
+  for (size_t i = 0; i < visibleEntries.size(); i++) {
+    totalVisibleHeight += visibleEntries[i].height;
+    if (i > 0) totalVisibleHeight += rowGap;
+  }
+
+  // Center content vertically within the content zone
+  int rowY = effectiveTopY;
+  if (totalVisibleHeight < contentHeight) {
+    rowY += (contentHeight - totalVisibleHeight) / 2;
+  }
+
+  // Draw "N more above" indicator
+  if (hasMoreAbove) {
+    const std::string aboveText = std::to_string(firstVisible) + " more above";
+    const int aboveTextW = renderer.getTextWidth(UI_10_FONT_ID, aboveText.c_str());
+    const int aboveW = aboveTextW + 24;
+    const int aboveH = rowLineHeight + 6;
+    const int aboveX = rowX + (rowW - aboveW) / 2;
+    const int aboveY = rowsTopMinY;
+    renderer.fillRect(aboveX, aboveY, aboveW, aboveH);
+    const int aboveTextX = aboveX + (aboveW - aboveTextW) / 2;
+    renderer.drawText(UI_10_FONT_ID, aboveTextX, aboveY + 3, aboveText.c_str(), false);
+  }
+
+  // Draw visible books
+  for (const auto& entry : visibleEntries) {
+    const bool selected = (selectorIndex == entry.bookIdx);
+    const bool textBlack = !selected;
+
+    if (selected) {
+      renderer.fillRect(rowX, rowY, rowW, entry.height, true);
+    }
+
+    int baselineY = rowY + 3;
+    for (const auto& line : entry.lines) {
+      renderer.drawText(UI_10_FONT_ID, contentX, baselineY, line.c_str(), textBlack);
+      baselineY += rowLineHeight;
+    }
+
+    rowY += entry.height + rowGap;
+  }
+
+  // Draw "N more below" indicator
+  if (hasMoreBelow) {
+    const int remaining = count - lastVisible - 1;
+    const std::string belowText = std::to_string(remaining) + " more below";
+    const int belowTextW = renderer.getTextWidth(UI_10_FONT_ID, belowText.c_str());
+    const int belowW = belowTextW + 24;
+    const int belowH = rowLineHeight + 6;
+    const int belowX = rowX + (rowW - belowW) / 2;
+    const int belowY = effectiveBottomY + 2;
+    renderer.fillRect(belowX, belowY, belowW, belowH);
+    const int belowTextX = belowX + (belowW - belowTextW) / 2;
+    renderer.drawText(UI_10_FONT_ID, belowTextX, belowY + 3, belowText.c_str(), false);
+  }
+
+  return {firstVisible, lastVisible, count};
 }
 
 void BaseTheme::drawRecentBookSingleCover(GfxRenderer& renderer, Rect rect,

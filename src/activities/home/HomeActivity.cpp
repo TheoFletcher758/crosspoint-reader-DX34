@@ -234,47 +234,41 @@ void HomeActivity::loop() {
   const auto menuItems = buildHomeMenuItems(hasOpdsUrl);
   const int menuCount = getMenuItemCount();
 
-  // Max visible books depends on home layout mode
-  const int maxVisibleBooks = (SETTINGS.homeLayout == CrossPointSettings::HOME_LAYOUT_SINGLE_COVER) ? 1 : 8;
+  // For single cover layout, visibility is always 1 book
+  if (SETTINGS.homeLayout == CrossPointSettings::HOME_LAYOUT_SINGLE_COVER) {
+    firstVisibleBookIdx = scrollOffset;
+    lastVisibleBookIdx = scrollOffset;
+  }
 
-  buttonNavigator.onNext([this, menuCount, maxVisibleBooks] {
+  buttonNavigator.onNext([this, menuCount] {
     selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
-    // Adjust scroll offset to keep selected book visible
     const int bookCount = static_cast<int>(recentBooks.size());
     if (selectorIndex >= 1 && selectorIndex <= bookCount) {
       const int bookIdx = selectorIndex - 1;
-      if (bookIdx >= scrollOffset + maxVisibleBooks) {
-        scrollOffset = bookIdx - maxVisibleBooks + 1;
+      if (bookIdx > lastVisibleBookIdx) {
+        scrollOffset++;
       }
-      if (bookIdx < scrollOffset) {
+      if (bookIdx < firstVisibleBookIdx) {
         scrollOffset = bookIdx;
       }
+      scrollOffset = std::max(0, std::min(scrollOffset, bookCount - 1));
     } else if (selectorIndex == 0) {
-      // Wrapped around to top (Pages Read) — reset scroll
       scrollOffset = 0;
     }
-    // Otherwise keep scrollOffset as-is (moving into menu items below recents)
     requestUpdate();
   });
 
-  buttonNavigator.onPrevious([this, menuCount, maxVisibleBooks] {
+  buttonNavigator.onPrevious([this, menuCount] {
     selectorIndex = ButtonNavigator::previousIndex(selectorIndex, menuCount);
-    // Adjust scroll offset to keep selected book visible
     const int bookCount = static_cast<int>(recentBooks.size());
     if (selectorIndex >= 1 && selectorIndex <= bookCount) {
       const int bookIdx = selectorIndex - 1;
-      if (bookIdx < scrollOffset) {
+      if (bookIdx < firstVisibleBookIdx) {
         scrollOffset = bookIdx;
       }
-      if (bookIdx >= scrollOffset + maxVisibleBooks) {
-        scrollOffset = bookIdx - maxVisibleBooks + 1;
-      }
+      scrollOffset = std::max(0, std::min(scrollOffset, bookCount - 1));
     } else if (selectorIndex == 0) {
       scrollOffset = 0;
-    } else {
-      // Wrapping to bottom (menu items) — show last books
-      const int maxOffset = std::max(0, bookCount - maxVisibleBooks);
-      scrollOffset = maxOffset;
     }
     requestUpdate();
   });
@@ -301,8 +295,7 @@ void HomeActivity::loop() {
                 selectorIndex = std::max(0, menuCount - 1);
               }
               // Clamp scroll offset after removal
-              const int mvb = (SETTINGS.homeLayout == CrossPointSettings::HOME_LAYOUT_SINGLE_COVER) ? 1 : 8;
-              const int maxOffset = std::max(0, static_cast<int>(recentBooks.size()) - mvb);
+              const int maxOffset = std::max(0, static_cast<int>(recentBooks.size()) - 1);
               if (scrollOffset > maxOffset) {
                 scrollOffset = maxOffset;
               }
@@ -443,12 +436,18 @@ void HomeActivity::render(Activity::RenderLock &&) {
           renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
           selectorIndex - 1, scrollOffset);
       break;
-    default:
-      GUI.drawRecentBookCover(
+    default: {
+      auto vis = GUI.drawRecentBookCover(
           renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
           selectorIndex - 1, coverRendered, coverBufferStored, bufferRestored,
           std::bind(&HomeActivity::storeCoverBuffer, this), scrollOffset);
+      firstVisibleBookIdx = vis.firstVisible;
+      lastVisibleBookIdx = vis.lastVisible;
+      // Sync scrollOffset with renderer's adjusted position
+      // (renderer may have adjusted it to keep the selected book visible)
+      scrollOffset = vis.firstVisible;
       break;
+    }
   }
 
   for (int i = 0; i < menuCount; ++i) {

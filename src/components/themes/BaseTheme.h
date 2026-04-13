@@ -24,6 +24,12 @@ struct TabInfo {
   bool selected;
 };
 
+struct BookListVisibility {
+  int firstVisible;  // Index of first fully-rendered book
+  int lastVisible;   // Index of last fully-rendered book (inclusive)
+  int totalCount;
+};
+
 struct ThemeMetrics {
   int batteryWidth;
   int batteryHeight;
@@ -118,10 +124,10 @@ class BaseTheme {
   virtual void drawHeader(const GfxRenderer& renderer, Rect rect, const char* title) const;
   virtual void drawTabBar(const GfxRenderer& renderer, Rect rect, const std::vector<TabInfo>& tabs,
                           bool selected) const;
-  virtual void drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                   const int selectorIndex, bool& coverRendered, bool& coverBufferStored,
-                                   bool& bufferRestored, std::function<bool()> storeCoverBuffer,
-                                   int scrollOffset = 0) const;
+  virtual BookListVisibility drawRecentBookCover(GfxRenderer& renderer, Rect rect,
+                                                 const std::vector<RecentBook>& recentBooks, int selectorIndex,
+                                                 bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
+                                                 std::function<bool()> storeCoverBuffer, int scrollOffset = 0) const;
   virtual void drawRecentBookSingleCover(GfxRenderer& renderer, Rect rect,
                                           const std::vector<RecentBook>& recentBooks, int selectorIndex,
                                           int scrollOffset) const;
