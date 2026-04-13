@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "MappedInputManager.h"
+#include "Paths.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/StatusPopup.h"
@@ -77,7 +78,7 @@ void ClearCacheActivity::clearCache() {
   LOG_DBG("CLEAR_CACHE", "Clearing cache...");
 
   // Open .crosspoint directory
-  auto root = Storage.open("/.crosspoint");
+  auto root = Storage.open(Paths::kDataDir);
   if (!root || !root.isDirectory()) {
     LOG_DBG("CLEAR_CACHE", "Failed to open cache directory");
     if (root) root.close();
@@ -100,7 +101,7 @@ void ClearCacheActivity::clearCache() {
                              itemName.rfind("txt_", 0) == 0);
     file.close();
     if (isCacheDir) {
-      cacheDirs.push_back("/.crosspoint/" + itemName);
+      cacheDirs.push_back(std::string(Paths::kDataDir) + "/" + itemName);
     }
   }
   root.close();

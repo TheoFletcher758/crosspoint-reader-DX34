@@ -3,29 +3,19 @@
 #include <GfxRenderer.h>
 #include <HalDisplay.h>
 
-#include <algorithm>
-
+#include "StringUtils.h"
 #include "TransitionFeedback.h"
 #include "components/UITheme.h"
 
 namespace StatusPopup {
 namespace {
 
-std::string toUpperAscii(std::string text) {
-  std::transform(text.begin(), text.end(), text.begin(), [](const char c) {
-    return (c >= 'a' && c <= 'z')
-               ? static_cast<char>(c - ('a' - 'A'))
-               : c;
-  });
-  return text;
-}
-
 void showBlockingImpl(GfxRenderer& renderer, const std::string& message) {
   if (message.empty()) {
     return;
   }
   TransitionFeedback::dismiss(renderer);
-  const std::string uppercaseMessage = toUpperAscii(message);
+  const std::string uppercaseMessage = StringUtils::toUpperAscii(message);
   GUI.drawPopup(renderer, uppercaseMessage.c_str());
 }
 

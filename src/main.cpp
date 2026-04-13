@@ -29,6 +29,7 @@
 
 #include "Battery.h"
 #include "CrossPointSettings.h"
+#include "Paths.h"
 #include "CrossPointState.h"
 #include "KOReaderCredentialStore.h"
 #include "MappedInputManager.h"
@@ -334,7 +335,7 @@ void setupDisplayAndFonts() {
 }
 
 bool ensureCrosspointDataDir() {
-  constexpr const char* dataDir = "/.crosspoint";
+  constexpr const char* dataDir = Paths::kDataDir;
 
   if (Storage.exists(dataDir)) {
     FsFile entry = Storage.open(dataDir, O_RDONLY);
@@ -346,7 +347,7 @@ bool ensureCrosspointDataDir() {
     const bool isDirectory = entry.isDirectory();
     entry.close();
     if (!isDirectory) {
-      constexpr const char* quarantinePath = "/.crosspoint.corrupt";
+      constexpr const char* quarantinePath = Paths::kCorruptQuarantine;
       if (Storage.exists(quarantinePath)) {
         if (!Storage.remove(quarantinePath)) {
           Storage.removeDir(quarantinePath);

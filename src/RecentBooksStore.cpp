@@ -8,6 +8,8 @@
 #include <Serialization.h>
 #include <Xtc.h>
 
+#include "Paths.h"
+
 #include <algorithm>
 #include <cctype>
 #include <unordered_set>
@@ -221,7 +223,7 @@ std::string RecentBooksStore::moveBookToRecents(const std::string &bookPath) {
 }
 
 bool RecentBooksStore::saveToFile() const {
-  Storage.mkdir("/.crosspoint");
+  Storage.mkdir(Paths::kDataDir);
   return JsonSettingsIO::saveRecentBooks(*this, RECENT_BOOKS_FILE_JSON);
 }
 
@@ -236,14 +238,14 @@ RecentBook RecentBooksStore::getDataFromBook(std::string path) const {
 
   // If epub, try to load the metadata for title/author and cover
   if (StringUtils::checkFileExtension(lastBookFileName, ".epub")) {
-    Epub epub(path, "/.crosspoint");
+    Epub epub(path, Paths::kDataDir);
     epub.load(false, true);
     return RecentBook{path, epub.getTitle(), epub.getAuthor(),
                       epub.getThumbBmpPath()};
   } else if (StringUtils::checkFileExtension(lastBookFileName, ".xtch") ||
              StringUtils::checkFileExtension(lastBookFileName, ".xtc")) {
     // Handle XTC file
-    Xtc xtc(path, "/.crosspoint");
+    Xtc xtc(path, Paths::kDataDir);
     if (xtc.load()) {
       return RecentBook{path, xtc.getTitle(), xtc.getAuthor(),
                         xtc.getThumbBmpPath()};

@@ -13,7 +13,7 @@
 #include "CrossPointSettings.h"
 #include "util/UrlUtils.h"
 
-bool HttpDownloader::fetchUrl(const std::string &url, Stream &outContent) {
+std::unique_ptr<WiFiClient> HttpDownloader::createClient(const std::string &url, HTTPClient &http) {
   // Use WiFiClientSecure for HTTPS, regular WiFiClient for HTTP.
   // With -fno-exceptions, operator new returns nullptr on OOM instead of throwing.
   std::unique_ptr<WiFiClient> client;
@@ -21,7 +21,7 @@ bool HttpDownloader::fetchUrl(const std::string &url, Stream &outContent) {
     auto *secureClient = new WiFiClientSecure();
     if (!secureClient) {
       LOG_ERR("HTTP", "OOM: failed to allocate WiFiClientSecure");
-      return false;
+      return nullptr;
     }
     secureClient->setInsecure();
     client.reset(secureClient);
@@ -29,13 +29,10 @@ bool HttpDownloader::fetchUrl(const std::string &url, Stream &outContent) {
     auto *plainClient = new WiFiClient();
     if (!plainClient) {
       LOG_ERR("HTTP", "OOM: failed to allocate WiFiClient");
-      return false;
+      return nullptr;
     }
     client.reset(plainClient);
   }
-  HTTPClient http;
-
-  LOG_DBG("HTTP", "Fetching: %s", url.c_str());
 
   http.begin(*client, url.c_str());
   http.setTimeout(15000);
@@ -49,6 +46,16 @@ bool HttpDownloader::fetchUrl(const std::string &url, Stream &outContent) {
     String encoded = base64::encode(credentials.c_str());
     http.addHeader("Authorization", "Basic " + encoded);
   }
+
+  return client;
+}
+
+bool HttpDownloader::fetchUrl(const std::string &url, Stream &outContent) {
+  HTTPClient http;
+  LOG_DBG("HTTP", "Fetching: %s", url.c_str());
+
+  auto client = createClient(url, http);
+  if (!client) return false;
 
   const int httpCode = http.GET();
   if (httpCode != HTTP_CODE_OK) {
@@ -78,41 +85,12 @@ HttpDownloader::DownloadError
 HttpDownloader::downloadToFile(const std::string &url,
                                const std::string &destPath,
                                ProgressCallback progress) {
-  // With -fno-exceptions, operator new returns nullptr on OOM instead of throwing.
-  std::unique_ptr<WiFiClient> client;
-  if (UrlUtils::isHttpsUrl(url)) {
-    auto *secureClient = new WiFiClientSecure();
-    if (!secureClient) {
-      LOG_ERR("HTTP", "OOM: failed to allocate WiFiClientSecure");
-      return DownloadError::OutOfMemory;
-    }
-    secureClient->setInsecure();
-    client.reset(secureClient);
-  } else {
-    auto *plainClient = new WiFiClient();
-    if (!plainClient) {
-      LOG_ERR("HTTP", "OOM: failed to allocate WiFiClient");
-      return DownloadError::OutOfMemory;
-    }
-    client.reset(plainClient);
-  }
   HTTPClient http;
-
   LOG_DBG("HTTP", "Downloading: %s", url.c_str());
   LOG_DBG("HTTP", "Destination: %s", destPath.c_str());
 
-  http.begin(*client, url.c_str());
-  http.setTimeout(15000);
-  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  http.addHeader("User-Agent", "CrossPoint-Mod-DX34-ESP32-" CROSSPOINT_VERSION);
-
-  // Add Basic HTTP auth if credentials are configured
-  if (strlen(SETTINGS.opdsUsername) > 0 && strlen(SETTINGS.opdsPassword) > 0) {
-    std::string credentials =
-        std::string(SETTINGS.opdsUsername) + ":" + SETTINGS.opdsPassword;
-    String encoded = base64::encode(credentials.c_str());
-    http.addHeader("Authorization", "Basic " + encoded);
-  }
+  auto client = createClient(url, http);
+  if (!client) return DownloadError::OutOfMemory;
 
   const int httpCode = http.GET();
   if (httpCode != HTTP_CODE_OK) {

@@ -7,6 +7,7 @@
 #include <Xtc.h>
 
 #include "StringUtils.h"
+#include "Paths.h"
 
 namespace {
 constexpr const char* kUnreadPrefix = "[ ]";
@@ -19,7 +20,7 @@ T clampValue(T value, T min, T max) {
 }
 
 std::optional<int> getEpubPercent(const std::string& path) {
-  Epub epub(path, "/.crosspoint");
+  Epub epub(path, Paths::kDataDir);
   if (!epub.load(false, true)) {
     return std::nullopt;
   }
@@ -59,7 +60,7 @@ std::optional<int> getEpubPercent(const std::string& path) {
 }
 
 std::optional<int> getXtcPercent(const std::string& path) {
-  Xtc xtc(path, "/.crosspoint");
+  Xtc xtc(path, Paths::kDataDir);
   if (!xtc.load()) {
     return std::nullopt;
   }
@@ -86,7 +87,7 @@ std::optional<int> getXtcPercent(const std::string& path) {
 }
 
 std::optional<int> getTxtPercent(const std::string& path) {
-  Txt txt(path, "/.crosspoint");
+  Txt txt(path, Paths::kDataDir);
   const std::string cachePath = txt.getCachePath();
 
   FsFile progressFile;

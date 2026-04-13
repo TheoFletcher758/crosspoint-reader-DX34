@@ -9,6 +9,8 @@
 #include <cstring>
 #include <string>
 
+#include "Paths.h"
+
 #include "fontIds.h"
 
 // Initialize the static instance
@@ -199,7 +201,7 @@ void CrossPointSettings::validateFrontButtonMapping(
 }
 
 bool CrossPointSettings::saveToFile() const {
-  Storage.mkdir("/.crosspoint");
+  Storage.mkdir(Paths::kDataDir);
   return JsonSettingsIO::saveSettings(*this, SETTINGS_FILE_JSON);
 }
 

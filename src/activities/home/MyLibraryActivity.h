@@ -98,6 +98,12 @@ class MyLibraryActivity final : public ActivityWithSubactivity {
   bool moveSelectedFileTo(const std::string& targetDir, std::string* destinationPath = nullptr) const;
   bool deleteSelectedFile();
   void requestCleanRefresh();
+  void loopSubActivity();
+  void loopMessagePopup();
+  void loopBmpView();
+  void loopFileActions();
+  void loopFileMoveBrowser();
+  void loopBrowse();
   void displayFrame();
   void renderBmpView();
   void renderFileActions();

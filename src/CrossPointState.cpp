@@ -5,6 +5,8 @@
 #include <Logging.h>
 #include <Serialization.h>
 
+#include "Paths.h"
+
 namespace {
 constexpr uint8_t STATE_FILE_VERSION = 5;
 constexpr char STATE_FILE_BIN[] = "/.crosspoint/state.bin";
@@ -15,7 +17,7 @@ constexpr char STATE_FILE_BAK[] = "/.crosspoint/state.bin.bak";
 CrossPointState CrossPointState::instance;
 
 bool CrossPointState::saveToFile() const {
-  Storage.mkdir("/.crosspoint");
+  Storage.mkdir(Paths::kDataDir);
   return JsonSettingsIO::saveState(*this, STATE_FILE_JSON);
 }
 

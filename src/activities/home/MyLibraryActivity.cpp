@@ -14,6 +14,7 @@
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
+#include "Paths.h"
 #include "LibrarySearchActivity.h"
 #include "LibrarySearchSupport.h"
 #include "MappedInputManager.h"
@@ -662,13 +663,13 @@ bool MyLibraryActivity::deleteSelectedFile() {
   if (isBookFile(selectedFilePath)) {
     RECENT_BOOKS.removeBook(selectedFilePath);
     if (StringUtils::checkFileExtension(selectedFilePath, ".epub")) {
-      Epub(selectedFilePath, "/.crosspoint").clearCache();
+      Epub(selectedFilePath, Paths::kDataDir).clearCache();
     } else if (StringUtils::checkFileExtension(selectedFilePath, ".xtc") ||
                StringUtils::checkFileExtension(selectedFilePath, ".xtch")) {
-      Xtc(selectedFilePath, "/.crosspoint").clearCache();
+      Xtc(selectedFilePath, Paths::kDataDir).clearCache();
     } else if (StringUtils::checkFileExtension(selectedFilePath, ".txt") ||
                StringUtils::checkFileExtension(selectedFilePath, ".md")) {
-      Txt txt(selectedFilePath, "/.crosspoint");
+      Txt txt(selectedFilePath, Paths::kDataDir);
       Storage.removeDir(txt.getCachePath().c_str());
     }
   }
@@ -716,244 +717,247 @@ void MyLibraryActivity::onExit() {
 }
 
 void MyLibraryActivity::loop() {
-  if (subActivity) {
-    subActivity->loop();
-    if (pendingSearchSubmit || pendingSearchCancel) {
-      const bool shouldApplySearch = pendingSearchSubmit;
-      const std::string submittedQuery = pendingSearchQuery;
-      pendingSearchSubmit = false;
-      pendingSearchCancel = false;
-      pendingSearchQuery.clear();
-      exitActivity();
-      if (shouldApplySearch) {
-        setSearchQuery(submittedQuery);
+  if (subActivity) { loopSubActivity(); return; }
+  if (messagePopupOpen) { loopMessagePopup(); return; }
+  if (mode == Mode::BMP_VIEW) { loopBmpView(); return; }
+  if (mode == Mode::FILE_ACTIONS) { loopFileActions(); return; }
+  if (mode == Mode::FILE_MOVE_BROWSER) { loopFileMoveBrowser(); return; }
+  loopBrowse();
+}
+
+void MyLibraryActivity::loopSubActivity() {
+  subActivity->loop();
+  if (pendingSearchSubmit || pendingSearchCancel) {
+    const bool shouldApplySearch = pendingSearchSubmit;
+    const std::string submittedQuery = pendingSearchQuery;
+    pendingSearchSubmit = false;
+    pendingSearchCancel = false;
+    pendingSearchQuery.clear();
+    exitActivity();
+    if (shouldApplySearch) {
+      setSearchQuery(submittedQuery);
+    }
+    requestUpdate();
+  }
+}
+
+void MyLibraryActivity::loopMessagePopup() {
+  const bool anyPress = mappedInput.wasPressed(MappedInputManager::Button::Confirm) ||
+                        mappedInput.wasPressed(MappedInputManager::Button::Back) ||
+                        mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
+                        mappedInput.wasPressed(MappedInputManager::Button::PageForward) ||
+                        mappedInput.wasPressed(MappedInputManager::Button::Left) ||
+                        mappedInput.wasPressed(MappedInputManager::Button::Right) ||
+                        mappedInput.wasPressed(MappedInputManager::Button::Power);
+  if (anyPress) {
+    messagePopupOpen = false;
+    messagePopupText.clear();
+    requestUpdate();
+  }
+}
+
+void MyLibraryActivity::loopBmpView() {
+  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+    mode = Mode::BROWSE;
+    requestUpdate();
+    return;
+  }
+  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) && !selectedFilePath.empty()) {
+    enterFileActions(selectedFilePath);
+  }
+}
+
+void MyLibraryActivity::loopFileActions() {
+  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+    mode = Mode::BROWSE;
+    requestUpdate();
+    return;
+  }
+
+  buttonNavigator.onNextRelease([this] {
+    fileActionIndex = ButtonNavigator::nextIndex(fileActionIndex, getFileActionCount());
+    requestUpdate();
+  });
+  buttonNavigator.onPreviousRelease([this] {
+    fileActionIndex = ButtonNavigator::previousIndex(fileActionIndex, getFileActionCount());
+    requestUpdate();
+  });
+
+  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+    if (isBmpFile(selectedFilePath)) {
+      switch (fileActionIndex) {
+        case 0:
+          mode = Mode::BMP_VIEW;
+          break;
+        case 1:
+          enterFileMoveBrowser();
+          break;
+        case 2: {
+          if (!FavoriteBmp::canPlacePathInSleep(selectedFilePath)) {
+            showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
+            return;
+          }
+          std::string destinationPath;
+          if (moveSelectedFileTo("/sleep", &destinationPath)) {
+            SleepActivity::trimSleepFolderToLimit();
+            mode = Mode::BROWSE;
+            if (const auto rawIndex = rawFileIndexForPath(selectedFilePath);
+                rawIndex.has_value()) {
+              files.erase(files.begin() + static_cast<long>(*rawIndex));
+              rebuildFilteredFileIndexes();
+              clampSelectorIndex();
+            }
+          }
+          requestCleanRefresh();
+          break;
+        }
+        case 3: {
+          const bool makeFavorite = !FavoriteBmp::isFavoritePath(selectedFilePath);
+          std::string updatedPath;
+          const auto result = FavoriteBmp::setFavorite(selectedFilePath, makeFavorite, &updatedPath);
+          if (result == FavoriteBmp::SetFavoriteResult::Success) {
+            const std::string newName = getBasename(updatedPath);
+            if (const auto rawIndex = rawFileIndexForPath(selectedFilePath);
+                rawIndex.has_value()) {
+              files[*rawIndex] = newName;
+              sortFileList(files);
+              rebuildFilteredFileIndexes();
+              selectorIndex = listIndexForRawFileIndex(findEntry(newName));
+            }
+            selectedFilePath = updatedPath;
+          } else if (result == FavoriteBmp::SetFavoriteResult::LimitReached) {
+            showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
+            return;
+          } else if (result == FavoriteBmp::SetFavoriteResult::RenameConflict) {
+            showMessagePopup("Favorite name already exists");
+            return;
+          } else if (result == FavoriteBmp::SetFavoriteResult::RenameFailed) {
+            showMessagePopup("Failed to rename image");
+            return;
+          } else {
+            showMessagePopup("Favorite failed");
+            return;
+          }
+          requestCleanRefresh();
+          break;
+        }
+        case 4:
+          exitActivity();
+          enterNewActivity(new QRShareActivity(renderer, mappedInput,
+              [this] { exitActivity(); requestCleanRefresh(); }, selectedFilePath));
+          return;
+        case 5: {
+          const std::string pathToDelete = selectedFilePath;
+          if (deleteSelectedFile()) {
+            if (const auto rawIndex = rawFileIndexForPath(pathToDelete);
+                rawIndex.has_value()) {
+              files.erase(files.begin() + static_cast<long>(*rawIndex));
+              rebuildFilteredFileIndexes();
+              clampSelectorIndex();
+            }
+          }
+          mode = Mode::BROWSE;
+          requestCleanRefresh();
+          break;
+        }
+        default:
+          mode = Mode::BROWSE;
+          break;
       }
-      requestUpdate();
+    } else {
+      switch (fileActionIndex) {
+        case 0:
+          onSelectBook(selectedFilePath);
+          return;
+        case 1:
+          enterFileMoveBrowser();
+          break;
+        case 2:
+          exitActivity();
+          enterNewActivity(new QRShareActivity(renderer, mappedInput,
+              [this] { exitActivity(); requestCleanRefresh(); }, selectedFilePath));
+          return;
+        case 3: {
+          const std::string pathToDelete = selectedFilePath;
+          StatusPopup::showBlocking(renderer, "Deleting file");
+          if (deleteSelectedFile()) {
+            progressPrefixCache.erase(pathToDelete);
+            if (const auto rawIndex = rawFileIndexForPath(pathToDelete);
+                rawIndex.has_value()) {
+              files.erase(files.begin() + static_cast<long>(*rawIndex));
+              rebuildFilteredFileIndexes();
+              clampSelectorIndex();
+            }
+          }
+          mode = Mode::BROWSE;
+          requestCleanRefresh();
+          break;
+        }
+        default:
+          mode = Mode::BROWSE;
+          break;
+      }
     }
+    requestUpdateAndWait();
+  }
+}
+
+void MyLibraryActivity::loopFileMoveBrowser() {
+  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+    mode = Mode::FILE_ACTIONS;
+    requestUpdate();
     return;
   }
 
-  if (messagePopupOpen) {
-    const bool anyPress = mappedInput.wasPressed(MappedInputManager::Button::Confirm) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::Back) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::PageForward) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::Left) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::Right) ||
-                          mappedInput.wasPressed(MappedInputManager::Button::Power);
-    if (anyPress) {
-      messagePopupOpen = false;
-      messagePopupText.clear();
-      requestUpdate();
-    }
+  const int targetCount = static_cast<int>(moveBrowseEntries.size());
+  if (targetCount <= 0) {
+    mode = Mode::FILE_ACTIONS;
+    requestUpdate();
     return;
   }
 
-  if (mode == Mode::BMP_VIEW) {
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+  buttonNavigator.onNextRelease([this, targetCount] {
+    fileMoveIndex = ButtonNavigator::nextIndex(fileMoveIndex, targetCount);
+    requestUpdate();
+  });
+  buttonNavigator.onPreviousRelease([this, targetCount] {
+    fileMoveIndex = ButtonNavigator::previousIndex(fileMoveIndex, targetCount);
+    requestUpdate();
+  });
+
+  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+    const auto& entry = moveBrowseEntries[fileMoveIndex];
+    if (entry.path == "/sleep" &&
+        !FavoriteBmp::canPlacePathInSleep(selectedFilePath)) {
+      showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
+      return;
+    }
+    if (!isBmpFile(selectedFilePath)) {
+      StatusPopup::showBlocking(renderer, "Moving file");
+    }
+    std::string destinationPath;
+    if (moveSelectedFileTo(entry.path, &destinationPath)) {
+      if (entry.path == "/sleep") {
+        SleepActivity::trimSleepFolderToLimit();
+      }
       mode = Mode::BROWSE;
-      requestUpdate();
-      return;
+      progressPrefixCache.erase(selectedFilePath);
+      if (const auto rawIndex = rawFileIndexForPath(selectedFilePath);
+          rawIndex.has_value()) {
+        files.erase(files.begin() + static_cast<long>(*rawIndex));
+        rebuildFilteredFileIndexes();
+        clampSelectorIndex();
+      }
+    } else {
+      // Keep the destination list open after a failed move.
+      loadMoveBrowseEntries();
     }
-    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) && !selectedFilePath.empty()) {
-      enterFileActions(selectedFilePath);
-      return;
-    }
-    return;
+    requestCleanRefresh();
+    requestUpdateAndWait();
   }
+}
 
-  if (mode == Mode::FILE_ACTIONS) {
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-      mode = Mode::BROWSE;
-      requestUpdate();
-      return;
-    }
-
-    buttonNavigator.onNextRelease([this] {
-      fileActionIndex = ButtonNavigator::nextIndex(fileActionIndex, getFileActionCount());
-      requestUpdate();
-    });
-    buttonNavigator.onPreviousRelease([this] {
-      fileActionIndex = ButtonNavigator::previousIndex(fileActionIndex, getFileActionCount());
-      requestUpdate();
-    });
-
-    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-      if (isBmpFile(selectedFilePath)) {
-        switch (fileActionIndex) {
-          case 0:
-            mode = Mode::BMP_VIEW;
-            break;
-          case 1:
-            enterFileMoveBrowser();
-            break;
-          case 2: {
-            if (!FavoriteBmp::canPlacePathInSleep(selectedFilePath)) {
-              showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
-              return;
-            }
-            std::string destinationPath;
-            if (moveSelectedFileTo("/sleep", &destinationPath)) {
-              SleepActivity::trimSleepFolderToLimit();
-              mode = Mode::BROWSE;
-              if (const auto rawIndex = rawFileIndexForPath(selectedFilePath);
-                  rawIndex.has_value()) {
-                files.erase(files.begin() + static_cast<long>(*rawIndex));
-                rebuildFilteredFileIndexes();
-                clampSelectorIndex();
-              }
-            }
-            requestCleanRefresh();
-            break;
-          }
-          case 3: {
-            const bool makeFavorite = !FavoriteBmp::isFavoritePath(selectedFilePath);
-            std::string updatedPath;
-            const auto result = FavoriteBmp::setFavorite(selectedFilePath, makeFavorite, &updatedPath);
-            if (result == FavoriteBmp::SetFavoriteResult::Success) {
-              const std::string newName = getBasename(updatedPath);
-              if (const auto rawIndex = rawFileIndexForPath(selectedFilePath);
-                  rawIndex.has_value()) {
-                files[*rawIndex] = newName;
-                sortFileList(files);
-                rebuildFilteredFileIndexes();
-                selectorIndex = listIndexForRawFileIndex(findEntry(newName));
-              }
-              selectedFilePath = updatedPath;
-            } else if (result == FavoriteBmp::SetFavoriteResult::LimitReached) {
-              showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
-              return;
-            } else if (result == FavoriteBmp::SetFavoriteResult::RenameConflict) {
-              showMessagePopup("Favorite name already exists");
-              return;
-            } else if (result == FavoriteBmp::SetFavoriteResult::RenameFailed) {
-              showMessagePopup("Failed to rename image");
-              return;
-            } else {
-              showMessagePopup("Favorite failed");
-              return;
-            }
-            requestCleanRefresh();
-            break;
-          }
-          case 4:
-            exitActivity();
-            enterNewActivity(new QRShareActivity(renderer, mappedInput,
-                [this] { exitActivity(); requestCleanRefresh(); }, selectedFilePath));
-            return;
-          case 5: {
-            const std::string pathToDelete = selectedFilePath;
-            if (deleteSelectedFile()) {
-              if (const auto rawIndex = rawFileIndexForPath(pathToDelete);
-                  rawIndex.has_value()) {
-                files.erase(files.begin() + static_cast<long>(*rawIndex));
-                rebuildFilteredFileIndexes();
-                clampSelectorIndex();
-              }
-            }
-            mode = Mode::BROWSE;
-            requestCleanRefresh();
-            break;
-          }
-          default:
-            mode = Mode::BROWSE;
-            break;
-        }
-      } else {
-        switch (fileActionIndex) {
-          case 0:
-            onSelectBook(selectedFilePath);
-            return;
-          case 1:
-            enterFileMoveBrowser();
-            break;
-          case 2:
-            exitActivity();
-            enterNewActivity(new QRShareActivity(renderer, mappedInput,
-                [this] { exitActivity(); requestCleanRefresh(); }, selectedFilePath));
-            return;
-          case 3: {
-            const std::string pathToDelete = selectedFilePath;
-            StatusPopup::showBlocking(renderer, "Deleting file");
-            if (deleteSelectedFile()) {
-              progressPrefixCache.erase(pathToDelete);
-              if (const auto rawIndex = rawFileIndexForPath(pathToDelete);
-                  rawIndex.has_value()) {
-                files.erase(files.begin() + static_cast<long>(*rawIndex));
-                rebuildFilteredFileIndexes();
-                clampSelectorIndex();
-              }
-            }
-            mode = Mode::BROWSE;
-            requestCleanRefresh();
-            break;
-          }
-          default:
-            mode = Mode::BROWSE;
-            break;
-        }
-      }
-      requestUpdateAndWait();
-    }
-    return;
-  }
-
-  if (mode == Mode::FILE_MOVE_BROWSER) {
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-      mode = Mode::FILE_ACTIONS;
-      requestUpdate();
-      return;
-    }
-
-    const int targetCount = static_cast<int>(moveBrowseEntries.size());
-    if (targetCount <= 0) {
-      mode = Mode::FILE_ACTIONS;
-      requestUpdate();
-      return;
-    }
-
-    buttonNavigator.onNextRelease([this, targetCount] {
-      fileMoveIndex = ButtonNavigator::nextIndex(fileMoveIndex, targetCount);
-      requestUpdate();
-    });
-    buttonNavigator.onPreviousRelease([this, targetCount] {
-      fileMoveIndex = ButtonNavigator::previousIndex(fileMoveIndex, targetCount);
-      requestUpdate();
-    });
-
-    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-      const auto& entry = moveBrowseEntries[fileMoveIndex];
-      if (entry.path == "/sleep" &&
-          !FavoriteBmp::canPlacePathInSleep(selectedFilePath)) {
-        showMessagePopup(FavoriteBmp::limitReachedPopupMessage());
-        return;
-      }
-      if (!isBmpFile(selectedFilePath)) {
-        StatusPopup::showBlocking(renderer, "Moving file");
-      }
-      std::string destinationPath;
-      if (moveSelectedFileTo(entry.path, &destinationPath)) {
-        if (entry.path == "/sleep") {
-          SleepActivity::trimSleepFolderToLimit();
-        }
-        mode = Mode::BROWSE;
-        progressPrefixCache.erase(selectedFilePath);
-        if (const auto rawIndex = rawFileIndexForPath(selectedFilePath);
-            rawIndex.has_value()) {
-          files.erase(files.begin() + static_cast<long>(*rawIndex));
-          rebuildFilteredFileIndexes();
-          clampSelectorIndex();
-        }
-      } else {
-        // Keep the destination list open after a failed move.
-        loadMoveBrowseEntries();
-      }
-      requestCleanRefresh();
-      requestUpdateAndWait();
-    }
-    return;
-  }
-
+void MyLibraryActivity::loopBrowse() {
   // Long press BACK (1s+) goes to root folder
   if (mappedInput.isPressed(MappedInputManager::Button::Back) && mappedInput.getHeldTime() >= GO_HOME_MS &&
       basepath != "/") {

@@ -6,6 +6,8 @@
 #include <ObfuscationUtils.h>
 #include <Serialization.h>
 
+#include "Paths.h"
+
 // Initialize the static instance
 WifiCredentialStore WifiCredentialStore::instance;
 
@@ -32,7 +34,7 @@ void legacyDeobfuscate(std::string &data) {
 } // namespace
 
 bool WifiCredentialStore::saveToFile() const {
-  Storage.mkdir("/.crosspoint");
+  Storage.mkdir(Paths::kDataDir);
   return JsonSettingsIO::saveWifi(*this, WIFI_FILE_JSON);
 }
 

@@ -13,9 +13,11 @@
 
 #include <algorithm>
 #include <functional>
+#include <memory>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
+#include "Paths.h"
 #include "RecentBooksStore.h"
 #include "SettingsList.h"
 #if __has_include("WebDAVHandler.h")
@@ -64,15 +66,15 @@ unsigned long wsLastCompleteAt = 0;
 // Uses content-based fingerprint so the path is stable across file moves.
 std::string bookCachePath(const std::string& filePath) {
   if (StringUtils::checkFileExtension(filePath, ".epub")) {
-    return BookFingerprint::cacheDirName("epub", filePath, "/.crosspoint");
+    return BookFingerprint::cacheDirName("epub", filePath, Paths::kDataDir);
   }
   if (StringUtils::checkFileExtension(filePath, ".xtc") ||
       StringUtils::checkFileExtension(filePath, ".xtch")) {
-    return BookFingerprint::cacheDirName("xtc", filePath, "/.crosspoint");
+    return BookFingerprint::cacheDirName("xtc", filePath, Paths::kDataDir);
   }
   if (StringUtils::checkFileExtension(filePath, ".txt") ||
       StringUtils::checkFileExtension(filePath, ".md")) {
-    return BookFingerprint::cacheDirName("txt", filePath, "/.crosspoint");
+    return BookFingerprint::cacheDirName("txt", filePath, Paths::kDataDir);
   }
   return {};
 }
@@ -80,7 +82,7 @@ std::string bookCachePath(const std::string& filePath) {
 // Clear book cache for a file (all book types, not just epub)
 void clearBookCacheIfNeeded(const String& filePath) {
   if (StringUtils::checkFileExtension(filePath, ".epub")) {
-    Epub(filePath.c_str(), "/.crosspoint").clearCache();
+    Epub(filePath.c_str(), Paths::kDataDir).clearCache();
     LOG_DBG("WEB", "Cleared epub cache for: %s", filePath.c_str());
   } else {
     const std::string cache = bookCachePath(filePath.c_str());
@@ -383,7 +385,7 @@ void CrossPointWebServer::handleClient() {
   // Pump WebSocket download: send up to 2 chunks per loop iteration
   if (wsDownloadInProgress && wsServer && wsDownloadFile) {
     constexpr size_t WS_DL_BUF_SIZE = 4096;
-    auto* dlBuf = static_cast<uint8_t*>(malloc(WS_DL_BUF_SIZE));
+    auto dlBuf = std::make_unique<uint8_t[]>(WS_DL_BUF_SIZE);
     if (!dlBuf) {
       LOG_ERR("WS", "Download OOM: cannot allocate buffer");
       wsDownloadFile.close();
@@ -397,10 +399,10 @@ void CrossPointWebServer::handleClient() {
         esp_task_wdt_reset();
         const size_t remaining = wsDownloadSize - wsDownloadSent;
         const size_t toRead = remaining < WS_DL_BUF_SIZE ? remaining : WS_DL_BUF_SIZE;
-        const int bytesRead = wsDownloadFile.read(dlBuf, toRead);
+        const int bytesRead = wsDownloadFile.read(dlBuf.get(), toRead);
         if (bytesRead <= 0) break;
 
-        if (!wsServer->sendBIN(wsDownloadClientNum, dlBuf, bytesRead)) {
+        if (!wsServer->sendBIN(wsDownloadClientNum, dlBuf.get(), bytesRead)) {
           LOG_ERR("WS", "Download send failed at %d/%d", wsDownloadSent, wsDownloadSize);
           wsDownloadFile.close();
           wsDownloadInProgress = false;
@@ -409,7 +411,6 @@ void CrossPointWebServer::handleClient() {
         }
         wsDownloadSent += bytesRead;
       }
-      free(dlBuf);
     }
 
     // Check if download complete
@@ -788,7 +789,7 @@ void CrossPointWebServer::handleDownload() const {
   server->send(200, contentType.c_str(), "");
 
   constexpr size_t DL_BUF_SIZE = 4096;
-  auto* buf = static_cast<uint8_t*>(malloc(DL_BUF_SIZE));
+  auto buf = std::make_unique<uint8_t[]>(DL_BUF_SIZE);
   if (!buf) {
     LOG_ERR("WEB", "Download OOM: cannot allocate %d byte buffer", DL_BUF_SIZE);
     file.close();
@@ -809,11 +810,11 @@ void CrossPointWebServer::handleDownload() const {
 
     const size_t remaining = fileSize - totalSent;
     const size_t toRead = remaining < DL_BUF_SIZE ? remaining : DL_BUF_SIZE;
-    const int bytesRead = file.read(buf, toRead);
+    const int bytesRead = file.read(buf.get(), toRead);
     if (bytesRead <= 0) break;
 
     // Write directly to client and check return value
-    const size_t written = server->client().write(buf, bytesRead);
+    const size_t written = server->client().write(buf.get(), bytesRead);
     if (written == 0) {
       LOG_ERR("WEB", "Download write failed at %u/%u bytes", totalSent, fileSize);
       ok = false;
@@ -825,7 +826,6 @@ void CrossPointWebServer::handleDownload() const {
     yield();
   }
   file.close();
-  free(buf);
 
   if (ok) {
     LOG_DBG("WEB", "Download complete: %s (%u bytes)", filename.c_str(), totalSent);
@@ -864,7 +864,7 @@ void CrossPointWebServer::handlePreview() const {
   server->send(200, "image/bmp", "");
 
   constexpr size_t PV_BUF_SIZE = 4096;
-  auto* buf = static_cast<uint8_t*>(malloc(PV_BUF_SIZE));
+  auto buf = std::make_unique<uint8_t[]>(PV_BUF_SIZE);
   if (!buf) {
     LOG_ERR("WEB", "Preview OOM: cannot allocate buffer");
     file.close();
@@ -874,13 +874,12 @@ void CrossPointWebServer::handlePreview() const {
 
   while (file.available()) {
     esp_task_wdt_reset();
-    const int bytesRead = file.read(buf, PV_BUF_SIZE);
+    const int bytesRead = file.read(buf.get(), PV_BUF_SIZE);
     if (bytesRead <= 0) break;
-    server->sendContent(reinterpret_cast<const char*>(buf), bytesRead);
+    server->sendContent(reinterpret_cast<const char*>(buf.get()), bytesRead);
     yield();
   }
   file.close();
-  free(buf);
 
   server->sendContent("");
   LOG_DBG("WEB", "Preview served");

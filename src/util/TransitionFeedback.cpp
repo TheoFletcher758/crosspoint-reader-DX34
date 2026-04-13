@@ -3,9 +3,7 @@
 #include <GfxRenderer.h>
 #include <HalDisplay.h>
 
-#include <algorithm>
-#include <cctype>
-
+#include "StringUtils.h"
 #include "fontIds.h"
 
 namespace TransitionFeedback {
@@ -19,9 +17,7 @@ void show(GfxRenderer& renderer, const char* message) {
     return;
   }
 
-  std::string upper(message);
-  std::transform(upper.begin(), upper.end(), upper.begin(),
-                 [](unsigned char c) { return std::toupper(c); });
+  const std::string upper = StringUtils::toUpperAscii(message);
 
   const int screenW = renderer.getScreenWidth();
   const int screenH = renderer.getScreenHeight();

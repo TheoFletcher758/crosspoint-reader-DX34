@@ -50,15 +50,16 @@ bool checkFileExtension(const std::string& fileName, const char* extension) {
 }
 
 bool checkFileExtension(const String& fileName, const char* extension) {
-  if (fileName.length() < strlen(extension)) {
-    return false;
-  }
+  return checkFileExtension(std::string(fileName.c_str()), extension);
+}
 
-  String localFile(fileName);
-  String localExtension(extension);
-  localFile.toLowerCase();
-  localExtension.toLowerCase();
-  return localFile.endsWith(localExtension);
+std::string toUpperAscii(std::string text) {
+  for (auto& c : text) {
+    if (c >= 'a' && c <= 'z') {
+      c -= ('a' - 'A');
+    }
+  }
+  return text;
 }
 
 }  // namespace StringUtils

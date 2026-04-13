@@ -9,6 +9,7 @@
 
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
+#include "Paths.h"
 #include "activities/network/WifiSelectionActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -333,7 +334,7 @@ void OpdsBookBrowserActivity::downloadBook(const OpdsEntry& book) {
     LOG_DBG("OPDS", "Download complete: %s", filename.c_str());
 
     // Invalidate any existing cache for this file to prevent stale metadata issues
-    Epub epub(filename, "/.crosspoint");
+    Epub epub(filename, Paths::kDataDir);
     epub.clearCache();
     LOG_DBG("OPDS", "Cleared cache for: %s", filename.c_str());
 

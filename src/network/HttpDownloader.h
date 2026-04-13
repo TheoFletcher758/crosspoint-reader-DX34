@@ -2,7 +2,11 @@
 #include <HalStorage.h>
 
 #include <functional>
+#include <memory>
 #include <string>
+
+class WiFiClient;
+class HTTPClient;
 
 /**
  * HTTP client utility for fetching content and downloading files.
@@ -42,4 +46,7 @@ class HttpDownloader {
 
  private:
   static constexpr size_t DOWNLOAD_CHUNK_SIZE = 1024;
+
+  /** Create a WiFiClient (secure or plain) and configure common HTTPClient settings. */
+  static std::unique_ptr<WiFiClient> createClient(const std::string& url, HTTPClient& http);
 };

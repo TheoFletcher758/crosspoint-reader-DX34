@@ -11,6 +11,7 @@
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
+#include "Paths.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/StatusPopup.h"
@@ -660,7 +661,7 @@ void SleepActivity::renderCoverSleepScreen() const {
   if (StringUtils::checkFileExtension(APP_STATE.openEpubPath, ".xtc") ||
       StringUtils::checkFileExtension(APP_STATE.openEpubPath, ".xtch")) {
     // Handle XTC file
-    Xtc lastXtc(APP_STATE.openEpubPath, "/.crosspoint");
+    Xtc lastXtc(APP_STATE.openEpubPath, Paths::kDataDir);
     if (!lastXtc.load()) {
       LOG_ERR("SLP", "Failed to load last XTC");
       return (this->*renderNoCoverSleepScreen)();
@@ -674,7 +675,7 @@ void SleepActivity::renderCoverSleepScreen() const {
     coverBmpPath = lastXtc.getCoverBmpPath();
   } else if (StringUtils::checkFileExtension(APP_STATE.openEpubPath, ".txt")) {
     // Handle TXT file - looks for cover image in the same folder
-    Txt lastTxt(APP_STATE.openEpubPath, "/.crosspoint");
+    Txt lastTxt(APP_STATE.openEpubPath, Paths::kDataDir);
     if (!lastTxt.load()) {
       LOG_ERR("SLP", "Failed to load last TXT");
       return (this->*renderNoCoverSleepScreen)();
@@ -688,7 +689,7 @@ void SleepActivity::renderCoverSleepScreen() const {
     coverBmpPath = lastTxt.getCoverBmpPath();
   } else if (StringUtils::checkFileExtension(APP_STATE.openEpubPath, ".epub")) {
     // Handle EPUB file
-    Epub lastEpub(APP_STATE.openEpubPath, "/.crosspoint");
+    Epub lastEpub(APP_STATE.openEpubPath, Paths::kDataDir);
     // Skip loading css since we only need metadata here
     if (!lastEpub.load(true, true)) {
       LOG_ERR("SLP", "Failed to load last epub");

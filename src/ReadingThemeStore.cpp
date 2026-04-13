@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cctype>
 
+#include "Paths.h"
+
 namespace {
 constexpr char READING_THEMES_FILE_JSON[] = "/.crosspoint/reading_themes.json";
 constexpr char BOOK_READER_SETTINGS_FILE_JSON[] = "/reader_settings.json";
@@ -76,7 +78,7 @@ bool ReadingThemeStore::saveToFile() const {
     LOG_INF("RTH", "saveToFile: saving empty theme list (all themes deleted)");
   }
 
-  Storage.mkdir("/.crosspoint");
+  Storage.mkdir(Paths::kDataDir);
   return JsonSettingsIO::saveReadingThemes(*this, READING_THEMES_FILE_JSON);
 }
 
