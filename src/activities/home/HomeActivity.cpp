@@ -353,7 +353,7 @@ void HomeActivity::render(Activity::RenderLock &&) {
   if (pagesSelected) {
     renderer.fillRect(labelTileX, labelTileY, labelTileW, tileH);
   } else {
-    renderer.drawRect(labelTileX, labelTileY, labelTileW, tileH, 3, true);
+    renderer.drawRect(labelTileX, labelTileY, labelTileW, tileH, 2, true);
   }
   renderer.drawText(sessionStatFont, labelTileX + tilePad,
                     labelTileY + 3, labelText.c_str(), !pagesSelected);
