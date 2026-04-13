@@ -178,6 +178,7 @@ void HomeActivity::onExit() {
 
   // Free the stored cover buffer if any
   freeCoverBuffer();
+  cachedCoverBookIdx = -1;
 }
 
 bool HomeActivity::storeCoverBuffer() {
@@ -301,6 +302,7 @@ void HomeActivity::loop() {
               }
               coverRendered = false;
               freeCoverBuffer();
+              cachedCoverBookIdx = -1;
               // exitActivity destroys the ConfirmDialog (and this lambda's
               // captured data), so it must come after all captured vars are used.
               exitActivity();
@@ -362,7 +364,11 @@ void HomeActivity::render(Activity::RenderLock &&) {
   const auto pageHeight = renderer.getScreenHeight();
 
   renderer.clearScreen();
-  bool bufferRestored = coverBufferStored && restoreCoverBuffer();
+  // Only restore cached framebuffer if the same cover will be shown.
+  // Restoring when the cover changes leaves old cover pixels that ghost through.
+  const bool coverChanged = SETTINGS.homeLayout == CrossPointSettings::HOME_LAYOUT_SINGLE_COVER
+                            && cachedCoverBookIdx != scrollOffset;
+  bool bufferRestored = !coverChanged && coverBufferStored && restoreCoverBuffer();
 
   GUI.drawHeader(renderer,
                  Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding},
@@ -431,11 +437,19 @@ void HomeActivity::render(Activity::RenderLock &&) {
   const int recentAreaHeight =
       std::max(0, menuY - recentAreaBottomGap - recentAreaY);
   switch (SETTINGS.homeLayout) {
-    case CrossPointSettings::HOME_LAYOUT_SINGLE_COVER:
-      GUI.drawRecentBookSingleCover(
-          renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
-          selectorIndex - 1, scrollOffset);
+    case CrossPointSettings::HOME_LAYOUT_SINGLE_COVER: {
+      const int currentBookIdx = scrollOffset;
+      const bool sameCover = coverBufferStored && cachedCoverBookIdx == currentBookIdx && bufferRestored;
+      if (!sameCover) {
+        GUI.drawRecentBookSingleCover(
+            renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
+            selectorIndex - 1, scrollOffset);
+        // Cache the framebuffer with the cover rendered
+        coverBufferStored = storeCoverBuffer();
+        cachedCoverBookIdx = currentBookIdx;
+      }
       break;
+    }
     default: {
       auto vis = GUI.drawRecentBookCover(
           renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,

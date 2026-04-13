@@ -895,17 +895,30 @@ void BaseTheme::drawRecentBookSingleCover(GfxRenderer& renderer, Rect rect,
     }
   }
 
-  // Fit cover within available space preserving aspect ratio
+  // Fit cover within available space preserving aspect ratio.
+  // When we have a real bitmap, mirror drawBitmap's internal scaling so the
+  // border matches the rendered image exactly.  For the placeholder (no cover),
+  // use ratio-based sizing to fill the available space.
   int coverW, coverH;
-  const float imgRatio = static_cast<float>(imgW) / static_cast<float>(imgH);
-  if (static_cast<int>(coverMaxH * imgRatio) <= coverMaxW) {
-    // Height-constrained
-    coverH = coverMaxH;
-    coverW = static_cast<int>(coverH * imgRatio);
+  if (coverBitmap) {
+    float scale = 1.0f;
+    if (imgW > coverMaxW) {
+      scale = static_cast<float>(coverMaxW) / static_cast<float>(imgW);
+    }
+    if (static_cast<int>(imgH * scale) > coverMaxH) {
+      scale = static_cast<float>(coverMaxH) / static_cast<float>(imgH);
+    }
+    coverW = static_cast<int>(imgW * scale);
+    coverH = static_cast<int>(imgH * scale);
   } else {
-    // Width-constrained
-    coverW = coverMaxW;
-    coverH = static_cast<int>(coverW / imgRatio);
+    const float imgRatio = static_cast<float>(imgW) / static_cast<float>(imgH);
+    if (static_cast<int>(coverMaxH * imgRatio) <= coverMaxW) {
+      coverH = coverMaxH;
+      coverW = static_cast<int>(coverH * imgRatio);
+    } else {
+      coverW = coverMaxW;
+      coverH = static_cast<int>(coverW / imgRatio);
+    }
   }
   const int coverX = rect.x + (rect.width - coverW) / 2;
   const int coverY = contentTop + (coverMaxH - coverH) / 2;
