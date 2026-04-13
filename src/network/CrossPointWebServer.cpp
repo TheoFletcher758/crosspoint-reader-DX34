@@ -297,6 +297,50 @@ void CrossPointWebServer::abortWsUpload(const char* tag) {
   wsUploadLastProgressSent = 0;
 }
 
+void CrossPointWebServer::pumpWsDownload() {
+  if (!wsDownloadInProgress || !wsServer || !wsDownloadFile) {
+    return;
+  }
+
+  constexpr size_t WS_DL_BUF_SIZE = 4096;
+  auto dlBuf = std::make_unique<uint8_t[]>(WS_DL_BUF_SIZE);
+  if (!dlBuf) {
+    LOG_ERR("WS", "Download OOM: cannot allocate buffer");
+    wsDownloadFile.close();
+    wsDownloadInProgress = false;
+    if (wsServer) {
+      wsServer->sendTXT(wsDownloadClientNum, "ERROR:Out of memory");
+    }
+    return;
+  }
+
+  // Send up to 2 chunks per loop iteration
+  for (int i = 0; i < 2 && wsDownloadSent < wsDownloadSize; i++) {
+    esp_task_wdt_reset();
+    const size_t remaining = wsDownloadSize - wsDownloadSent;
+    const size_t toRead = remaining < WS_DL_BUF_SIZE ? remaining : WS_DL_BUF_SIZE;
+    const int bytesRead = wsDownloadFile.read(dlBuf.get(), toRead);
+    if (bytesRead <= 0) break;
+
+    if (!wsServer->sendBIN(wsDownloadClientNum, dlBuf.get(), bytesRead)) {
+      LOG_ERR("WS", "Download send failed at %d/%d", wsDownloadSent, wsDownloadSize);
+      wsDownloadFile.close();
+      wsDownloadInProgress = false;
+      wsServer->sendTXT(wsDownloadClientNum, "ERROR:Send failed");
+      return;
+    }
+    wsDownloadSent += bytesRead;
+  }
+
+  // Check if download complete
+  if (wsDownloadSent >= wsDownloadSize) {
+    wsDownloadFile.close();
+    wsDownloadInProgress = false;
+    wsServer->sendTXT(wsDownloadClientNum, "DLDONE");
+    LOG_DBG("WS", "Download complete: %d bytes sent", wsDownloadSent);
+  }
+}
+
 void CrossPointWebServer::handleJszip() const {
   server->sendHeader("Content-Encoding", "gzip");
   server->send_P(200, "application/javascript", jszip_minJs, jszip_minJsCompressedSize);
@@ -382,45 +426,7 @@ void CrossPointWebServer::handleClient() {
     wsServer->loop();
   }
 
-  // Pump WebSocket download: send up to 2 chunks per loop iteration
-  if (wsDownloadInProgress && wsServer && wsDownloadFile) {
-    constexpr size_t WS_DL_BUF_SIZE = 4096;
-    auto dlBuf = std::make_unique<uint8_t[]>(WS_DL_BUF_SIZE);
-    if (!dlBuf) {
-      LOG_ERR("WS", "Download OOM: cannot allocate buffer");
-      wsDownloadFile.close();
-      wsDownloadInProgress = false;
-      // Best-effort error notification — may itself fail if heap is exhausted
-      if (wsServer) {
-        wsServer->sendTXT(wsDownloadClientNum, "ERROR:Out of memory");
-      }
-    } else {
-      for (int i = 0; i < 2 && wsDownloadSent < wsDownloadSize; i++) {
-        esp_task_wdt_reset();
-        const size_t remaining = wsDownloadSize - wsDownloadSent;
-        const size_t toRead = remaining < WS_DL_BUF_SIZE ? remaining : WS_DL_BUF_SIZE;
-        const int bytesRead = wsDownloadFile.read(dlBuf.get(), toRead);
-        if (bytesRead <= 0) break;
-
-        if (!wsServer->sendBIN(wsDownloadClientNum, dlBuf.get(), bytesRead)) {
-          LOG_ERR("WS", "Download send failed at %d/%d", wsDownloadSent, wsDownloadSize);
-          wsDownloadFile.close();
-          wsDownloadInProgress = false;
-          wsServer->sendTXT(wsDownloadClientNum, "ERROR:Send failed");
-          break;
-        }
-        wsDownloadSent += bytesRead;
-      }
-    }
-
-    // Check if download complete
-    if (wsDownloadInProgress && wsDownloadSent >= wsDownloadSize) {
-      wsDownloadFile.close();
-      wsDownloadInProgress = false;
-      wsServer->sendTXT(wsDownloadClientNum, "DLDONE");
-      LOG_DBG("WS", "Download complete: %d bytes sent", wsDownloadSent);
-    }
-  }
+  pumpWsDownload();
 
   // Respond to discovery broadcasts
   if (udpActive) {
@@ -1645,172 +1651,184 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
     }
 
     case WStype_TEXT: {
-      // Parse control messages
       String msg = String((char*)payload);
       LOG_DBG("WS", "Text from client %u: %s", num, msg.c_str());
 
       if (msg.startsWith("DOWNLOAD:")) {
-        // Parse: DOWNLOAD:<path>
-        String dlPath = msg.substring(9);
-        if (!dlPath.startsWith("/")) dlPath = "/" + dlPath;
-
-        if (wsUploadInProgress) {
-          wsServer->sendTXT(num, "ERROR:Upload in progress");
-          return;
-        }
-        if (wsDownloadInProgress) {
-          wsServer->sendTXT(num, "ERROR:Download already in progress");
-          return;
-        }
-        if (!Storage.exists(dlPath.c_str())) {
-          wsServer->sendTXT(num, "ERROR:File not found");
-          return;
-        }
-
-        wsDownloadFile = Storage.open(dlPath.c_str());
-        if (!wsDownloadFile || wsDownloadFile.isDirectory()) {
-          if (wsDownloadFile) wsDownloadFile.close();
-          wsServer->sendTXT(num, "ERROR:Cannot open file");
-          return;
-        }
-
-        wsDownloadSize = wsDownloadFile.size();
-        wsDownloadSent = 0;
-        wsDownloadClientNum = num;
-        wsDownloadInProgress = true;
-
-        // Extract filename from path
-        char nameBuf[128] = {0};
-        String fname = "download";
-        if (wsDownloadFile.getName(nameBuf, sizeof(nameBuf))) {
-          fname = nameBuf;
-        }
-
-        String ready = "DLREADY:" + fname + ":" + String(wsDownloadSize);
-        wsServer->sendTXT(num, ready);
-        LOG_DBG("WS", "Starting download: %s (%d bytes)", fname.c_str(), wsDownloadSize);
+        handleWsDownloadRequest(num, msg);
       } else if (msg.startsWith("START:")) {
-        // Reject any START while an upload is already active to prevent
-        // leaking the open wsUploadFile handle (owning client re-START included)
-        if (wsUploadInProgress) {
-          wsServer->sendTXT(num, "ERROR:Upload already in progress");
-          break;
-        }
-
-        // Parse: START:<filename>:<size>:<path>
-        int firstColon = msg.indexOf(':', 6);
-        int secondColon = msg.indexOf(':', firstColon + 1);
-
-        if (firstColon > 0 && secondColon > 0) {
-          wsUploadFileName = msg.substring(6, firstColon);
-          wsUploadSize = msg.substring(firstColon + 1, secondColon).toInt();
-          wsUploadPath = normalizeWebPath(msg.substring(secondColon + 1));
-          wsUploadReceived = 0;
-          wsUploadLastProgressSent = 0;
-          wsUploadStartTime = millis();
-
-          // Sanitize filename: strip path separators to prevent traversal
-          wsUploadFileName.replace("/", "");
-          wsUploadFileName.replace("\\", "");
-          wsUploadFileName.replace("..", "");
-
-          // Build file path
-          String filePath = wsUploadPath;
-          if (!filePath.endsWith("/")) filePath += "/";
-          filePath += wsUploadFileName;
-
-          LOG_DBG("WS", "Starting upload: %s (%d bytes) to %s", wsUploadFileName.c_str(), wsUploadSize,
-                  filePath.c_str());
-
-          // Check if file exists and remove it
-          esp_task_wdt_reset();
-          if (Storage.exists(filePath.c_str())) {
-            Storage.remove(filePath.c_str());
-          }
-
-          // Open file for writing
-          esp_task_wdt_reset();
-          if (!Storage.openFileForWrite("WS", filePath, wsUploadFile)) {
-            wsServer->sendTXT(num, "ERROR:Failed to create file");
-            wsUploadInProgress = false;
-            wsUploadClientNum = 255;
-            return;
-          }
-          esp_task_wdt_reset();
-
-          wsUploadClientNum = num;
-          wsUploadInProgress = true;
-          wsServer->sendTXT(num, "READY");
-        } else {
-          wsServer->sendTXT(num, "ERROR:Invalid START format");
-        }
+        handleWsUploadStart(num, msg);
       }
       break;
     }
 
     case WStype_BIN: {
-      if (!wsUploadInProgress || !wsUploadFile || num != wsUploadClientNum) {
-        wsServer->sendTXT(num, "ERROR:No upload in progress");
-        return;
-      }
-
-      // Check for upload overflow
-      size_t remaining = wsUploadSize - wsUploadReceived;
-      if (length > remaining) {
-        abortWsUpload("WS");
-        wsServer->sendTXT(num, "ERROR:Upload overflow");
-        return;
-      }
-
-      // Write binary data directly to file
-      esp_task_wdt_reset();
-      size_t written = wsUploadFile.write(payload, length);
-      esp_task_wdt_reset();
-
-      if (written != length) {
-        abortWsUpload("WS");
-        wsServer->sendTXT(num, "ERROR:Write failed - disk full?");
-        return;
-      }
-
-      wsUploadReceived += written;
-
-      // Send progress update (every 64KB or at end)
-      if (wsUploadReceived - wsUploadLastProgressSent >= 65536 || wsUploadReceived >= wsUploadSize) {
-        String progress = "PROGRESS:" + String(wsUploadReceived) + ":" + String(wsUploadSize);
-        wsServer->sendTXT(num, progress);
-        wsUploadLastProgressSent = wsUploadReceived;
-      }
-
-      // Check if upload complete
-      if (wsUploadReceived >= wsUploadSize) {
-        wsUploadFile.close();
-        wsUploadInProgress = false;
-        wsUploadClientNum = 255;
-
-        wsLastCompleteName = wsUploadFileName;
-        wsLastCompleteSize = wsUploadSize;
-        wsLastCompleteAt = millis();
-
-        unsigned long elapsed = millis() - wsUploadStartTime;
-        float kbps = (elapsed > 0) ? (wsUploadSize / 1024.0) / (elapsed / 1000.0) : 0;
-
-        LOG_DBG("WS", "Upload complete: %s (%d bytes in %lu ms, %.1f KB/s)", wsUploadFileName.c_str(), wsUploadSize,
-                elapsed, kbps);
-
-        // Clear epub cache to prevent stale metadata issues when overwriting files
-        String filePath = wsUploadPath;
-        if (!filePath.endsWith("/")) filePath += "/";
-        filePath += wsUploadFileName;
-        clearBookCacheIfNeeded(filePath);
-
-        wsServer->sendTXT(num, "DONE");
-        wsUploadLastProgressSent = 0;
-      }
+      handleWsUploadData(num, payload, length);
       break;
     }
 
     default:
       break;
+  }
+}
+
+void CrossPointWebServer::handleWsDownloadRequest(uint8_t num, const String& msg) {
+  // Parse: DOWNLOAD:<path>
+  String dlPath = msg.substring(9);
+  if (!dlPath.startsWith("/")) dlPath = "/" + dlPath;
+
+  if (wsUploadInProgress) {
+    wsServer->sendTXT(num, "ERROR:Upload in progress");
+    return;
+  }
+  if (wsDownloadInProgress) {
+    wsServer->sendTXT(num, "ERROR:Download already in progress");
+    return;
+  }
+  if (!Storage.exists(dlPath.c_str())) {
+    wsServer->sendTXT(num, "ERROR:File not found");
+    return;
+  }
+
+  wsDownloadFile = Storage.open(dlPath.c_str());
+  if (!wsDownloadFile || wsDownloadFile.isDirectory()) {
+    if (wsDownloadFile) wsDownloadFile.close();
+    wsServer->sendTXT(num, "ERROR:Cannot open file");
+    return;
+  }
+
+  wsDownloadSize = wsDownloadFile.size();
+  wsDownloadSent = 0;
+  wsDownloadClientNum = num;
+  wsDownloadInProgress = true;
+
+  // Extract filename from path
+  char nameBuf[128] = {0};
+  String fname = "download";
+  if (wsDownloadFile.getName(nameBuf, sizeof(nameBuf))) {
+    fname = nameBuf;
+  }
+
+  String ready = "DLREADY:" + fname + ":" + String(wsDownloadSize);
+  wsServer->sendTXT(num, ready);
+  LOG_DBG("WS", "Starting download: %s (%d bytes)", fname.c_str(), wsDownloadSize);
+}
+
+void CrossPointWebServer::handleWsUploadStart(uint8_t num, const String& msg) {
+  // Reject any START while an upload is already active to prevent
+  // leaking the open wsUploadFile handle (owning client re-START included)
+  if (wsUploadInProgress) {
+    wsServer->sendTXT(num, "ERROR:Upload already in progress");
+    return;
+  }
+
+  // Parse: START:<filename>:<size>:<path>
+  int firstColon = msg.indexOf(':', 6);
+  int secondColon = msg.indexOf(':', firstColon + 1);
+
+  if (firstColon <= 0 || secondColon <= 0) {
+    wsServer->sendTXT(num, "ERROR:Invalid START format");
+    return;
+  }
+
+  wsUploadFileName = msg.substring(6, firstColon);
+  wsUploadSize = msg.substring(firstColon + 1, secondColon).toInt();
+  wsUploadPath = normalizeWebPath(msg.substring(secondColon + 1));
+  wsUploadReceived = 0;
+  wsUploadLastProgressSent = 0;
+  wsUploadStartTime = millis();
+
+  // Sanitize filename: strip path separators to prevent traversal
+  wsUploadFileName.replace("/", "");
+  wsUploadFileName.replace("\\", "");
+  wsUploadFileName.replace("..", "");
+
+  // Build file path
+  String filePath = wsUploadPath;
+  if (!filePath.endsWith("/")) filePath += "/";
+  filePath += wsUploadFileName;
+
+  LOG_DBG("WS", "Starting upload: %s (%d bytes) to %s", wsUploadFileName.c_str(), wsUploadSize,
+          filePath.c_str());
+
+  // Check if file exists and remove it
+  esp_task_wdt_reset();
+  if (Storage.exists(filePath.c_str())) {
+    Storage.remove(filePath.c_str());
+  }
+
+  // Open file for writing
+  esp_task_wdt_reset();
+  if (!Storage.openFileForWrite("WS", filePath, wsUploadFile)) {
+    wsServer->sendTXT(num, "ERROR:Failed to create file");
+    wsUploadInProgress = false;
+    wsUploadClientNum = 255;
+    return;
+  }
+  esp_task_wdt_reset();
+
+  wsUploadClientNum = num;
+  wsUploadInProgress = true;
+  wsServer->sendTXT(num, "READY");
+}
+
+void CrossPointWebServer::handleWsUploadData(uint8_t num, uint8_t* payload, size_t length) {
+  if (!wsUploadInProgress || !wsUploadFile || num != wsUploadClientNum) {
+    wsServer->sendTXT(num, "ERROR:No upload in progress");
+    return;
+  }
+
+  // Check for upload overflow
+  size_t remaining = wsUploadSize - wsUploadReceived;
+  if (length > remaining) {
+    abortWsUpload("WS");
+    wsServer->sendTXT(num, "ERROR:Upload overflow");
+    return;
+  }
+
+  // Write binary data directly to file
+  esp_task_wdt_reset();
+  size_t written = wsUploadFile.write(payload, length);
+  esp_task_wdt_reset();
+
+  if (written != length) {
+    abortWsUpload("WS");
+    wsServer->sendTXT(num, "ERROR:Write failed - disk full?");
+    return;
+  }
+
+  wsUploadReceived += written;
+
+  // Send progress update (every 64KB or at end)
+  if (wsUploadReceived - wsUploadLastProgressSent >= 65536 || wsUploadReceived >= wsUploadSize) {
+    String progress = "PROGRESS:" + String(wsUploadReceived) + ":" + String(wsUploadSize);
+    wsServer->sendTXT(num, progress);
+    wsUploadLastProgressSent = wsUploadReceived;
+  }
+
+  // Check if upload complete
+  if (wsUploadReceived >= wsUploadSize) {
+    wsUploadFile.close();
+    wsUploadInProgress = false;
+    wsUploadClientNum = 255;
+
+    wsLastCompleteName = wsUploadFileName;
+    wsLastCompleteSize = wsUploadSize;
+    wsLastCompleteAt = millis();
+
+    unsigned long elapsed = millis() - wsUploadStartTime;
+    float kbps = (elapsed > 0) ? (wsUploadSize / 1024.0) / (elapsed / 1000.0) : 0;
+
+    LOG_DBG("WS", "Upload complete: %s (%d bytes in %lu ms, %.1f KB/s)", wsUploadFileName.c_str(), wsUploadSize,
+            elapsed, kbps);
+
+    // Clear epub cache to prevent stale metadata issues when overwriting files
+    String filePath = wsUploadPath;
+    if (!filePath.endsWith("/")) filePath += "/";
+    filePath += wsUploadFileName;
+    clearBookCacheIfNeeded(filePath);
+
+    wsServer->sendTXT(num, "DONE");
+    wsUploadLastProgressSent = 0;
   }
 }
