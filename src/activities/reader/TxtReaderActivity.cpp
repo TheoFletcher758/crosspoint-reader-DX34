@@ -550,7 +550,8 @@ void TxtReaderActivity::initializeReader() {
     renderer.getOrientedViewableTRBL(&baseTop, &baseRight, &baseBottom, &baseLeft);
     normalizeReaderMargins(&baseTop, &baseRight, &baseBottom, &baseLeft);
     const int availableWidth = renderer.getScreenWidth() - baseLeft - baseRight;
-    cachedScreenMarginHorizontal = std::max(0, std::min(55, (availableWidth - targetTextWidth) / 2));
+    constexpr int minDynamicMargin = 10;
+    cachedScreenMarginHorizontal = std::max(minDynamicMargin, std::min(55, (availableWidth - targetTextWidth) / 2));
   } else {
     cachedScreenMarginHorizontal = SETTINGS.screenMarginHorizontal;
   }
