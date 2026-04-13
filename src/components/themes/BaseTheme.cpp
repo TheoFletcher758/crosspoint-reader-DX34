@@ -1128,6 +1128,9 @@ void BaseTheme::drawReadingProgressBar(const GfxRenderer& renderer, const size_t
   const int progressBarY =
       renderer.getScreenHeight() - vieweableMarginBottom - BaseMetrics::values.bookProgressBarHeight;
   const int progressBarHeight = BaseMetrics::values.bookProgressBarHeight + vieweableMarginBottom;
-  const int barWidth = progressBarMaxWidth * bookProgress / 100;
+  // At 100%, extend past the right viewable margin to the screen edge
+  const int barWidth = (bookProgress >= 100)
+      ? (renderer.getScreenWidth() - vieweableMarginLeft)
+      : static_cast<int>(progressBarMaxWidth * bookProgress / 100);
   renderer.fillRect(vieweableMarginLeft, progressBarY, barWidth, progressBarHeight, true);
 }

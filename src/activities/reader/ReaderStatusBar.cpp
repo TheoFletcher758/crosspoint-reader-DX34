@@ -20,7 +20,10 @@ void drawStyledProgressBar(const GfxRenderer& renderer, const size_t progressPer
                                    &vieweableMarginLeft);
   const int maxWidth = renderer.getScreenWidth() - vieweableMarginLeft - vieweableMarginRight;
   const int startX = vieweableMarginLeft;
-  const int barWidth = maxWidth * static_cast<int>(progressPercent) / 100;
+  // At 100%, extend past the right viewable margin to the screen edge
+  const int barWidth = (progressPercent >= 100)
+      ? (renderer.getScreenWidth() - startX)
+      : (maxWidth * static_cast<int>(progressPercent) / 100);
   renderer.fillRect(startX, y, barWidth, height, true);
 }
 
