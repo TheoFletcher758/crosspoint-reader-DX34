@@ -1130,29 +1130,12 @@ void TxtReaderActivity::renderPage() {
   renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom,
                   orientedMarginLeft);
 
-  if (pagesUntilFullRefresh <= 1 || SETTINGS.textAntiAliasing) {
+  if (pagesUntilFullRefresh <= 1) {
     renderer.displayBuffer(HalDisplay::HALF_REFRESH);
     pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
   } else {
     renderer.displayBuffer();
     pagesUntilFullRefresh--;
-  }
-
-  // Apply hardware grayscale overlay for font antialiasing.
-  if (SETTINGS.textAntiAliasing && renderer.storeBwBuffer()) {
-    renderer.clearScreen(0x00);
-    renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-    renderLines();
-    renderer.copyGrayscaleLsbBuffers();
-
-    renderer.clearScreen(0x00);
-    renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-    renderLines();
-    renderer.copyGrayscaleMsbBuffers();
-
-    renderer.displayGrayBuffer();
-    renderer.restoreBwBuffer();
-    renderer.setRenderMode(GfxRenderer::BW);
   }
 
   renderer.setTextRenderStyle(0);

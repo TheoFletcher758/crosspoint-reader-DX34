@@ -2007,9 +2007,8 @@ void EpubReaderActivity::renderContents(const Page& page, const int orientedMarg
   renderStatusBar(statusBarLayout, orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
 
   const bool pageHasImages = page.hasImages();
-  const bool useGrayscale = SETTINGS.textAntiAliasing || pageHasImages;
 
-  if (pagesUntilFullRefresh <= 1 || useGrayscale) {
+  if (pagesUntilFullRefresh <= 1 || pageHasImages) {
     renderer.displayBuffer(HalDisplay::HALF_REFRESH);
     pagesUntilFullRefresh = SETTINGS.getRefreshFrequency();
   } else {
@@ -2017,29 +2016,18 @@ void EpubReaderActivity::renderContents(const Page& page, const int orientedMarg
     pagesUntilFullRefresh--;
   }
 
-  // Apply hardware grayscale overlay for font antialiasing and/or images.
-  // Uses LSB/MSB technique for true 4-level grayscale on e-ink.
-  // When font AA is on, render full page content (text+images) in grayscale.
-  // When only images need grayscale, render images only.
-  if (useGrayscale && renderer.storeBwBuffer()) {
-    const int fontId = SETTINGS.getReaderFontId();
-
+  // Apply hardware grayscale overlay for pages with images.
+  // This uses the same LSB/MSB technique as sleep wallpapers to render
+  // true 4-level grayscale, making photographs much more visible on e-ink.
+  if (pageHasImages && renderer.storeBwBuffer()) {
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-    if (SETTINGS.textAntiAliasing) {
-      page.render(renderer, fontId, orientedMarginLeft, contentY);
-    } else {
-      page.renderImages(renderer, orientedMarginLeft, contentY);
-    }
+    page.renderImages(renderer, orientedMarginLeft, contentY);
     renderer.copyGrayscaleLsbBuffers();
 
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-    if (SETTINGS.textAntiAliasing) {
-      page.render(renderer, fontId, orientedMarginLeft, contentY);
-    } else {
-      page.renderImages(renderer, orientedMarginLeft, contentY);
-    }
+    page.renderImages(renderer, orientedMarginLeft, contentY);
     renderer.copyGrayscaleMsbBuffers();
 
     renderer.displayGrayBuffer();

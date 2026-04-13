@@ -238,7 +238,8 @@ void ReaderSettingsActivity::buildSettingsList() {
   auto pushReader = [&](SettingInfo&& s) {
     // Skip entries never shown in the in-reader settings screen
     if (s.valuePtr == &CrossPointSettings::orientation ||
-        s.valuePtr == &CrossPointSettings::debugBorders) {
+        s.valuePtr == &CrossPointSettings::debugBorders ||
+        s.valuePtr == &CrossPointSettings::textAntiAliasing) {
       return;
     }
     if (txt && s.valuePtr == &CrossPointSettings::readerStyleMode) {
@@ -292,7 +293,6 @@ void ReaderSettingsActivity::buildSettingsList() {
       {StrId::STR_NONE_OPT, StrId::STR_PARA_SPACING_17, StrId::STR_PARA_SPACING_25, StrId::STR_PARA_SPACING_33}));
   pushReader(SettingInfo::Enum(StrId::STR_TEXT_RENDER_MODE, &CrossPointSettings::textRenderMode,
       {StrId::STR_RENDER_CRISP, StrId::STR_RENDER_DARK, StrId::STR_RENDER_BIONIC}));
-  pushReader(SettingInfo::Toggle(StrId::STR_RENDER_SMOOTH, &CrossPointSettings::textAntiAliasing));
   if (!txt) {
     readerSettings.push_back(SettingInfo::Toggle(
         StrId::STR_HYPHENATION, &CrossPointSettings::hyphenationEnabled));

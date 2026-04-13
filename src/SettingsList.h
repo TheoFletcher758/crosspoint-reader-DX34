@@ -85,8 +85,6 @@ inline std::vector<SettingInfo> getSettingsList() {
       SettingInfo::Enum(StrId::STR_TEXT_RENDER_MODE, &CrossPointSettings::textRenderMode,
                         {StrId::STR_RENDER_CRISP, StrId::STR_RENDER_DARK},
                         "textRenderMode", StrId::STR_CAT_READER),
-      SettingInfo::Toggle(StrId::STR_RENDER_SMOOTH, &CrossPointSettings::textAntiAliasing,
-                          "textAntiAliasing", StrId::STR_CAT_READER),
 
       // Status bar customization
       SettingInfo::Toggle(StrId::STR_STATUS_BAR, &CrossPointSettings::statusBarEnabled, "statusBarEnabled",
