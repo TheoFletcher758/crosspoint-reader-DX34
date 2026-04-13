@@ -465,6 +465,7 @@ enum class StrId : uint16_t {
   STR_HOME_LAYOUT,
   STR_HOME_LAYOUT_CLASSIC,
   STR_HOME_LAYOUT_SINGLE_COVER,
+  STR_KBD_DOUBLE_TAP_HINT,
   // Sentinel - must be last
   _COUNT
 };

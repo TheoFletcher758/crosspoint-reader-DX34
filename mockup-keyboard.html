@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keyboard Mockup — CrossPoint DX34 (Dual-Label)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    font-family: monospace;
+    color: #ccc;
+  }
+  h1 { font-size: 16px; margin-bottom: 4px; }
+  .subtitle { font-size: 11px; opacity: 0.6; margin-bottom: 14px; }
+
+  .controls {
+    display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; justify-content: center;
+  }
+  .controls label { font-size: 12px; display: flex; align-items: center; gap: 4px; }
+  .controls input, .controls select { font-size: 12px; padding: 2px 5px; }
+
+  /* Device frame — 480x800 */
+  .device {
+    width: 480px;
+    height: 800px;
+    background: #fff;
+    border: 2px solid #000;
+    position: relative;
+    overflow: hidden;
+    font-family: monospace;
+    color: #000;
+    outline: none;
+  }
+
+  /* Title */
+  .d-title {
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    padding-top: 10px;
+  }
+
+  /* Double-tap hint */
+  .d-hint-text {
+    text-align: center;
+    font-size: 11px;
+    color: #000;
+    margin-top: 2px;
+  }
+
+  /* Input field */
+  .d-input {
+    margin: 8px 10px;
+    font-size: 16px;
+    min-height: 22px;
+    word-break: break-all;
+  }
+  .d-input .bracket { }
+  .d-input .cursor { border-right: 2px solid #000; animation: blink 1s step-end infinite; padding-right: 1px; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Keyboard */
+  .d-kb { padding: 0 8px; }
+  .kr { display: flex; gap: 3px; margin-bottom: 3px; justify-content: center; }
+
+  /* Dual-label key */
+  .k {
+    width: 34px;
+    height: 38px;
+    border: 1.5px solid #000;
+    border-radius: 2px;
+    position: relative;
+    font-family: monospace;
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+    background: #fff;
+  }
+  .k:hover { background: #f0f0f0; }
+
+  /* Shift label (top-right, small) */
+  .k .sh {
+    position: absolute;
+    top: 1px;
+    right: 3px;
+    font-size: 10px;
+    color: #888;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  /* Main label (center-bottom) */
+  .k .ml {
+    position: absolute;
+    bottom: 3px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 15px;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  /* Selected key — inverted fill */
+  .k.sel {
+    background: #000;
+    border-color: #000;
+  }
+  .k.sel .sh { color: #aaa; }
+  .k.sel .ml { color: #fff; }
+
+  /* Special wide keys (no dual label) */
+  .k-special {
+    height: 38px;
+    border: 1.5px solid #000;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+    background: #fff;
+  }
+  .k-special:hover { background: #f0f0f0; }
+  .k-special.sel {
+    background: #000;
+    color: #fff;
+    border-color: #000;
+  }
+
+  /* Bottom button hints */
+  .d-btn-hints {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    height: 40px;
+    align-items: center;
+  }
+  .d-btn {
+    width: 106px;
+    height: 28px;
+    background: #000;
+    color: #fff;
+    font-family: monospace;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    position: absolute;
+  }
+  .d-btn:nth-child(1) { left: 25px; }
+  .d-btn:nth-child(2) { left: 130px; }
+  .d-btn:nth-child(3) { left: 245px; }
+  .d-btn:nth-child(4) { left: 350px; }
+
+  /* Side button hints */
+  .d-side {
+    position: absolute;
+    right: 4px;
+    top: 345px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .d-side-btn {
+    width: 22px;
+    height: 80px;
+    border: 1.5px solid #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .d-side-btn:first-child { border-bottom: none; border-radius: 3px 3px 0 0; }
+  .d-side-btn:last-child { border-radius: 0 0 3px 3px; }
+
+  /* Double-tap flash animation */
+  .k.flash { animation: flashKey 0.15s ease-out; }
+  @keyframes flashKey {
+    0% { background: #fff; }
+    50% { background: #ccc; }
+    100% { background: #fff; }
+  }
+  .k.sel.flash {
+    animation: flashKeySel 0.15s ease-out;
+  }
+  @keyframes flashKeySel {
+    0% { background: #000; }
+    50% { background: #555; }
+    100% { background: #000; }
+  }
+
+  .legend {
+    margin-top: 12px;
+    font-size: 11px;
+    color: #999;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .legend kbd {
+    background: #444;
+    color: #eee;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Dual-Label Keyboard — CrossPoint DX34</h1>
+<p class="subtitle">480×800 e-ink · Double-tap Select types alternate (shift) character</p>
+
+<div class="controls">
+  <label>Title: <input type="text" id="ctrlTitle" value="Enter WiFi Password" size="22"></label>
+  <label>Password: <input type="checkbox" id="ctrlPwd"></label>
+</div>
+
+<div class="device" id="device" tabindex="0"></div>
+
+<div class="legend">
+  <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> navigate &nbsp;·&nbsp;
+  <kbd>Enter</kbd> type key &nbsp;·&nbsp;
+  <kbd>Enter</kbd>×2 (quick) type shift char &nbsp;·&nbsp;
+  <kbd>Backspace</kbd> delete &nbsp;·&nbsp;
+  <kbd>Esc</kbd> cancel
+</div>
+
+<script>
+// ─── Layout data (mirrors C++ exactly) ──────────────────────────
+const LOWER = ['`1234567890-=', 'qwertyuiop[]\\', "asdfghjkl;'", 'zxcvbnm,./'];
+const UPPER = ['~!@#$%^&*()_+', 'QWERTYUIOP{}|', 'ASDFGHJKL:"', 'ZXCVBNM<>?'];
+const SHIFT_LABELS = ['shift', 'SHIFT', 'LOCK'];
+const ROW_LENGTHS = [13, 13, 11, 10, 10];
+
+const NUM_ROWS = 5, SPECIAL_ROW = 4;
+const SHIFT_COL = 0, SPACE_COL = 2, BACKSPACE_COL = 7, DONE_COL = 9;
+const KEY_W = 34, KEY_H = 38, GAP = 3;
+
+// ─── State ──────────────────────────────────────────────────────
+let selRow = 0, selCol = 0, shiftState = 0;
+let text = '', isPassword = false;
+let lastConfirmTime = 0, lastConfirmRow = -1, lastConfirmCol = -1, lastDoubleTappable = false;
+const DOUBLE_TAP_MS = 350;
+
+const device = document.getElementById('device');
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── Render ─────────────────────────────────────────────────────
+function render() {
+  const title = document.getElementById('ctrlTitle').value;
+  const displayText = isPassword ? '*'.repeat(text.length) : text;
+
+  const maxRowW = 13 * (KEY_W + GAP);
+  const margin = Math.floor((480 - maxRowW) / 2);
+
+  let html = '';
+
+  // Title
+  html += `<div class="d-title">${esc(title)}</div>`;
+
+  // Hint
+  html += `<div class="d-hint-text">Double-tap Select for alternate key</div>`;
+
+  // Input field
+  html += `<div class="d-input"><span class="bracket">[</span> ${esc(displayText)}<span class="cursor"> </span> <span class="bracket" style="float:right">]</span></div>`;
+
+  // Keyboard
+  html += '<div class="d-kb">';
+  for (let row = 0; row < NUM_ROWS; row++) {
+    html += `<div class="kr" style="justify-content:flex-start; padding-left:${margin}px;">`;
+
+    if (row === SPECIAL_ROW) {
+      // Shift (2 wide)
+      const shiftSel = selRow === 4 && selCol >= SHIFT_COL && selCol < SPACE_COL;
+      const shiftW = 2 * (KEY_W + GAP) - GAP;
+      html += `<div class="k-special${shiftSel ? ' sel' : ''}" data-action="shift" style="width:${shiftW}px">${esc(SHIFT_LABELS[shiftState])}</div>`;
+      html += `<div style="width:${GAP}px"></div>`;
+
+      // Space (5 wide)
+      const spaceSel = selRow === 4 && selCol >= SPACE_COL && selCol < BACKSPACE_COL;
+      const spaceW = 5 * (KEY_W + GAP) - GAP;
+      html += `<div class="k-special${spaceSel ? ' sel' : ''}" data-action="space" style="width:${spaceW}px">&nbsp;</div>`;
+      html += `<div style="width:${GAP}px"></div>`;
+
+      // Backspace (2 wide)
+      const bsSel = selRow === 4 && selCol >= BACKSPACE_COL && selCol < DONE_COL;
+      const bsW = 2 * (KEY_W + GAP) - GAP;
+      html += `<div class="k-special${bsSel ? ' sel' : ''}" data-action="bs" style="width:${bsW}px">&larr;</div>`;
+      html += `<div style="width:${GAP}px"></div>`;
+
+      // OK (2 wide)
+      const okSel = selRow === 4 && selCol >= DONE_COL;
+      const okW = 2 * (KEY_W + GAP) - GAP;
+      html += `<div class="k-special${okSel ? ' sel' : ''}" data-action="ok" style="width:${okW}px">OK</div>`;
+    } else {
+      for (let col = 0; col < ROW_LENGTHS[row]; col++) {
+        const mainCh = LOWER[row][col];
+        const shiftCh = UPPER[row][col];
+        const isSel = row === selRow && col === selCol;
+        html += `<div class="k${isSel ? ' sel' : ''}" data-row="${row}" data-col="${col}">`;
+        html += `<span class="sh">${esc(shiftCh)}</span>`;
+        html += `<span class="ml">${esc(mainCh)}</span>`;
+        html += '</div>';
+      }
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Side hints
+  html += `<div class="d-side"><div class="d-side-btn">▲</div><div class="d-side-btn">▼</div></div>`;
+
+  // Bottom hints
+  html += `<div class="d-btn-hints">
+    <div class="d-btn">Back</div>
+    <div class="d-btn">Select</div>
+    <div class="d-btn">◀</div>
+    <div class="d-btn">▶</div>
+  </div>`;
+
+  device.innerHTML = html;
+
+  // Click handlers for keys
+  device.querySelectorAll('.k').forEach(el => {
+    el.addEventListener('click', () => {
+      selRow = parseInt(el.dataset.row);
+      selCol = parseInt(el.dataset.col);
+      doConfirm();
+      render();
+    });
+  });
+  device.querySelectorAll('.k-special').forEach(el => {
+    el.addEventListener('click', () => {
+      const a = el.dataset.action;
+      if (a === 'shift') { selRow = 4; selCol = SHIFT_COL; }
+      else if (a === 'space') { selRow = 4; selCol = SPACE_COL; }
+      else if (a === 'bs') { selRow = 4; selCol = BACKSPACE_COL; }
+      else if (a === 'ok') { selRow = 4; selCol = DONE_COL; }
+      doConfirm();
+      render();
+    });
+  });
+}
+
+// ─── Input logic ────────────────────────────────────────────────
+function getChar(layout, row, col) {
+  if (row < 0 || row >= 4) return null;
+  if (col < 0 || col >= ROW_LENGTHS[row]) return null;
+  return layout[row][col];
+}
+
+function handleKeyPress() {
+  if (selRow === SPECIAL_ROW) {
+    if (selCol >= SHIFT_COL && selCol < SPACE_COL) {
+      shiftState = (shiftState + 1) % 3;
+      return;
+    }
+    if (selCol >= SPACE_COL && selCol < BACKSPACE_COL) { text += ' '; return; }
+    if (selCol >= BACKSPACE_COL && selCol < DONE_COL) {
+      if (text.length > 0) text = text.slice(0, -1);
+      return;
+    }
+    if (selCol >= DONE_COL) { alert('Done! Text: ' + text); return; }
+  }
+
+  const layout = shiftState ? UPPER : LOWER;
+  const ch = getChar(layout, selRow, selCol);
+  if (ch) {
+    text += ch;
+    if (shiftState === 1) shiftState = 0;
+  }
+}
+
+function doConfirm() {
+  const now = Date.now();
+
+  // Double-tap check
+  if (lastDoubleTappable && selRow === lastConfirmRow && selCol === lastConfirmCol &&
+      (now - lastConfirmTime) < DOUBLE_TAP_MS && selRow !== SPECIAL_ROW && text.length > 0) {
+    // Replace last char with alternate
+    text = text.slice(0, -1);
+    const altLayout = shiftState ? LOWER : UPPER;
+    const altCh = getChar(altLayout, selRow, selCol);
+    if (altCh) text += altCh;
+    lastDoubleTappable = false;
+    return;
+  }
+
+  const wasRegular = (selRow !== SPECIAL_ROW);
+  handleKeyPress();
+  if (wasRegular) {
+    lastDoubleTappable = true;
+    lastConfirmTime = now;
+    lastConfirmRow = selRow;
+    lastConfirmCol = selCol;
+  } else {
+    lastDoubleTappable = false;
+  }
+}
+
+function resetDoubleTap() { lastDoubleTappable = false; }
+
+// ─── Keyboard nav ───────────────────────────────────────────────
+device.addEventListener('keydown', e => {
+  e.preventDefault();
+  const maxCol = ROW_LENGTHS[selRow] - 1;
+
+  if (e.key === 'ArrowUp') {
+    selRow = (selRow - 1 + NUM_ROWS) % NUM_ROWS;
+    if (selCol > ROW_LENGTHS[selRow] - 1) selCol = ROW_LENGTHS[selRow] - 1;
+    resetDoubleTap();
+  } else if (e.key === 'ArrowDown') {
+    selRow = (selRow + 1) % NUM_ROWS;
+    if (selCol > ROW_LENGTHS[selRow] - 1) selCol = ROW_LENGTHS[selRow] - 1;
+    resetDoubleTap();
+  } else if (e.key === 'ArrowLeft') {
+    if (selRow === SPECIAL_ROW) {
+      if (selCol >= SHIFT_COL && selCol < SPACE_COL) selCol = maxCol;
+      else if (selCol >= SPACE_COL && selCol < BACKSPACE_COL) selCol = SHIFT_COL;
+      else if (selCol >= BACKSPACE_COL && selCol < DONE_COL) selCol = SPACE_COL;
+      else if (selCol >= DONE_COL) selCol = BACKSPACE_COL;
+    } else {
+      selCol = (selCol - 1 + ROW_LENGTHS[selRow]) % ROW_LENGTHS[selRow];
+    }
+    resetDoubleTap();
+  } else if (e.key === 'ArrowRight') {
+    if (selRow === SPECIAL_ROW) {
+      if (selCol >= SHIFT_COL && selCol < SPACE_COL) selCol = SPACE_COL;
+      else if (selCol >= SPACE_COL && selCol < BACKSPACE_COL) selCol = BACKSPACE_COL;
+      else if (selCol >= BACKSPACE_COL && selCol < DONE_COL) selCol = DONE_COL;
+      else if (selCol >= DONE_COL) selCol = SHIFT_COL;
+    } else {
+      selCol = (selCol + 1) % ROW_LENGTHS[selRow];
+    }
+    resetDoubleTap();
+  } else if (e.key === 'Enter') {
+    doConfirm();
+  } else if (e.key === 'Backspace') {
+    if (text.length > 0) text = text.slice(0, -1);
+    resetDoubleTap();
+  } else if (e.key === 'Escape') {
+    alert('Cancelled');
+    return;
+  } else {
+    return;
+  }
+  render();
+});
+
+// Controls
+document.getElementById('ctrlTitle').addEventListener('input', () => render());
+document.getElementById('ctrlPwd').addEventListener('change', e => { isPassword = e.target.checked; render(); });
+
+// Go
+render();
+device.focus();
+</script>
+</body>
+</html>
