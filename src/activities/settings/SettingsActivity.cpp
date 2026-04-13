@@ -28,42 +28,15 @@ const StrId SettingsActivity::categoryNames[categoryCount] = {StrId::STR_CAT_DIS
 namespace {
 constexpr unsigned long doubleTapMs = 350;
 
-uint8_t nextReaderMarginValue(const uint8_t current) {
-  static constexpr uint8_t kMargins[] = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55};
-  for (size_t i = 0; i < sizeof(kMargins) / sizeof(kMargins[0]); i++) {
-    if (current < kMargins[i]) {
-      return kMargins[i];
-    }
-    if (current == kMargins[i]) {
-      return kMargins[(i + 1) % (sizeof(kMargins) / sizeof(kMargins[0]))];
-    }
-  }
-  return kMargins[0];
-}
-
 void persistSettingsWithLog(const char* context) {
   if (!SETTINGS.saveToFile()) {
     LOG_ERR("SET", "Failed to save settings (%s)", context);
   }
 }
 
-const char* fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
-  switch (CrossPointSettings::fontSizeToPointSize(family, fontSize)) {
-    case 13:
-      return "13";
-    case 14:
-      return "14";
-    case 15:
-      return "15";
-    case 16:
-      return "16";
-    case 17:
-      return "17";
-    case 18:
-      return "18";
-    default:
-      return "16";
-  }
+std::string fontSizeValueLabel(const uint8_t family, const uint8_t fontSize) {
+  return std::to_string(
+      CrossPointSettings::fontSizeToPointSize(family, fontSize));
 }
 
 }
@@ -125,6 +98,26 @@ bool SettingsActivity::isPopupValueSetting(const SettingInfo& setting) const {
          setting.valuePtr == &CrossPointSettings::screenMarginHorizontal ||
          setting.valuePtr == &CrossPointSettings::screenMarginTop ||
          setting.valuePtr == &CrossPointSettings::screenMarginBottom;
+}
+
+void SettingsActivity::startFontSizeEdit() {
+  fontSizeEditMode = true;
+  fontSizeEditDraftIndex = CrossPointSettings::fontSizeToDisplayIndex(
+      SETTINGS.fontFamily, SETTINGS.fontSize);
+}
+
+void SettingsActivity::adjustFontSizeEdit(const int delta) {
+  const int optionCount = CrossPointSettings::fontSizeOptionCount(SETTINGS.fontFamily);
+  const int next = static_cast<int>(fontSizeEditDraftIndex) + delta;
+  fontSizeEditDraftIndex = static_cast<uint8_t>(
+      std::clamp(next, 0, std::max(0, optionCount - 1)));
+}
+
+void SettingsActivity::applyFontSizeEdit() {
+  SETTINGS.fontSize = CrossPointSettings::displayIndexToFontSize(
+      SETTINGS.fontFamily, fontSizeEditDraftIndex);
+  fontSizeEditMode = false;
+  persistSettingsWithLog("settings font size");
 }
 
 void SettingsActivity::startValueEdit(const SettingInfo& setting, const int categoryIndex, const int settingIndex) {
@@ -331,6 +324,37 @@ void SettingsActivity::loop() {
     return;
   }
 
+  if (fontSizeEditMode) {
+    if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
+      fontSizeEditMode = false;
+      requestUpdate();
+      return;
+    }
+    if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
+      applyFontSizeEdit();
+      requestUpdate();
+      return;
+    }
+
+    buttonNavigator.onNextRelease([this] {
+      adjustFontSizeEdit(+1);
+      requestUpdate();
+    });
+    buttonNavigator.onPreviousRelease([this] {
+      adjustFontSizeEdit(-1);
+      requestUpdate();
+    });
+    buttonNavigator.onNextContinuous([this] {
+      adjustFontSizeEdit(+1);
+      requestUpdate();
+    });
+    buttonNavigator.onPreviousContinuous([this] {
+      adjustFontSizeEdit(-1);
+      requestUpdate();
+    });
+    return;
+  }
+
   if (valueEditMode) {
     if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
       cancelValueEdit();
@@ -462,8 +486,8 @@ void SettingsActivity::toggleCurrentSetting() {
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
     if (setting.valuePtr == &CrossPointSettings::fontSize) {
-      SETTINGS.fontSize =
-          CrossPointSettings::nextFontSize(SETTINGS.fontFamily, currentValue);
+      startFontSizeEdit();
+      return;
     } else if (setting.valuePtr == &CrossPointSettings::fontFamily) {
       const uint8_t currentIndex =
           CrossPointSettings::fontFamilyToDisplayIndex(SETTINGS.fontFamily);
@@ -486,22 +510,14 @@ void SettingsActivity::toggleCurrentSetting() {
       startValueEdit(setting, row.categoryIndex, row.settingIndex);
       return;
     }
-    if (setting.valuePtr == &CrossPointSettings::screenMarginHorizontal) {
-      SETTINGS.*(setting.valuePtr) = nextReaderMarginValue(SETTINGS.*(setting.valuePtr));
-      if (SETTINGS.uniformMargins) {
-        SETTINGS.screenMarginTop = SETTINGS.screenMarginHorizontal;
-        SETTINGS.screenMarginBottom = SETTINGS.screenMarginHorizontal;
-      }
+    const int currentValue = SETTINGS.*(setting.valuePtr);
+    if (currentValue < setting.valueRange.min ||
+        currentValue > setting.valueRange.max) {
+      SETTINGS.*(setting.valuePtr) = setting.valueRange.min;
+    } else if (currentValue + setting.valueRange.step > setting.valueRange.max) {
+      SETTINGS.*(setting.valuePtr) = setting.valueRange.min;
     } else {
-      const int currentValue = SETTINGS.*(setting.valuePtr);
-      if (currentValue < setting.valueRange.min ||
-          currentValue > setting.valueRange.max) {
-        SETTINGS.*(setting.valuePtr) = setting.valueRange.min;
-      } else if (currentValue + setting.valueRange.step > setting.valueRange.max) {
-        SETTINGS.*(setting.valuePtr) = setting.valueRange.min;
-      } else {
-        SETTINGS.*(setting.valuePtr) = currentValue + setting.valueRange.step;
-      }
+      SETTINGS.*(setting.valuePtr) = currentValue + setting.valueRange.step;
     }
   } else if (setting.type == SettingType::ACTION) {
     auto enterSubActivity = [this](Activity* activity) {
@@ -649,7 +665,7 @@ void SettingsActivity::render(Activity::RenderLock&&) {
   }
 
   // Draw help text
-  const char* confirmLabel = valueEditMode ? tr(STR_CONFIRM) : tr(STR_TOGGLE);
+  const char* confirmLabel = (fontSizeEditMode || valueEditMode) ? tr(STR_CONFIRM) : tr(STR_TOGGLE);
   const auto labels = mappedInput.mapLabels(tr(STR_BACK), confirmLabel, tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
@@ -668,6 +684,54 @@ void SettingsActivity::render(Activity::RenderLock&&) {
 
   if (messagePopupOpen) {
     GUI.drawPopup(renderer, messagePopupText.c_str());
+  }
+
+  if (fontSizeEditMode) {
+    const int optionCount = CrossPointSettings::fontSizeOptionCount(SETTINGS.fontFamily);
+    const int textH = renderer.getTextHeight(UI_12_FONT_ID);
+    constexpr int kItemPadH = 4;
+    constexpr int kItemPadV = 3;
+    constexpr int kItemGap = 10;
+    constexpr int kPopupPad = 16;
+
+    int totalItemsW = 0;
+    for (int i = 0; i < optionCount; i++) {
+      const uint8_t fs = CrossPointSettings::displayIndexToFontSize(SETTINGS.fontFamily, i);
+      const std::string label = fontSizeValueLabel(SETTINGS.fontFamily, fs);
+      totalItemsW += renderer.getTextWidth(UI_12_FONT_ID, label.c_str()) + kItemPadH * 2;
+    }
+    totalItemsW += kItemGap * std::max(0, optionCount - 1);
+
+    const char* title = tr(STR_FONT_SIZE);
+    const int titleW = renderer.getTextWidth(UI_10_FONT_ID, title);
+    const int contentW = std::max(totalItemsW, titleW);
+    const int popupW = std::min(pageWidth - 20, contentW + kPopupPad * 2);
+    const int popupH = 54;
+    const int popupX = (pageWidth - popupW) / 2;
+    const int popupY = (pageHeight - popupH) / 2;
+
+    renderer.fillRect(popupX - 2, popupY - 2, popupW + 4, popupH + 4, true);
+    renderer.fillRect(popupX, popupY, popupW, popupH, false);
+    renderer.drawText(UI_10_FONT_ID, popupX + (popupW - titleW) / 2,
+                      popupY + 6, title, true);
+
+    int curX = popupX + (popupW - totalItemsW) / 2;
+    const int itemY = popupY + 28;
+    for (int i = 0; i < optionCount; i++) {
+      const uint8_t fs = CrossPointSettings::displayIndexToFontSize(SETTINGS.fontFamily, i);
+      const std::string label = fontSizeValueLabel(SETTINGS.fontFamily, fs);
+      const int labelW = renderer.getTextWidth(UI_12_FONT_ID, label.c_str());
+      const int chipW = labelW + kItemPadH * 2;
+      const bool isSelected = (i == static_cast<int>(fontSizeEditDraftIndex));
+
+      if (isSelected) {
+        renderer.fillRect(curX, itemY - kItemPadV, chipW,
+                          textH + kItemPadV * 2, true);
+      }
+      renderer.drawText(UI_12_FONT_ID, curX + kItemPadH, itemY,
+                        label.c_str(), !isSelected);
+      curX += chipW + kItemGap;
+    }
   }
 
   if (valueEditMode) {

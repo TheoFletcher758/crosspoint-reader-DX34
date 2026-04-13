@@ -152,6 +152,8 @@ class SettingsActivity final : public ActivityWithSubactivity {
   bool randomizePopupSuccess = false;
   bool messagePopupOpen = false;
   std::string messagePopupText;
+  bool fontSizeEditMode = false;
+  uint8_t fontSizeEditDraftIndex = 0;
   bool valueEditMode = false;
   int valueEditCategoryIndex = -1;
   int valueEditSettingIndex = -1;
@@ -179,6 +181,9 @@ class SettingsActivity final : public ActivityWithSubactivity {
   void jumpCategory(int direction);
   void buildSettingsList();
   bool isPopupValueSetting(const SettingInfo& setting) const;
+  void startFontSizeEdit();
+  void adjustFontSizeEdit(int delta);
+  void applyFontSizeEdit();
   void startValueEdit(const SettingInfo& setting, int categoryIndex, int settingIndex);
   void adjustValueEdit(int delta);
   void applyValueEdit();
