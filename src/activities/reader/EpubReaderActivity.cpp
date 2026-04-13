@@ -431,68 +431,22 @@ EpubReaderActivity::StatusBarLayout EpubReaderActivity::buildStatusBarLayout(con
 void EpubReaderActivity::loop() {
   flushProgressIfNeeded(false);
 
-  // Pass input responsibility to sub activity if exists
-  if (subActivity) {
-    subActivity->loop();
-    // Deferred exit: process after subActivity->loop() returns to avoid
-    // use-after-free
-    if (pendingSubactivityExit) {
-      pendingSubactivityExit = false;
-      const bool shouldReloadTheme = pendingThemeReload;
-      pendingThemeReload = false;
-      exitActivity();  // suppressUntilAllReleased() called inside
-      if (shouldReloadTheme) {
-        reloadCurrentSectionForDisplaySettings();
-      } else {
-        requestUpdate();
-      }
-    }
-    // Deferred go home: process after subActivity->loop() returns to avoid race
-    // condition
-    if (pendingGoHome) {
-      pendingGoHome = false;
-      exitActivity();
-      if (onGoHome) {
-        onGoHome();
-      }
-      return;  // Don't access 'this' after callback
-    }
-    return;
-  }
+  if (subActivity) { loopSubActivity(); return; }
 
-  // Handle pending go home when no subactivity (e.g., from long press back)
+  // Handle pending navigation callbacks (deferred to avoid use-after-free)
   if (pendingGoHome) {
     pendingGoHome = false;
-    if (onGoHome) {
-      onGoHome();
-    }
-    return;  // Don't access 'this' after callback
+    if (onGoHome) onGoHome();
+    return;
   }
   if (pendingGoLibrary) {
     pendingGoLibrary = false;
-    if (onGoBack) {
-      onGoBack();
-    }
-    return;  // Don't access 'this' after callback
+    if (onGoBack) onGoBack();
+    return;
   }
 
   // Highlight mode intercepts all input while active
-  if (highlightState != HighlightState::NONE) {
-    // SHOW_UNDERLINE: wait 3 seconds then save quote and exit
-    if (highlightState == HighlightState::SHOW_UNDERLINE) {
-      if (millis() - highlightUnderlineStartMs >= 3000) {
-        std::string quote = extractQuoteText();
-        if (!quote.empty()) {
-          saveQuoteToFile(quote);
-          StatusPopup::showBlocking(renderer, "Quote saved!");
-        }
-        exitHighlightMode();
-      }
-      return;
-    }
-    handleHighlightInput();
-    return;
-  }
+  if (highlightState != HighlightState::NONE) { loopHighlightMode(); return; }
 
   if (pendingMenuOpen && !mappedInput.isPressed(MappedInputManager::Button::Confirm) &&
       millis() - lastConfirmReleaseMs > confirmDoubleTapMs) {
@@ -538,8 +492,7 @@ void EpubReaderActivity::loop() {
     return;
   }
 
-  // When long-press chapter skip is disabled, turn pages on press instead of
-  // release.
+  // Determine page turn triggers
   const bool usePressForPageTurn = !SETTINGS.longPressChapterSkip;
   const bool prevTriggered = usePressForPageTurn ? (mappedInput.wasPressed(MappedInputManager::Button::PageBack) ||
                                                     mappedInput.wasPressed(MappedInputManager::Button::Left))
@@ -553,10 +506,50 @@ void EpubReaderActivity::loop() {
                                  : (mappedInput.wasReleased(MappedInputManager::Button::PageForward) || powerPageTurn ||
                                     mappedInput.wasReleased(MappedInputManager::Button::Right));
 
-  if (!prevTriggered && !nextTriggered) {
+  if (prevTriggered || nextTriggered) {
+    loopPageTurn(prevTriggered, nextTriggered);
+  }
+}
+
+void EpubReaderActivity::loopSubActivity() {
+  subActivity->loop();
+  // Deferred exit: process after subActivity->loop() returns to avoid use-after-free
+  if (pendingSubactivityExit) {
+    pendingSubactivityExit = false;
+    const bool shouldReloadTheme = pendingThemeReload;
+    pendingThemeReload = false;
+    exitActivity();
+    if (shouldReloadTheme) {
+      reloadCurrentSectionForDisplaySettings();
+    } else {
+      requestUpdate();
+    }
+  }
+  // Deferred go home: process after subActivity->loop() returns to avoid race condition
+  if (pendingGoHome) {
+    pendingGoHome = false;
+    exitActivity();
+    if (onGoHome) onGoHome();
+  }
+}
+
+void EpubReaderActivity::loopHighlightMode() {
+  // SHOW_UNDERLINE: wait 3 seconds then save quote and exit
+  if (highlightState == HighlightState::SHOW_UNDERLINE) {
+    if (millis() - highlightUnderlineStartMs >= 3000) {
+      std::string quote = extractQuoteText();
+      if (!quote.empty()) {
+        saveQuoteToFile(quote);
+        StatusPopup::showBlocking(renderer, "Quote saved!");
+      }
+      exitHighlightMode();
+    }
     return;
   }
+  handleHighlightInput();
+}
 
+void EpubReaderActivity::loopPageTurn(bool prevTriggered, bool nextTriggered) {
   // At end of the book, forward button goes home and back button returns to last page
   if (currentSpineIndex > 0 && currentSpineIndex >= epub->getSpineItemsCount()) {
     if (nextTriggered) {
@@ -578,7 +571,6 @@ void EpubReaderActivity::loop() {
 
   if (skipChapter) {
     TransitionFeedback::show(renderer, tr(STR_LOADING));
-    // We don't want to delete the section mid-render, so grab the semaphore
     {
       RenderLock lock(*this);
       nextPageNumber = 0;
@@ -609,7 +601,6 @@ void EpubReaderActivity::loop() {
       flushProgressIfNeeded(true);
     } else if (currentSpineIndex > 0) {
       TransitionFeedback::show(renderer, tr(STR_LOADING));
-      // We don't want to delete the section mid-render, so grab the semaphore
       {
         RenderLock lock(*this);
         nextPageNumber = UINT16_MAX;
@@ -633,7 +624,6 @@ void EpubReaderActivity::loop() {
       flushProgressIfNeeded(true);
     } else {
       TransitionFeedback::show(renderer, tr(STR_LOADING));
-      // We don't want to delete the section mid-render, so grab the semaphore
       {
         RenderLock lock(*this);
         nextPageNumber = 0;

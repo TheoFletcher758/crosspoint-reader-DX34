@@ -224,7 +224,11 @@ std::string RecentBooksStore::moveBookToRecents(const std::string &bookPath) {
 
 bool RecentBooksStore::saveToFile() const {
   Storage.mkdir(Paths::kDataDir);
-  return JsonSettingsIO::saveRecentBooks(*this, RECENT_BOOKS_FILE_JSON);
+  const bool ok = JsonSettingsIO::saveRecentBooks(*this, RECENT_BOOKS_FILE_JSON);
+  if (!ok) {
+    LOG_ERR("RBS", "Failed to save recent books to %s", RECENT_BOOKS_FILE_JSON);
+  }
+  return ok;
 }
 
 RecentBook RecentBooksStore::getDataFromBook(std::string path) const {

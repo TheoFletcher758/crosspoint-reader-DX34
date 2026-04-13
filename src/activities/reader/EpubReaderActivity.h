@@ -149,6 +149,9 @@ class EpubReaderActivity final : public ActivityWithSubactivity {
   void onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction action);
   void applyOrientation(uint8_t orientation);
   void reloadCurrentSectionForDisplaySettings();
+  void loopSubActivity();
+  void loopHighlightMode();
+  void loopPageTurn(bool prevTriggered, bool nextTriggered);
   void openReaderMenu();
   void toggleTextRenderMode();
   void addSessionPagesRead(uint32_t amount = 1);
