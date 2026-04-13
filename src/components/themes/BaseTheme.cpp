@@ -174,6 +174,104 @@ void drawDashedRect(const GfxRenderer& renderer, int x, int y, int w, int h) {
   }
 }
 
+std::string buildAuthorInitials(const std::string& author) {
+  std::string initials;
+  bool newWord = true;
+  for (const char ch : author) {
+    if (ch == ' ' || ch == '\t') {
+      newWord = true;
+      continue;
+    }
+    if (newWord) {
+      if (ch >= 'a' && ch <= 'z') {
+        initials.push_back(static_cast<char>(ch - ('a' - 'A')));
+      } else {
+        initials.push_back(ch);
+      }
+      if (initials.size() >= 4) {
+        break;
+      }
+      newWord = false;
+    }
+  }
+  return initials;
+}
+
+std::vector<std::string> wrapText(const GfxRenderer& renderer, const std::string& input, const int maxWidth) {
+  std::vector<std::string> lines;
+  if (input.empty()) {
+    lines.push_back("");
+    return lines;
+  }
+
+  size_t i = 0;
+  while (i < input.size()) {
+    while (i < input.size() && input[i] == ' ') {
+      i++;
+    }
+    if (i >= input.size()) {
+      break;
+    }
+
+    std::string line;
+    size_t lineEndPos = i;
+    while (lineEndPos < input.size()) {
+      size_t wordEnd = lineEndPos;
+      while (wordEnd < input.size() && input[wordEnd] != ' ') {
+        wordEnd++;
+      }
+      const std::string word = input.substr(lineEndPos, wordEnd - lineEndPos);
+      const std::string candidate = line.empty() ? word : (line + " " + word);
+
+      if (renderer.getTextWidth(UI_10_FONT_ID, candidate.c_str()) <= maxWidth) {
+        line = candidate;
+        lineEndPos = wordEnd;
+        while (lineEndPos < input.size() && input[lineEndPos] == ' ') {
+          lineEndPos++;
+        }
+        continue;
+      }
+
+      if (line.empty()) {
+        size_t fit = 1;
+        while (fit < word.size() && renderer.getTextWidth(UI_10_FONT_ID, word.substr(0, fit + 1).c_str()) <= maxWidth) {
+          fit++;
+        }
+        line = word.substr(0, fit);
+        lineEndPos += fit;
+      }
+      break;
+    }
+
+    if (line.empty()) {
+      line = renderer.truncatedText(UI_10_FONT_ID, input.substr(i).c_str(), maxWidth);
+      lines.push_back(line);
+      break;
+    }
+
+    lines.push_back(line);
+    i = lineEndPos;
+  }
+
+  if (lines.empty()) {
+    lines.push_back(renderer.truncatedText(UI_10_FONT_ID, input.c_str(), maxWidth));
+  }
+  return lines;
+}
+
+// Draw a centered "N more above/below" indicator badge
+void drawMoreIndicator(const GfxRenderer& renderer, int count, const char* direction,
+                       int centerX, int centerW, int y, int rowLineHeight) {
+  const std::string text = std::to_string(count) + " more " + direction;
+  const int textW = renderer.getTextWidth(UI_10_FONT_ID, text.c_str());
+  const int badgeW = textW + 24;
+  const int badgeH = rowLineHeight + 6;
+  const int badgeX = centerX + (centerW - badgeW) / 2;
+  renderer.fillRect(badgeX, y, badgeW, badgeH);
+  const int textX = badgeX + (badgeW - textW) / 2;
+  renderer.drawText(UI_10_FONT_ID, textX, y + 3, text.c_str(), false);
+}
+
 struct HomeInfoStats {
   uint32_t bookCount = 0;
   uint32_t sleepBmpCount = 0;
@@ -600,29 +698,6 @@ BookListVisibility BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect re
   (void)bufferRestored;
   (void)storeCoverBuffer;
 
-  auto buildAuthorInitials = [](const std::string& author) {
-    std::string initials;
-    bool newWord = true;
-    for (const char ch : author) {
-      if (ch == ' ' || ch == '\t') {
-        newWord = true;
-        continue;
-      }
-      if (newWord) {
-        if (ch >= 'a' && ch <= 'z') {
-          initials.push_back(static_cast<char>(ch - ('a' - 'A')));
-        } else {
-          initials.push_back(ch);
-        }
-        if (initials.size() >= 4) {
-          break;
-        }
-        newWord = false;
-      }
-    }
-    return initials;
-  };
-
   const int maxRowsCap = std::max(1, UITheme::getInstance().getMetrics().homeRecentBooksCount);
   const int count = std::min(static_cast<int>(recentBooks.size()), maxRowsCap);
   constexpr int maxVisibleBooks = 8;
@@ -641,68 +716,6 @@ BookListVisibility BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect re
   const int rowX = rect.x + (rect.width - rowW) / 2;
   const int contentX = rowX + 12;
   const int contentW = std::max(1, rowW - 24);
-
-  auto wrapText = [&](const std::string& input, const int maxWidth) {
-    std::vector<std::string> lines;
-    if (input.empty()) {
-      lines.push_back("");
-      return lines;
-    }
-
-    size_t i = 0;
-    while (i < input.size()) {
-      while (i < input.size() && input[i] == ' ') {
-        i++;
-      }
-      if (i >= input.size()) {
-        break;
-      }
-
-      std::string line;
-      size_t lineEndPos = i;
-      while (lineEndPos < input.size()) {
-        size_t wordEnd = lineEndPos;
-        while (wordEnd < input.size() && input[wordEnd] != ' ') {
-          wordEnd++;
-        }
-        const std::string word = input.substr(lineEndPos, wordEnd - lineEndPos);
-        const std::string candidate = line.empty() ? word : (line + " " + word);
-
-        if (renderer.getTextWidth(UI_10_FONT_ID, candidate.c_str()) <= maxWidth) {
-          line = candidate;
-          lineEndPos = wordEnd;
-          while (lineEndPos < input.size() && input[lineEndPos] == ' ') {
-            lineEndPos++;
-          }
-          continue;
-        }
-
-        if (line.empty()) {
-          size_t fit = 1;
-          while (fit < word.size() && renderer.getTextWidth(UI_10_FONT_ID, word.substr(0, fit + 1).c_str()) <= maxWidth) {
-            fit++;
-          }
-          line = word.substr(0, fit);
-          lineEndPos += fit;
-        }
-        break;
-      }
-
-      if (line.empty()) {
-        line = renderer.truncatedText(UI_10_FONT_ID, input.substr(i).c_str(), maxWidth);
-        lines.push_back(line);
-        break;
-      }
-
-      lines.push_back(line);
-      i = lineEndPos;
-    }
-
-    if (lines.empty()) {
-      lines.push_back(renderer.truncatedText(UI_10_FONT_ID, input.c_str(), maxWidth));
-    }
-    return lines;
-  };
 
   // Indicator zone height (always reserved when list can scroll)
   const int indicatorH = rowLineHeight + 8;
@@ -729,7 +742,7 @@ BookListVisibility BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect re
     const std::string initials = buildAuthorInitials(recentBooks[idx].author);
     const std::string rowText = initials.empty() ? recentBooks[idx].title
                                                  : (recentBooks[idx].title + " by " + initials);
-    auto lines = wrapText(rowText, contentW);
+    auto lines = wrapText(renderer, rowText, contentW);
     const int h = static_cast<int>(lines.size()) * rowLineHeight + 6;
     return {idx, std::move(lines), h};
   };
@@ -800,15 +813,7 @@ BookListVisibility BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect re
 
   // Draw "N more above" indicator
   if (hasMoreAbove) {
-    const std::string aboveText = std::to_string(firstVisible) + " more above";
-    const int aboveTextW = renderer.getTextWidth(UI_10_FONT_ID, aboveText.c_str());
-    const int aboveW = aboveTextW + 24;
-    const int aboveH = rowLineHeight + 6;
-    const int aboveX = rowX + (rowW - aboveW) / 2;
-    const int aboveY = rowsTopMinY;
-    renderer.fillRect(aboveX, aboveY, aboveW, aboveH);
-    const int aboveTextX = aboveX + (aboveW - aboveTextW) / 2;
-    renderer.drawText(UI_10_FONT_ID, aboveTextX, aboveY + 3, aboveText.c_str(), false);
+    drawMoreIndicator(renderer, firstVisible, "above", rowX, rowW, rowsTopMinY, rowLineHeight);
   }
 
   // Draw visible books
@@ -831,16 +836,7 @@ BookListVisibility BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect re
 
   // Draw "N more below" indicator
   if (hasMoreBelow) {
-    const int remaining = count - lastVisible - 1;
-    const std::string belowText = std::to_string(remaining) + " more below";
-    const int belowTextW = renderer.getTextWidth(UI_10_FONT_ID, belowText.c_str());
-    const int belowW = belowTextW + 24;
-    const int belowH = rowLineHeight + 6;
-    const int belowX = rowX + (rowW - belowW) / 2;
-    const int belowY = effectiveBottomY + 2;
-    renderer.fillRect(belowX, belowY, belowW, belowH);
-    const int belowTextX = belowX + (belowW - belowTextW) / 2;
-    renderer.drawText(UI_10_FONT_ID, belowTextX, belowY + 3, belowText.c_str(), false);
+    drawMoreIndicator(renderer, count - lastVisible - 1, "below", rowX, rowW, effectiveBottomY + 2, rowLineHeight);
   }
 
   return {firstVisible, lastVisible, count};
@@ -986,28 +982,14 @@ void BaseTheme::drawRecentBookSingleCover(GfxRenderer& renderer, Rect rect,
 
   // "N more above" indicator
   if (hasMoreAbove) {
-    const std::string aboveText = std::to_string(clampedIdx) + " more above";
-    const int aboveTextW = renderer.getTextWidth(UI_10_FONT_ID, aboveText.c_str());
-    const int aboveW = aboveTextW + 24;
-    const int aboveBarH = rowLineHeight + 6;
-    const int aboveX = rect.x + (rect.width - aboveW) / 2;
-    renderer.fillRect(aboveX, rect.y + 2, aboveW, aboveBarH);
-    const int aboveTextX = aboveX + (aboveW - aboveTextW) / 2;
-    renderer.drawText(UI_10_FONT_ID, aboveTextX, rect.y + 5, aboveText.c_str(), false);
+    drawMoreIndicator(renderer, clampedIdx, "above", rect.x, rect.width, rect.y + 2, rowLineHeight);
   }
 
   // "N more below" indicator
   if (hasMoreBelow) {
-    const int remaining = count - clampedIdx - 1;
-    const std::string belowText = std::to_string(remaining) + " more below";
-    const int belowTextW = renderer.getTextWidth(UI_10_FONT_ID, belowText.c_str());
-    const int belowW = belowTextW + 24;
     const int belowBarH = rowLineHeight + 6;
-    const int belowX = rect.x + (rect.width - belowW) / 2;
     const int belowY = rect.y + rect.height - belowBarH - 2;
-    renderer.fillRect(belowX, belowY, belowW, belowBarH);
-    const int belowTextX = belowX + (belowW - belowTextW) / 2;
-    renderer.drawText(UI_10_FONT_ID, belowTextX, belowY + 3, belowText.c_str(), false);
+    drawMoreIndicator(renderer, count - clampedIdx - 1, "below", rect.x, rect.width, belowY, rowLineHeight);
   }
 }
 
