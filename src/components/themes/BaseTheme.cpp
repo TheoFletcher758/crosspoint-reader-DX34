@@ -691,12 +691,7 @@ void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const s
 // Draw the "Recent Book" cover card on the home screen
 BookListVisibility BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect,
                                                    const std::vector<RecentBook>& recentBooks, int selectorIndex,
-                                                   bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
-                                                   std::function<bool()> storeCoverBuffer, int scrollOffset) const {
-  (void)coverRendered;
-  (void)coverBufferStored;
-  (void)bufferRestored;
-  (void)storeCoverBuffer;
+                                                   int scrollOffset) const {
 
   const int maxRowsCap = std::max(1, UITheme::getInstance().getMetrics().homeRecentBooksCount);
   const int count = std::min(static_cast<int>(recentBooks.size()), maxRowsCap);

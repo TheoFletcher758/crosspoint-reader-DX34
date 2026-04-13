@@ -1709,8 +1709,9 @@ void CrossPointWebServer::handleWsDownloadRequest(uint8_t num, const String& msg
     fname = nameBuf;
   }
 
-  String ready = "DLREADY:" + fname + ":" + String(wsDownloadSize);
-  wsServer->sendTXT(num, ready);
+  char readyBuf[192];
+  snprintf(readyBuf, sizeof(readyBuf), "DLREADY:%s:%zu", fname.c_str(), wsDownloadSize);
+  wsServer->sendTXT(num, readyBuf);
   LOG_DBG("WS", "Starting download: %s (%d bytes)", fname.c_str(), wsDownloadSize);
 }
 
@@ -1801,8 +1802,9 @@ void CrossPointWebServer::handleWsUploadData(uint8_t num, uint8_t* payload, size
 
   // Send progress update (every 64KB or at end)
   if (wsUploadReceived - wsUploadLastProgressSent >= 65536 || wsUploadReceived >= wsUploadSize) {
-    String progress = "PROGRESS:" + String(wsUploadReceived) + ":" + String(wsUploadSize);
-    wsServer->sendTXT(num, progress);
+    char progressBuf[64];
+    snprintf(progressBuf, sizeof(progressBuf), "PROGRESS:%zu:%zu", wsUploadReceived, wsUploadSize);
+    wsServer->sendTXT(num, progressBuf);
     wsUploadLastProgressSent = wsUploadReceived;
   }
 

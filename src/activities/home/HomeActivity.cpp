@@ -175,53 +175,6 @@ void HomeActivity::onEnter() {
 
 void HomeActivity::onExit() {
   Activity::onExit();
-
-  // Free the stored cover buffer if any
-  freeCoverBuffer();
-  cachedCoverBookIdx = -1;
-}
-
-bool HomeActivity::storeCoverBuffer() {
-  uint8_t *frameBuffer = renderer.getFrameBuffer();
-  if (!frameBuffer) {
-    return false;
-  }
-
-  const size_t bufferSize = GfxRenderer::getBufferSize();
-  auto *newBuffer = static_cast<uint8_t *>(malloc(bufferSize));
-  if (!newBuffer) {
-    return false;
-  }
-
-  memcpy(newBuffer, frameBuffer, bufferSize);
-
-  // Free old buffer only after new one is ready
-  freeCoverBuffer();
-  coverBuffer = newBuffer;
-  return true;
-}
-
-bool HomeActivity::restoreCoverBuffer() {
-  if (!coverBuffer) {
-    return false;
-  }
-
-  uint8_t *frameBuffer = renderer.getFrameBuffer();
-  if (!frameBuffer) {
-    return false;
-  }
-
-  const size_t bufferSize = GfxRenderer::getBufferSize();
-  memcpy(frameBuffer, coverBuffer, bufferSize);
-  return true;
-}
-
-void HomeActivity::freeCoverBuffer() {
-  if (coverBuffer) {
-    free(coverBuffer);
-    coverBuffer = nullptr;
-  }
-  coverBufferStored = false;
 }
 
 void HomeActivity::loop() {
@@ -300,9 +253,6 @@ void HomeActivity::loop() {
               if (scrollOffset > maxOffset) {
                 scrollOffset = maxOffset;
               }
-              coverRendered = false;
-              freeCoverBuffer();
-              cachedCoverBookIdx = -1;
               // exitActivity destroys the ConfirmDialog (and this lambda's
               // captured data), so it must come after all captured vars are used.
               exitActivity();
@@ -364,11 +314,6 @@ void HomeActivity::render(Activity::RenderLock &&) {
   const auto pageHeight = renderer.getScreenHeight();
 
   renderer.clearScreen();
-  // Only restore cached framebuffer if the same cover will be shown.
-  // Restoring when the cover changes leaves old cover pixels that ghost through.
-  const bool coverChanged = SETTINGS.homeLayout == CrossPointSettings::HOME_LAYOUT_SINGLE_COVER
-                            && cachedCoverBookIdx != scrollOffset;
-  bool bufferRestored = !coverChanged && coverBufferStored && restoreCoverBuffer();
 
   GUI.drawHeader(renderer,
                  Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding},
@@ -438,23 +383,15 @@ void HomeActivity::render(Activity::RenderLock &&) {
       std::max(0, menuY - recentAreaBottomGap - recentAreaY);
   switch (SETTINGS.homeLayout) {
     case CrossPointSettings::HOME_LAYOUT_SINGLE_COVER: {
-      const int currentBookIdx = scrollOffset;
-      const bool sameCover = coverBufferStored && cachedCoverBookIdx == currentBookIdx && bufferRestored;
-      if (!sameCover) {
-        GUI.drawRecentBookSingleCover(
-            renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
-            selectorIndex - 1, scrollOffset);
-        // Cache the framebuffer with the cover rendered
-        coverBufferStored = storeCoverBuffer();
-        cachedCoverBookIdx = currentBookIdx;
-      }
+      GUI.drawRecentBookSingleCover(
+          renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
+          selectorIndex - 1, scrollOffset);
       break;
     }
     default: {
       auto vis = GUI.drawRecentBookCover(
           renderer, Rect{0, recentAreaY, pageWidth, recentAreaHeight}, recentBooks,
-          selectorIndex - 1, coverRendered, coverBufferStored, bufferRestored,
-          std::bind(&HomeActivity::storeCoverBuffer, this), scrollOffset);
+          selectorIndex - 1, scrollOffset);
       firstVisibleBookIdx = vis.firstVisible;
       lastVisibleBookIdx = vis.lastVisible;
       // Sync scrollOffset with renderer's adjusted position

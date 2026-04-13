@@ -22,10 +22,6 @@ class HomeActivity final : public ActivityWithSubactivity {
   bool hasOpdsUrl = false;
   bool sleepFavoritesFull = false;
   size_t protectedSleepFavoriteCount = 0;
-  bool coverRendered = false;      // Track if cover has been rendered once
-  bool coverBufferStored = false;  // Track if cover buffer is stored
-  uint8_t* coverBuffer = nullptr;  // HomeActivity's own buffer for cover image
-  int cachedCoverBookIdx = -1;     // Book index of cached cover (-1 = none)
   std::vector<RecentBook> recentBooks;
   const std::function<void(const std::string& path)> onSelectBook;
   const std::function<void()> onMyLibraryOpen;
@@ -36,9 +32,6 @@ class HomeActivity final : public ActivityWithSubactivity {
 
   int getRecentSlotCount() const;
   int getMenuItemCount() const;
-  bool storeCoverBuffer();    // Store frame buffer for cover image
-  bool restoreCoverBuffer();  // Restore frame buffer from stored cover
-  void freeCoverBuffer();     // Free the stored cover buffer
   void refreshSleepFavoriteWarning();
   void loadRecentBooks(int maxBooks);
 

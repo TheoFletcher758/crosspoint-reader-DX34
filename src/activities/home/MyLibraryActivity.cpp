@@ -83,7 +83,7 @@ void collectMoveDestinationPaths(const std::string& basePath,
   }
 
   std::vector<std::string> childDirs;
-  char name[500];
+  char name[256];
   for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
     file.getName(name, sizeof(name));
     if ((!SETTINGS.showHiddenFiles && name[0] == '.') || strcmp(name, "System Volume Information") == 0) {
@@ -240,7 +240,7 @@ void MyLibraryActivity::loadFilesWithLimit() {
   files.reserve(std::min(fileLoadLimit, static_cast<size_t>(512)));
 
   bool hasBooks = false;
-  char name[500];
+  char name[256];
   for (auto file = root.openNextFile(); file; file = root.openNextFile()) {
     file.getName(name, sizeof(name));
     if ((!SETTINGS.showHiddenFiles && name[0] == '.') || strcmp(name, "System Volume Information") == 0) {
