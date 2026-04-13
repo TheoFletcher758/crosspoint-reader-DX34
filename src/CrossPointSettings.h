@@ -250,6 +250,7 @@ public:
     IGNORE = 0,
     SLEEP = 1,
     PAGE_TURN = 2,
+    FORCE_REFRESH = 3,
     SHORT_PWRBTN_COUNT
   };
 
