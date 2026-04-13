@@ -251,15 +251,20 @@ void SleepActivity::onEnter() {
   GUI.drawPopup(renderer, tr(STR_ENTERING_SLEEP));
 
   switch (SETTINGS.sleepScreen) {
-  case (CrossPointSettings::SLEEP_SCREEN_MODE::BLANK):
-    return renderBlankSleepScreen();
-  case (CrossPointSettings::SLEEP_SCREEN_MODE::CUSTOM):
-    return renderCustomSleepScreen();
-  case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER):
-  case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER_CUSTOM):
-    return renderCoverSleepScreen();
-  default:
-    return renderDefaultSleepScreen();
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::BLANK):
+      return renderBlankSleepScreen();
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::CUSTOM):
+      return renderCustomSleepScreen();
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER):
+      return renderCoverSleepScreen();
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER_CUSTOM):
+      if (APP_STATE.lastSleepFromReader) {
+        return renderCoverSleepScreen();
+      } else {
+        return renderCustomSleepScreen();
+      }
+    default:
+      return renderDefaultSleepScreen();
   }
 }
 
