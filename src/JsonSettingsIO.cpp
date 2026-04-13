@@ -34,6 +34,7 @@ void writeReadingThemeObject(JsonObject obj, const ReadingTheme& theme) {
   obj["readerStyleMode"] = theme.readerStyleMode;
   obj["textRenderMode"] = theme.textRenderMode;
   obj["textRenderModeV2"] = true;
+  obj["textAntiAliasing"] = theme.textAntiAliasing;
   obj["embeddedStyle"] =
       theme.readerStyleMode == CrossPointSettings::READER_STYLE_HYBRID;
   obj["hyphenationEnabled"] = theme.hyphenationEnabled;
@@ -131,6 +132,7 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
       theme.textRenderMode = raw;
     }
   }
+  theme.textAntiAliasing = obj["textAntiAliasing"] | (uint8_t)0;
   theme.hyphenationEnabled = obj["hyphenationEnabled"] | (uint8_t)0;
   theme.statusBarEnabled = obj["statusBarEnabled"] | (uint8_t)1;
   theme.statusBarShowBattery = obj["statusBarShowBattery"] | (uint8_t)1;
@@ -497,6 +499,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings &s,
   doc["readerStyleMode"] = s.readerStyleMode;
   doc["textRenderMode"] = s.textRenderMode;
   doc["textRenderModeV2"] = true;
+  doc["textAntiAliasing"] = s.textAntiAliasing;
   doc["shortPwrBtn"] = s.shortPwrBtn;
   doc["orientation"] = s.orientation;
   doc["sideButtonLayout"] = s.sideButtonLayout;
@@ -769,7 +772,7 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings &s, const char *json,
       *needsResave = true;
     }
   }
-  s.textAntiAliasing = 0;
+  s.textAntiAliasing = doc["textAntiAliasing"] | (uint8_t)0;
   s.shortPwrBtn = clamp(doc["shortPwrBtn"] | (uint8_t)S::IGNORE,
                         S::SHORT_PWRBTN_COUNT, S::IGNORE);
   s.orientation = clamp(doc["orientation"] | (uint8_t)S::PORTRAIT,

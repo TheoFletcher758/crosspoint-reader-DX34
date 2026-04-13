@@ -305,7 +305,7 @@ public:
   uint8_t firstLineIndentMode = INDENT_BOOK;
   uint8_t readerStyleMode = READER_STYLE_USER;
   uint8_t textRenderMode = TEXT_RENDER_CRISP;
-  // Legacy binary-compat field; always 0. Do not remove (breaks serialization).
+  // Font antialiasing: 0 = off (crisp BW), 1 = on (4-level grayscale)
   uint8_t textAntiAliasing = 0;
   // Short power button click behaviour
   uint8_t shortPwrBtn = IGNORE;

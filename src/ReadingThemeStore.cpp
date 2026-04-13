@@ -124,6 +124,7 @@ ReadingTheme ReadingThemeStore::fromSettings(const std::string& name,
   theme.firstLineIndentMode = settings.firstLineIndentMode;
   theme.readerStyleMode = settings.readerStyleMode;
   theme.textRenderMode = settings.textRenderMode;
+  theme.textAntiAliasing = settings.textAntiAliasing;
   theme.hyphenationEnabled = settings.hyphenationEnabled;
   theme.statusBarEnabled = settings.statusBarEnabled;
   theme.statusBarShowBattery = settings.statusBarShowBattery;
@@ -196,7 +197,7 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
       CrossPointSettings::TEXT_RENDER_CRISP);
   settings.embeddedStyle =
       settings.readerStyleMode == CrossPointSettings::READER_STYLE_HYBRID ? 1 : 0;
-  settings.textAntiAliasing = 0;
+  settings.textAntiAliasing = theme.textAntiAliasing;
   settings.hyphenationEnabled = theme.hyphenationEnabled ? 1 : 0;
   settings.statusBarEnabled = theme.statusBarEnabled ? 1 : 0;
   settings.statusBarShowBattery = theme.statusBarShowBattery ? 1 : 0;
@@ -279,6 +280,7 @@ bool ReadingThemeStore::matchesCurrent(const ReadingTheme& theme) const {
          current.firstLineIndentMode == theme.firstLineIndentMode &&
          current.readerStyleMode == theme.readerStyleMode &&
          current.textRenderMode == theme.textRenderMode &&
+         current.textAntiAliasing == theme.textAntiAliasing &&
          current.hyphenationEnabled == theme.hyphenationEnabled &&
          current.statusBarEnabled == theme.statusBarEnabled &&
          current.statusBarShowBattery == theme.statusBarShowBattery &&
@@ -566,6 +568,7 @@ ReadingTheme ReadingThemeStore::normalizeTheme(const ReadingTheme& theme) {
       theme.textRenderMode, 0,
       CrossPointSettings::TEXT_RENDER_MODE_COUNT - 1,
       CrossPointSettings::TEXT_RENDER_CRISP);
+  normalized.textAntiAliasing = theme.textAntiAliasing ? 1 : 0;
   normalized.hyphenationEnabled = theme.hyphenationEnabled ? 1 : 0;
   normalized.statusBarEnabled = theme.statusBarEnabled ? 1 : 0;
   normalized.statusBarShowBattery = theme.statusBarShowBattery ? 1 : 0;
