@@ -49,8 +49,9 @@ inline std::vector<SettingInfo> getSettingsList() {
                       StrId::STR_CAT_READER));
   s.push_back(SettingInfo::Value(StrId::STR_LINE_SPACING, &CrossPointSettings::lineSpacingPercent, {65, 150, 5},
                        "lineSpacingPercent", StrId::STR_CAT_READER));
-  s.push_back(SettingInfo::Toggle(StrId::STR_DYNAMIC_MARGINS, &CrossPointSettings::dynamicMargins,
-                        "dynamicMargins", StrId::STR_CAT_READER));
+  s.push_back(SettingInfo::Enum(StrId::STR_DYNAMIC_MARGINS, &CrossPointSettings::dynamicMargins,
+                      {StrId::STR_DYNAMIC_MARGINS_OFF, StrId::STR_DYNAMIC_MARGINS_10, StrId::STR_DYNAMIC_MARGINS_20},
+                      "dynamicMargins", StrId::STR_CAT_READER));
   s.push_back(SettingInfo::Toggle(StrId::STR_UNIFORM_MARGINS, &CrossPointSettings::uniformMargins,
                         "uniformMargins", StrId::STR_CAT_READER));
   // Uniform margin entry (shown when uniformMargins == 1)
@@ -86,8 +87,10 @@ inline std::vector<SettingInfo> getSettingsList() {
                       {StrId::STR_NONE_OPT, StrId::STR_PARA_SPACING_17, StrId::STR_PARA_SPACING_25, StrId::STR_PARA_SPACING_33},
                       "extraParagraphSpacingLevel", StrId::STR_CAT_READER));
   s.push_back(SettingInfo::Enum(StrId::STR_TEXT_RENDER_MODE, &CrossPointSettings::textRenderMode,
-                      {StrId::STR_RENDER_CRISP, StrId::STR_RENDER_DARK},
+                      {StrId::STR_RENDER_CRISP, StrId::STR_RENDER_DARK, StrId::STR_RENDER_BIONIC},
                       "textRenderMode", StrId::STR_CAT_READER));
+  s.push_back(SettingInfo::Toggle(StrId::STR_HYPHENATION, &CrossPointSettings::hyphenationEnabled,
+                        "hyphenationEnabled", StrId::STR_CAT_READER));
 
   // Status bar customization
   s.push_back(SettingInfo::Toggle(StrId::STR_STATUS_BAR, &CrossPointSettings::statusBarEnabled, "statusBarEnabled",

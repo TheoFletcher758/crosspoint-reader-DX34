@@ -489,10 +489,6 @@ void SettingsActivity::toggleCurrentSetting() {
       buildSettingsList();
       selectedRowIndex = std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
     }
-    if (setting.valuePtr == &CrossPointSettings::dynamicMargins) {
-      buildSettingsList();
-      selectedRowIndex = std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
-    }
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
     if (setting.valuePtr == &CrossPointSettings::fontSize) {
@@ -512,6 +508,10 @@ void SettingsActivity::toggleCurrentSetting() {
       SETTINGS.fontSize = CrossPointSettings::normalizeFontSizeForFamily(
           SETTINGS.fontFamily, SETTINGS.fontSize);
       SETTINGS.lineSpacingPercent = 90;  // Reset to default on font change
+      buildSettingsList();
+      selectedRowIndex = std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
+    }
+    if (setting.valuePtr == &CrossPointSettings::dynamicMargins) {
       buildSettingsList();
       selectedRowIndex = std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
     }

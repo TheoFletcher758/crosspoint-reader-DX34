@@ -350,7 +350,7 @@ public:
   uint8_t screenMargin = 20;
   // Reader screen margin settings
   uint8_t uniformMargins = 0; // 0 = separate margins, 1 = uniform (all sides equal)
-  uint8_t dynamicMargins = 0; // 0 = manual margins, 1 = auto-calculate horizontal margins from font
+  uint8_t dynamicMargins = 0; // 0 = off, 1 = auto-calculate (10px min), 2 = auto-calculate (20px min)
   uint8_t screenMarginHorizontal = 20;
   uint8_t screenMarginTop = 20;
   uint8_t screenMarginBottom = 20;

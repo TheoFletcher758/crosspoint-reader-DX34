@@ -1208,7 +1208,7 @@ void EpubReaderActivity::render(Activity::RenderLock&& lock) {
     constexpr int targetCPL = 62;
     const int targetTextWidth = targetCPL * avgCharWidth;
     const int availableWidth = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
-    constexpr int minDynamicMargin = 10;
+    const int minDynamicMargin = (SETTINGS.dynamicMargins >= 2) ? 20 : 10;
     const int dynamicMargin = std::max(minDynamicMargin, std::min(55, (availableWidth - targetTextWidth) / 2));
     orientedMarginLeft += dynamicMargin;
     orientedMarginRight += dynamicMargin;

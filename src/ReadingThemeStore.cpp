@@ -169,7 +169,7 @@ void ReadingThemeStore::applyThemeToSettings(const ReadingTheme& theme,
   settings.lineSpacingPercent =
       clampRange(theme.lineSpacingPercent, 65, 150, 110);
   settings.uniformMargins = theme.uniformMargins ? 1 : 0;
-  settings.dynamicMargins = theme.dynamicMargins ? 1 : 0;
+  settings.dynamicMargins = (theme.dynamicMargins > 2) ? 0 : theme.dynamicMargins;
   settings.screenMarginHorizontal =
       clampRange(theme.screenMarginHorizontal, 0, 55, 20);
   settings.screenMarginTop = clampRange(theme.screenMarginTop, 0, 55, 20);

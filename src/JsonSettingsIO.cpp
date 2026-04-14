@@ -84,7 +84,7 @@ void readReadingThemeObject(JsonObject obj, ReadingTheme& theme) {
   theme.uniformMargins = obj["uniformMargins"] | (uint8_t)0;
   if (theme.uniformMargins > 1) theme.uniformMargins = 0;
   theme.dynamicMargins = obj["dynamicMargins"] | (uint8_t)0;
-  if (theme.dynamicMargins > 1) theme.dynamicMargins = 0;
+  if (theme.dynamicMargins > 2) theme.dynamicMargins = 0;
   theme.screenMarginHorizontal = obj["screenMarginHorizontal"] | (uint8_t)20;
   theme.screenMarginTop = obj["screenMarginTop"] | (uint8_t)20;
   theme.screenMarginBottom = obj["screenMarginBottom"] | (uint8_t)20;

@@ -280,7 +280,8 @@ void ReaderSettingsActivity::buildSettingsList() {
   pushReader(SettingInfo::Enum(StrId::STR_FONT_SIZE, &CrossPointSettings::fontSize,
       {StrId::STR_SMALL, StrId::STR_MEDIUM, StrId::STR_LARGE}));
   pushReader(SettingInfo::Value(StrId::STR_LINE_SPACING, &CrossPointSettings::lineSpacingPercent, {65, 150, 5}));
-  pushReader(SettingInfo::Toggle(StrId::STR_DYNAMIC_MARGINS, &CrossPointSettings::dynamicMargins));
+  pushReader(SettingInfo::Enum(StrId::STR_DYNAMIC_MARGINS, &CrossPointSettings::dynamicMargins,
+      {StrId::STR_DYNAMIC_MARGINS_OFF, StrId::STR_DYNAMIC_MARGINS_10, StrId::STR_DYNAMIC_MARGINS_20}));
   pushReader(SettingInfo::Toggle(StrId::STR_UNIFORM_MARGINS, &CrossPointSettings::uniformMargins));
   pushReader(SettingInfo::Value(StrId::STR_SCREEN_MARGIN, &CrossPointSettings::screenMarginHorizontal, {0, 55, 5}));
   pushReader(SettingInfo::Value(StrId::STR_SCREEN_MARGIN_HORIZONTAL, &CrossPointSettings::screenMarginHorizontal, {0, 55, 5}));
@@ -400,11 +401,6 @@ void ReaderSettingsActivity::toggleCurrentSetting() {
       selectedRowIndex =
           std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
     }
-    if (setting.valuePtr == &CrossPointSettings::dynamicMargins) {
-      buildSettingsList();
-      selectedRowIndex =
-          std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
-    }
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     if (setting.valuePtr == &CrossPointSettings::fontSize) {
       startFontSizeEdit();
@@ -426,6 +422,11 @@ void ReaderSettingsActivity::toggleCurrentSetting() {
       const int currentValue = SETTINGS.*(setting.valuePtr);
       SETTINGS.*(setting.valuePtr) =
           (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
+    }
+    if (setting.valuePtr == &CrossPointSettings::dynamicMargins) {
+      buildSettingsList();
+      selectedRowIndex =
+          std::min(selectedRowIndex, static_cast<int>(flatRows.size()) - 1);
     }
   } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
     if (isPopupValueSetting(setting)) {
