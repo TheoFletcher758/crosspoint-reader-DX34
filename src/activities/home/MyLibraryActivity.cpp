@@ -289,12 +289,12 @@ void MyLibraryActivity::loadFilesWithLimit() {
 
   sortFileList(files);
 
-  // Randomize display order for /sleep pause so images aren't always alphabetical
-  if (basepath == "/sleep pause") {
-    // Separate directories (sorted first by sortFileList) from files
+  // Randomize display order for media-browsing folders
+  if (basepath == "/sleep pause" || basepath == "/sleep library" || basepath == "/books") {
+    // Directories stay sorted at top; shuffle only files
     auto firstFile = std::partition_point(files.begin(), files.end(),
         [](const std::string& s) { return !s.empty() && s.back() == '/'; });
-    std::shuffle(firstFile, files.end(), std::mt19937{std::random_device{}()});
+    std::shuffle(firstFile, files.end(), std::mt19937{esp_random()});
   }
 
   rebuildFilteredFileIndexes();
