@@ -4,8 +4,10 @@
 #include <string>
 
 #include <HalDisplay.h>
+#include <HalStorage.h>
 #include <GfxRenderer.h>
 
+#include "Bitmap.h"
 #include "fontIds.h"
 #include "images/BootImage.h"
 
@@ -45,7 +47,31 @@ void BootActivity::setProgress(const int percent, const char* status) {
   renderEmbeddedBootScreen(HalDisplay::FAST_REFRESH, false);
 }
 
+bool BootActivity::tryDrawCustomBootImage() const {
+  FsFile file;
+  if (!Storage.openFileForRead("BOOT", "/boot.bmp", file)) {
+    return false;
+  }
+  Bitmap bitmap(file);
+  if (bitmap.parseHeaders() != BmpReaderError::Ok) {
+    file.close();
+    return false;
+  }
+  const auto pageWidth = renderer.getScreenWidth();
+  const auto pageHeight = renderer.getScreenHeight();
+  const int x = (pageWidth - bitmap.getWidth()) / 2;
+  const int y = (pageHeight - bitmap.getHeight()) / 2;
+  renderer.clearScreen();
+  renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight);
+  file.close();
+  customBootImageLoaded = true;
+  return true;
+}
+
 void BootActivity::drawStaticBootScreen() const {
+  if (tryDrawCustomBootImage()) {
+    return;
+  }
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
   const int x = (pageWidth - kBootImageWidth) / 2;
@@ -93,6 +119,8 @@ void BootActivity::renderEmbeddedBootScreen(
   if (fullRedraw) {
     drawStaticBootScreen();
   }
-  drawDynamicBootScreen();
+  if (!customBootImageLoaded) {
+    drawDynamicBootScreen();
+  }
   renderer.displayBuffer(refreshMode);
 }

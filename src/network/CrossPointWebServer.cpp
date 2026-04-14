@@ -238,9 +238,6 @@ void CrossPointWebServer::begin() {
   // Delete file/folder endpoint
   server->on("/delete", HTTP_POST, [this] { handleDelete(); });
 
-  // Search endpoint (recursive file scan)
-  server->on("/api/search", HTTP_GET, [this] { handleSearch(); });
-
   // JSZip library for EPUB optimizer
   server->on("/js/jszip.min.js", HTTP_GET, [this] { handleJszip(); });
 
@@ -554,115 +551,6 @@ void CrossPointWebServer::scanFiles(const char* path, const std::function<void(F
     file = root.openNextFile();
   }
   root.close();
-}
-
-void CrossPointWebServer::scanFilesRecursive(const char* basePath,
-    const std::function<void(const String& fullPath, const FileInfo&)>& callback) const {
-  // Stack-based iterative traversal to avoid deep recursion on ESP32
-  constexpr size_t MAX_DIR_STACK = 64;
-  std::vector<String> dirStack;
-  dirStack.push_back(String(basePath));
-
-  while (!dirStack.empty()) {
-    String dirPath = dirStack.back();
-    dirStack.pop_back();
-
-    FsFile root = Storage.open(dirPath.c_str());
-    if (!root || !root.isDirectory()) {
-      if (root) root.close();
-      continue;
-    }
-
-    FsFile file = root.openNextFile();
-    char name[256];
-    while (file) {
-      file.getName(name, sizeof(name));
-      auto fileName = String(name);
-
-      // Skip hidden items
-      bool shouldHide = !SETTINGS.showHiddenFiles && fileName.startsWith(".");
-      if (!shouldHide) {
-        for (size_t i = 0; i < HIDDEN_ITEMS_COUNT; i++) {
-          if (fileName.equals(HIDDEN_ITEMS[i])) {
-            shouldHide = true;
-            break;
-          }
-        }
-      }
-
-      if (!shouldHide) {
-        // Build full path
-        String fullPath = dirPath;
-        if (!fullPath.endsWith("/")) fullPath += "/";
-        fullPath += fileName;
-
-        FileInfo info;
-        info.name = fileName;
-        info.isDirectory = file.isDirectory();
-
-        if (info.isDirectory) {
-          info.size = 0;
-          info.isEpub = false;
-          info.isBmp = false;
-          // Queue subdirectory for scanning (cap depth to prevent heap exhaustion)
-          if (dirStack.size() < MAX_DIR_STACK) {
-            dirStack.push_back(fullPath);
-          }
-        } else {
-          info.size = file.size();
-          info.isEpub = isEpubFile(info.name);
-          info.isBmp = isBmpFile(info.name);
-        }
-
-        callback(fullPath, info);
-      }
-
-      file.close();
-      yield();
-      esp_task_wdt_reset();
-      file = root.openNextFile();
-    }
-    root.close();
-  }
-}
-
-void CrossPointWebServer::handleSearch() const {
-  // Stream all files recursively as JSON array with full paths
-  // Client-side JS does the fuzzy matching
-  server->setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server->send(200, "application/json", "");
-  server->sendContent("[");
-
-  char output[768];
-  constexpr size_t outputSize = sizeof(output);
-  bool seenFirst = false;
-  JsonDocument doc;
-
-  scanFilesRecursive("/", [this, &output, &doc, &seenFirst](const String& fullPath, const FileInfo& info) {
-    doc.clear();
-    doc["name"] = info.name;
-    doc["path"] = fullPath;
-    doc["size"] = info.size;
-    doc["isDirectory"] = info.isDirectory;
-    doc["isEpub"] = info.isEpub;
-    doc["isBmp"] = info.isBmp;
-
-    const size_t written = serializeJson(doc, output, outputSize);
-    if (written >= outputSize) {
-      return;  // Skip oversized entries
-    }
-
-    if (seenFirst) {
-      server->sendContent(",");
-    } else {
-      seenFirst = true;
-    }
-    server->sendContent(output);
-  });
-
-  server->sendContent("]");
-  server->sendContent("");
-  LOG_DBG("WEB", "Served recursive search listing");
 }
 
 bool CrossPointWebServer::isEpubFile(const String& filename) const {
