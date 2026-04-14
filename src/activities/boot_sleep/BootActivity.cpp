@@ -59,10 +59,20 @@ bool BootActivity::tryDrawCustomBootImage() const {
   }
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
-  const int x = (pageWidth - bitmap.getWidth()) / 2;
-  const int y = (pageHeight - bitmap.getHeight()) / 2;
+
+  // Use 2x area for larger images, 1x for small ones.
+  const bool isLarge = bitmap.getWidth() > kBootImageWidth ||
+                       bitmap.getHeight() > kBootImageHeight;
+  const int maxW = isLarge ? kBootImageWidth * 2 : kBootImageWidth;
+  const int maxH = isLarge ? kBootImageHeight * 2 : kBootImageHeight;
+  const int drawWidth = std::min(bitmap.getWidth(), maxW);
+  const int drawHeight = std::min(bitmap.getHeight(), maxH);
+  const int x = (pageWidth - drawWidth) / 2;
+  const int centeredY = (pageHeight - drawHeight) / 2;
+  const int y = centeredY + kBootImageVerticalOffset;
+
   renderer.clearScreen();
-  renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight);
+  renderer.drawBitmap(bitmap, x, y, maxW, maxH);
   file.close();
   customBootImageLoaded = true;
   return true;
