@@ -6,6 +6,7 @@
 
 #include "NetworkModeSelectionActivity.h"
 #include "activities/ActivityWithSubactivity.h"
+#include "HalDisplay.h"
 #include "network/CrossPointWebServer.h"
 
 // Web server activity states
@@ -41,6 +42,9 @@ class CrossPointWebServerActivity final : public ActivityWithSubactivity {
   // Server status
   std::string connectedIP;
   std::string connectedSSID;  // For STA mode: network name, For AP mode: AP name
+
+  // Display refresh control — first render uses HALF_REFRESH to clear ghosting
+  HalDisplay::RefreshMode nextRefreshMode = HalDisplay::HALF_REFRESH;
 
   // Performance monitoring
   unsigned long lastHandleClientTime = 0;

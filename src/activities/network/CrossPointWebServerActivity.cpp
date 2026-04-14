@@ -342,12 +342,14 @@ void CrossPointWebServerActivity::render(Activity::RenderLock&&) {
   if (state == WebServerActivityState::SERVER_RUNNING) {
     renderer.clearScreen();
     renderServerRunning();
-    renderer.displayBuffer();
+    renderer.displayBuffer(nextRefreshMode);
+    nextRefreshMode = HalDisplay::FAST_REFRESH;
   } else if (state == WebServerActivityState::AP_STARTING) {
     renderer.clearScreen();
     const auto pageHeight = renderer.getScreenHeight();
     renderer.drawCenteredText(UI_12_FONT_ID, pageHeight / 2 - 20, tr(STR_STARTING_HOTSPOT), true, EpdFontFamily::REGULAR);
-    renderer.displayBuffer();
+    renderer.displayBuffer(nextRefreshMode);
+    nextRefreshMode = HalDisplay::FAST_REFRESH;
   }
 }
 
