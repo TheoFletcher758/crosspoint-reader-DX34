@@ -56,6 +56,7 @@
 
 #include <builtinFonts/unifont_14_regular.h>
 #include <builtinFonts/unifont_18_regular.h>
+#include <builtinFonts/helveticaneue_8_regular.h>
 
 #include <builtinFonts/ui_8_regular.h>
 #include <builtinFonts/ui_10_regular.h>
