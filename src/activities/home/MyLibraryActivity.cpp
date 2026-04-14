@@ -713,6 +713,7 @@ void MyLibraryActivity::onEnter() {
   pendingSearchSubmit = false;
   pendingSearchCancel = false;
 
+  renderer.requestHalfRefresh();
   requestUpdate();
 }
 

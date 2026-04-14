@@ -269,7 +269,7 @@ void SettingsActivity::onEnter() {
   lastNextTapMs = 0;
   lastPreviousTapMs = 0;
 
-  // Trigger first update
+  renderer.requestHalfRefresh();
   requestUpdate();
 }
 
