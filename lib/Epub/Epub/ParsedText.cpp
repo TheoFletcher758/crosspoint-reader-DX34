@@ -127,17 +127,20 @@ void ParsedText::layoutAndExtractLines(
     canBreakBefore[i] = !wordContinues[i];
   }
 
+  // Track which sub-tokens need a visible '-' appended when at end of line.
+  std::vector<bool> wordNeedsHyphenAtBreak(words.size(), false);
+
   if (hyphenationEnabled) {
-    expandHyphenationBreaks(renderer, fontId, wordWidths, canBreakBefore);
+    expandHyphenationBreaks(renderer, fontId, wordWidths, canBreakBefore, wordNeedsHyphenAtBreak);
   }
 
-  std::vector<size_t> lineBreakIndices = computeLineBreaks(renderer, fontId, pageWidth, spaceWidth, wordWidths, wordContinues, canBreakBefore);
+  std::vector<size_t> lineBreakIndices = computeLineBreaks(renderer, fontId, pageWidth, spaceWidth, wordWidths, wordContinues, canBreakBefore, wordNeedsHyphenAtBreak);
   const size_t lineCount =
       includeLastLine ? lineBreakIndices.size() : lineBreakIndices.size() - 1;
 
   for (size_t i = 0; i < lineCount; ++i) {
     extractLine(i, pageWidth, spaceWidth, wordWidths, wordContinues,
-                lineBreakIndices, processLine);
+                lineBreakIndices, wordNeedsHyphenAtBreak, processLine);
   }
 
   // Remove consumed words so size() reflects only remaining words
@@ -167,7 +170,8 @@ ParsedText::calculateWordWidths(const GfxRenderer &renderer, const int fontId) {
 void ParsedText::expandHyphenationBreaks(
     const GfxRenderer &renderer, const int fontId,
     std::vector<uint16_t> &wordWidths,
-    std::vector<bool> &canBreakBefore) {
+    std::vector<bool> &canBreakBefore,
+    std::vector<bool> &wordNeedsHyphenAtBreak) {
   // Walk the word list and split hyphenable words into sub-tokens.
   // Process in forward order; new sub-tokens are inserted right after the
   // current index, so we advance past them.
@@ -196,11 +200,8 @@ void ParsedText::expandHyphenationBreaks(
     size_t prev = 0;
     for (const auto &b : breaks) {
       std::string prefix = original.substr(prev, b.byteOffset - prev);
-      if (b.requiresInsertedHyphen) {
-        prefix.push_back('-');
-      }
       parts.push_back(std::move(prefix));
-      partNeedsHyphen.push_back(false);  // prefix already has hyphen baked in
+      partNeedsHyphen.push_back(b.requiresInsertedHyphen);
       prev = b.byteOffset;
     }
     // Last part (suffix after final break)
@@ -215,6 +216,7 @@ void ParsedText::expandHyphenationBreaks(
     words[i] = parts[0];
     wordWidths[i] = measureWordWidth(renderer, fontId, parts[0], style,
                                      blockStyle.letterSpacing);
+    wordNeedsHyphenAtBreak[i] = partNeedsHyphen[0];
     // canBreakBefore[i] stays as it was (inherits from the original word).
 
     // Insert remaining parts after position i.
@@ -229,6 +231,8 @@ void ParsedText::expandHyphenationBreaks(
                            true);  // no space before sub-token
       canBreakBefore.insert(canBreakBefore.begin() + insertPos,
                             true);  // but CAN break here (hyphenation point)
+      wordNeedsHyphenAtBreak.insert(wordNeedsHyphenAtBreak.begin() + insertPos,
+                                    partNeedsHyphen[p]);
     }
 
     // Advance i past all the new sub-tokens so we don't re-process them.
@@ -241,9 +245,8 @@ ParsedText::computeLineBreaks(const GfxRenderer &renderer, const int fontId,
                               const int pageWidth, const int spaceWidth,
                               std::vector<uint16_t> &wordWidths,
                               std::vector<bool> &continuesVec,
-                              const std::vector<bool> &canBreakBefore) {
-  (void)renderer;
-  (void)fontId;
+                              const std::vector<bool> &canBreakBefore,
+                              const std::vector<bool> &wordNeedsHyphenAtBreak) {
   if (words.empty()) {
     return {};
   }
@@ -259,6 +262,10 @@ ParsedText::computeLineBreaks(const GfxRenderer &renderer, const int fontId,
           : 0;
 
   const size_t totalWordCount = words.size();
+
+  // Pre-compute width of a visible '-' for hyphenation line-end accounting.
+  const int hyphenWidth = renderer.getTextWidthSpaced(fontId, "-",
+      blockStyle.letterSpacing, EpdFontFamily::REGULAR);
 
   // DP table to store the minimum badness (cost) of lines starting at index i
   std::vector<int> dp(totalWordCount);
@@ -296,11 +303,20 @@ ParsedText::computeLineBreaks(const GfxRenderer &renderer, const int fontId,
         continue;
       }
 
+      // Account for visible hyphen width when this word ends the line.
+      const int lineEndWidth = currlen +
+          (wordNeedsHyphenAtBreak[j] ? hyphenWidth : 0);
+
       int cost;
       if (j == totalWordCount - 1) {
         cost = 0; // Last line
       } else {
-        const int remainingSpace = effectivePageWidth - currlen;
+        if (lineEndWidth > effectivePageWidth && j > static_cast<size_t>(i)) {
+          // Trailing hyphen pushes line over — skip this break point
+          // (unless it's the only word, handled by oversized-word fallback).
+          continue;
+        }
+        const int remainingSpace = effectivePageWidth - lineEndWidth;
         // Use long long for the square to prevent overflow
         const long long cost_ll =
             static_cast<long long>(remainingSpace) * remainingSpace + dp[j + 1];
@@ -405,6 +421,7 @@ void ParsedText::extractLine(
     const std::vector<uint16_t> &wordWidths,
     const std::vector<bool> &continuesVec,
     const std::vector<size_t> &lineBreakIndices,
+    const std::vector<bool> &wordNeedsHyphenAtBreak,
     const std::function<void(std::shared_ptr<TextBlock>)> &processLine) {
   const size_t lineBreak = lineBreakIndices[breakIndex];
   const size_t lastBreakAt =
@@ -497,6 +514,12 @@ void ParsedText::extractLine(
     if (containsSoftHyphen(word)) {
       stripSoftHyphensInPlace(word);
     }
+  }
+
+  // Append visible hyphen to the last word on the line if it needs one
+  // (the hyphen is only shown at actual line breaks, not mid-line).
+  if (!lineWords.empty() && wordNeedsHyphenAtBreak[lineBreak - 1]) {
+    lineWords.back().push_back('-');
   }
 
   processLine(
